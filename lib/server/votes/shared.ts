@@ -8,12 +8,15 @@ export type SavePlayerVoteInput = {
   baseVote: number | null;
   cleanSheet?: number;
   goals?: number;
+  goalsConceded?: number;
   isSv: boolean;
   matchdayId: string;
   notes?: string | null;
   ownGoals?: number;
   penaltiesMissed?: number;
   penaltiesSaved?: number;
+  /** RF: tracciamento only; non entra nel fantavoto. */
+  penaltiesScored?: number;
   playerId: string;
   redCards?: number;
   yellowCards?: number;
@@ -23,11 +26,13 @@ export type ValidatedPlayerVoteInput = FantavoteInput & {
   assists: number;
   cleanSheet: number;
   goals: number;
+  goalsConceded: number;
   matchdayId: string;
   notes: string | null;
   ownGoals: number;
   penaltiesMissed: number;
   penaltiesSaved: number;
+  penaltiesScored: number;
   playerId: string;
   redCards: number;
   yellowCards: number;
@@ -75,24 +80,28 @@ export function validatePlayerVoteInput(
     baseVote: input.baseVote,
     cleanSheet: input.cleanSheet ?? 0,
     goals: input.goals ?? 0,
+    goalsConceded: input.goalsConceded ?? 0,
     isSv: input.isSv,
     matchdayId: input.matchdayId,
     notes: input.notes ?? null,
     ownGoals: input.ownGoals ?? 0,
     penaltiesMissed: input.penaltiesMissed ?? 0,
     penaltiesSaved: input.penaltiesSaved ?? 0,
+    penaltiesScored: input.penaltiesScored ?? 0,
     playerId: input.playerId,
     redCards: input.redCards ?? 0,
     yellowCards: input.yellowCards ?? 0
   };
 
   assertNonNegativeInteger("goals", validated.goals);
+  assertNonNegativeInteger("goalsConceded", validated.goalsConceded);
   assertNonNegativeInteger("assists", validated.assists);
   assertNonNegativeInteger("yellowCards", validated.yellowCards);
   assertNonNegativeInteger("redCards", validated.redCards);
   assertNonNegativeInteger("ownGoals", validated.ownGoals);
   assertNonNegativeInteger("penaltiesMissed", validated.penaltiesMissed);
   assertNonNegativeInteger("penaltiesSaved", validated.penaltiesSaved);
+  assertNonNegativeInteger("penaltiesScored", validated.penaltiesScored);
   assertNonNegativeInteger("cleanSheet", validated.cleanSheet);
 
   if (validated.isSv) {

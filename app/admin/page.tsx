@@ -59,6 +59,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
           <div className="flex flex-wrap gap-3">
             <Link
+              href="/admin/votes"
+              className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-100"
+            >
+              Pagelle unificate
+            </Link>
+            <Link
               href="/admin/players"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
             >
@@ -104,6 +110,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
                   >
                     Genera calendario
+                  </Link>
+                  <Link
+                    href={`/admin/leagues/${league.id}/teams`}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                  >
+                    Squadre / rose
                   </Link>
                   <Link
                     href={`/admin/leagues/${league.id}/players`}

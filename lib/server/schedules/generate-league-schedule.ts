@@ -62,6 +62,18 @@ export async function generateLeagueSchedule(
       throw new Error("Servono almeno 2 squadre per generare il calendario.");
     }
 
+    if (input.mode !== "DOUBLE_ROUND") {
+      throw new Error(
+        "Il campionato supporta solo andata e ritorno (18 giornate con 10 squadre)."
+      );
+    }
+
+    if (teams.length !== 10) {
+      throw new Error(
+        `Per il campionato servono esattamente 10 squadre (ora: ${teams.length}).`
+      );
+    }
+
     const existingFixture = await tx.fantasyFixture.findFirst({
       where: {
         matchday: {

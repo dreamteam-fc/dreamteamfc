@@ -225,7 +225,7 @@ async function main() {
         data: {
           status: LeagueStatus.ACTIVE,
           startersCount: 5,
-          maxAutoSubs: 3,
+          maxAutoSubs: 1,
           maxTeams: 8,
           createdById: adminUser.id
         }
@@ -235,7 +235,7 @@ async function main() {
           name: DEMO_LEAGUE_NAME,
           status: LeagueStatus.ACTIVE,
           startersCount: 5,
-          maxAutoSubs: 3,
+          maxAutoSubs: 1,
           maxTeams: 8,
           createdById: adminUser.id
         }

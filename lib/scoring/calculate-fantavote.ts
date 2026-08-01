@@ -29,12 +29,18 @@ export function calculateFantavote(
   const redCards = input.redCards ?? 0;
   const ownGoals = input.ownGoals ?? 0;
   const penaltiesMissed = input.penaltiesMissed ?? 0;
+  // gs: applicare solo ai portieri in fase di salvataggio voto; qui conta il valore già filtrato.
+  const goalsConceded = input.goalsConceded ?? 0;
 
   const bonusPoints = roundToTwoDecimals(
     goals * 3 + assists * 1 + penaltiesSaved * 3 + cleanSheet * 1
   );
   const malusPoints = roundToTwoDecimals(
-    yellowCards * 0.5 + redCards * 1 + ownGoals * 2 + penaltiesMissed * 3
+    yellowCards * 0.5 +
+      redCards * 1 +
+      ownGoals * 2 +
+      penaltiesMissed * 3 +
+      goalsConceded * 1
   );
   const finalFantavote = roundToTwoDecimals(
     input.baseVote + bonusPoints - malusPoints

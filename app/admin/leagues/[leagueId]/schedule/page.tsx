@@ -110,25 +110,18 @@ export default async function AdminLeagueSchedulePage({
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">Anteprima</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-lg font-semibold text-slate-900">Solo andata</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Giornate previste:{" "}
-              <strong>{data.previews.singleRoundMatchdayCount}</strong> | Partite
-              previste: <strong>{data.previews.singleRoundFixtureCount}</strong>
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Andata e ritorno
-            </h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Giornate previste:{" "}
-              <strong>{data.previews.doubleRoundMatchdayCount}</strong> | Partite
-              previste: <strong>{data.previews.doubleRoundFixtureCount}</strong>
-            </p>
-          </div>
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <h3 className="text-lg font-semibold text-slate-900">
+            Andata e ritorno (obbligatorio)
+          </h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Con 10 squadre:{" "}
+            <strong>{data.previews.doubleRoundMatchdayCount}</strong> giornate |{" "}
+            <strong>{data.previews.doubleRoundFixtureCount}</strong> partite.
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            Squadre iscritte ora: <strong>{data.previews.teamCount}</strong> / 10
+          </p>
         </div>
 
         {data.previews.hasBye ? (
@@ -141,9 +134,10 @@ export default async function AdminLeagueSchedulePage({
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">Generazione</h2>
 
-        {data.previews.teamCount < 2 ? (
+        {data.previews.teamCount !== 10 ? (
           <p className="mt-4 text-sm text-amber-700">
-            Servono almeno 2 squadre per generare il calendario.
+            Servono esattamente 10 squadre per generare il calendario (ora:{" "}
+            {data.previews.teamCount}).
           </p>
         ) : null}
 
@@ -156,26 +150,13 @@ export default async function AdminLeagueSchedulePage({
         <form action={generateLeagueScheduleAction} className="mt-5 space-y-4">
           <input type="hidden" name="leagueId" value={data.league.id} />
 
-          <label className="block space-y-2 text-sm text-slate-700">
-            <span className="font-medium">Modalita calendario</span>
-            <select
-              name="mode"
-              disabled={!canGenerateSchedule}
-              defaultValue="SINGLE_ROUND"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
-            >
-              <option value="SINGLE_ROUND">Solo andata</option>
-              <option value="DOUBLE_ROUND">Andata e ritorno</option>
-            </select>
-          </label>
-
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={!canGenerateSchedule}
+              disabled={!canGenerateSchedule || data.previews.teamCount !== 10}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              Genera calendario
+              Genera calendario andata/ritorno
             </button>
             <Link
               href="/admin"

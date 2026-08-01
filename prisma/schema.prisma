@@ -105,8 +105,10 @@ model League {
   name           String
   status         LeagueStatus          @default(DRAFT)
   startersCount  Int                   @default(5)
-  maxAutoSubs    Int                   @default(3)
-  maxTeams       Int                   @default(8)
+  maxAutoSubs    Int                   @default(1)
+  maxTeams       Int                   @default(10)
+  /// Hash password iscrizione lega (mai in chiaro). Formato salt:hash scrypt.
+  passwordHash   String?
   createdById    String
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
@@ -277,12 +279,15 @@ model PlayerVote {
   // Backend validation: if isSv is false, baseVote is required.
   baseVote         Decimal?          @db.Decimal(4, 2)
   goals            Int               @default(0)
+  goalsConceded    Int               @default(0)
   assists          Int               @default(0)
   yellowCards      Int               @default(0)
   redCards         Int               @default(0)
   ownGoals         Int               @default(0)
   penaltiesMissed  Int               @default(0)
   penaltiesSaved   Int               @default(0)
+  /// RF: rigori realizzati (tracciamento; il gol e gia in `goals`, nessun bonus extra)
+  penaltiesScored  Int               @default(0)
   cleanSheet       Int               @default(0)
   // Backend validation: finalFantavote must be calculated server-side, never by the client.
   finalFantavote   Decimal?          @db.Decimal(5, 2)

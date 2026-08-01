@@ -283,8 +283,8 @@ export default async function TeamMatchdayLineupPage({
           {canEdit ? "Modifica formazione" : "Formazione in sola lettura"}
         </h3>
         <p className="mt-2 text-sm text-slate-600">
-          Seleziona 5 titolari e 3 panchinari. I panchinari devono avere ordine 1, 2
-          e 3.
+          Seleziona 5 titolari (1P, 1D, 1C, 1A + 1 libero tra D/C/A) e 4 panchinari
+          (1 per ruolo). I panchinari devono avere ordine 1, 2, 3 e 4.
         </p>
 
         <form action={saveLineupAction} className="mt-5 space-y-5">
@@ -351,6 +351,7 @@ export default async function TeamMatchdayLineupPage({
                           <option value="1">1</option>
                           <option value="2">2</option>
                           <option value="3">3</option>
+                          <option value="4">4</option>
                         </select>
                       </td>
                     </tr>

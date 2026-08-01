@@ -7,7 +7,21 @@ out/
 .env.local
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
+
+# secrets / credential dumps (never commit)
+docs/Dream Team FC.txt
+**/Dream Team FC.txt
+
+# Office lock files and local dumps
+.~lock.*
+*.xlsx#
+Quotazioni_Fantacalcio_Stagione_*.xlsx
+Voti_Fantacalcio_Stagione_*.xlsx
+docs/CURSOR_HANDOFF.zip
+tsconfig.tsbuildinfo
+data/api-football-import-progress.json
 
 # logs
 npm-debug.log*

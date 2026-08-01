@@ -61,9 +61,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </p>
           <h1 className="mt-3 text-3xl font-bold">Login</h1>
           <p className="mt-3 text-sm text-slate-300">
-            Accedi con Supabase Auth. Gli utenti normali entrano nell&apos;area
-            personale, mentre l&apos;area admin resta disponibile solo ai record
-            applicativi con ruolo ADMIN.
+            Accedi con Supabase Auth per entrare nella tua area personale e
+            gestire squadra, rosa, formazione e risultati.
           </p>
         </section>
 

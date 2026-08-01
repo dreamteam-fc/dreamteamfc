@@ -20,7 +20,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const SOURCE_FILTERS = ["ALL", "demo", "api-football", "unknown"] as const;
+const SOURCE_FILTERS = ["ALL", "demo", "fantacalcio-quotazioni", "api-football", "unknown"] as const;
 const STATUS_FILTERS = ["ALL", "ACTIVE", "INACTIVE"] as const;
 
 type AdminPlayersPageProps = {
@@ -83,6 +83,8 @@ function getSourceFilterLabel(source: AdminPlayerSourceFilter) {
       return "Tutte le sorgenti";
     case "api-football":
       return "api-football";
+    case "fantacalcio-quotazioni":
+      return "fantacalcio-quotazioni";
     case "demo":
       return "demo";
     case "unknown":

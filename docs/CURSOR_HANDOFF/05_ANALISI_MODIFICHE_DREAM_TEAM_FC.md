@@ -1,0 +1,472 @@
+# Analisi Modifiche Dream Team FC
+
+Questo documento traduce il file `Dream Team FC.txt` in richieste leggibili per sviluppo, tenendo conto di come Fantacalcetto funziona oggi.
+
+## Nota iniziale su dati sensibili
+
+Nel file originale erano presenti riferimenti che sembrano credenziali o dati di accesso. Non li riporto qui.
+
+Azioni consigliate:
+
+- non salvare credenziali operative nei documenti di handoff
+- se quelle credenziali sono reali, considerarle esposte e cambiarle
+- usare sempre `.env` o password manager
+
+## Stato attuale da cui partiamo
+
+Oggi il progetto ha gia:
+
+- leghe
+- squadre fantasy
+- rose
+- formazioni
+- voti admin
+- scoring
+- scontri 1 vs 1
+- calendario round-robin
+- classifica di lega
+- area admin
+- area utente
+
+Quindi le richieste nel file non partono da zero: vanno integrate dentro un sistema gia funzionante.
+
+## Elenco richieste emerse dal file
+
+### 1. Campionato limitato a 18 giornate
+
+Richiesta:
+
+- il campionato di lega deve arrivare fino alla 18esima giornata
+- dopo la 18esima giornata il campionato e chiuso
+
+Impatto sul progetto attuale:
+
+- oggi il calendario round-robin genera tutte le giornate necessarie in base al numero squadre e alla modalita andata/ritorno
+- non esiste un vincolo fisso a 18 giornate
+
+Come applicarla al progetto:
+
+- aggiungere una regola di lega o stagione che definisce `maxMatchdays = 18`
+- impedire apertura o creazione di giornate oltre la 18esima
+- se il calendario round-robin teorico produce piu di 18 giornate, serve una decisione prodotto:
+  - troncare il calendario a 18
+  - oppure limitare il numero di squadre/modalita per non superare 18
+
+Osservazione importante:
+
+- questa richiesta impatta direttamente la generazione calendario e le regole di campionato
+- va chiarito prima se `18` e sempre fisso oppure configurabile
+
+### 2. Torneo finale tra leghe
+
+Richiesta:
+
+- dopo la 18esima giornata l'admin crea un torneo
+- il torneo unisce squadre provenienti da leghe diverse
+- nella prima fase non si devono accoppiare squadre della stessa lega
+- accoppiamento basato sui punteggi: piu alto contro piu basso
+- andata e ritorno a eliminazione diretta
+- finale solo andata
+- accesso al torneo con password impostata dal super admin
+
+Impatto sul progetto attuale:
+
+- oggi esiste solo il dominio `League -> Matchday -> FantasyFixture`
+- non esiste un'entita separata per un torneo cross-league
+- non esiste una fase knockout tra leghe diverse
+
+Come applicarla al progetto:
+
+- introdurre un nuovo dominio separato dal campionato di lega
+- probabili nuove entita:
+  - `Tournament`
+  - `TournamentTeamEntry`
+  - `TournamentRound`
+  - `TournamentFixture`
+- la classifica di lega attuale non basta per gestire il torneo
+- serve una logica di seeding che legga i risultati delle leghe e costruisca il bracket
+
+Osservazione importante:
+
+- questa non e una modifica piccola: e una macro-feature nuova
+- va sviluppata dopo aver stabilizzato campionato e ruoli
+
+### 3. Account allenatore invitato
+
+Richiesta:
+
+- un utente esistente puo invitare un account allenatore
+- l'account allenatore puo solo impostare la formazione
+- solo per la squadra del giocatore principale che lo ha invitato
+
+Impatto sul progetto attuale:
+
+- oggi esistono solo `USER` e `ADMIN`
+- l'ownership squadra e collegata direttamente all'utente proprietario
+- il salvataggio formazione oggi controlla owner team o admin
+
+Come applicarla al progetto:
+
+- introdurre un nuovo concetto di delega, non necessariamente un nuovo ruolo globale
+- opzione pulita:
+  - nuovo modello tipo `TeamCoachInvite` o `TeamDelegate`
+  - un utente invitato ha permesso solo su `saveLineupAction`
+- non deve avere permessi su:
+  - roster
+  - join/leave lega
+  - admin
+  - punteggi
+
+Osservazione importante:
+
+- questa feature tocca auth e permessi
+- va fatta con attenzione per non aprire falle autorizzative
+
+### 4. Gestione "giocatore non giocato" nel pannello voti — DECISA
+
+Decisione prodotto (2026-08-01):
+
+- `non giocato = SV`
+- nessun nuovo stato: si riusa `isSv` e la logica sostituzione gia esistente
+
+Impatto sul progetto attuale:
+
+- oggi esiste `isSv`
+- il motore sostituzioni usa `isSv` o voto non valido per far entrare la panchina
+
+Azione:
+
+- nessuna modifica di dominio sullo stato: si riusa `isSv`
+- estensioni operative (2026-08-01): giocatore assente dal file voti → SV; voto con asterisco → SV
+
+### 5. Rosa da 25 giocatori con composizione per ruoli — DECISA
+
+Decisione prodotto (2026-08-01):
+
+- rosa di **25** giocatori (il "22" nel file sorgente era un errore)
+- 3 portieri
+- 8 difensori
+- 8 centrocampisti
+- 6 attaccanti
+
+Impatto sul progetto attuale:
+
+- oggi la rosa e da 8 giocatori con validazione semplice
+
+Come applicarla al progetto:
+
+- aggiornare `validateRosterComposition`
+- aggiornare UI roster
+- aggiornare azioni add/remove
+- aggiornare seed/demo se necessario
+
+### 6. Formazione titolari e panchina per ruoli
+
+Richiesta:
+
+- squadra da 5
+- obbligatori:
+  - 1 portiere
+  - 1 attaccante
+  - 1 centrocampista
+  - 1 difensore
+- il quinto giocatore e a scelta tra attaccante, centrocampista o difensore
+- panchina di 4
+- 1 per ruolo obbligatorio
+
+Impatto sul progetto attuale:
+
+- oggi la panchina e da 3
+- oggi i titolari hanno vincoli:
+  - 1 portiere
+  - 1-2 difensori
+  - almeno 1 attaccante
+  - massimo 2 attaccanti
+  - centrocampisti liberi
+
+Come applicarla al progetto:
+
+- aggiornare `validate-lineup-composition.ts`
+- aggiornare la pagina lineup
+- aggiornare il salvataggio lineup
+- aggiornare scoring engine se la panchina passa da 3 a 4
+
+Osservazione importante:
+
+- qui la richiesta e chiara e realizzabile
+- ma impatta fortemente lo scoring e il DB potrebbe richiedere solo aggiornamenti logici, non per forza schema
+
+### 7. Sostituzioni automatiche per stesso ruolo
+
+Richiesta:
+
+- se un titolare non gioca, entra un panchinaro dello stesso ruolo
+- se non giocano due titolari dello stesso ruolo e in panchina c'e un solo giocatore di quel ruolo, solo il primo viene sostituito e il secondo prende `0`
+
+Impatto sul progetto attuale:
+
+- oggi non esistono vincoli di ruolo nelle sostituzioni
+- il motore usa il primo panchinaro valido disponibile in ordine
+
+Come applicarla al progetto:
+
+- aggiornare `calculate-team-score.ts`
+- il dettaglio `TeamScorePlayer` deve salvare il motivo della sostituzione coerente con i ruoli
+- la panchina dovra mantenere sia ordine sia ruolo
+
+Osservazione importante:
+
+- questa e una modifica strutturale al motore punteggio
+- va fatta insieme alla nuova regola panchina a 4
+
+### 8. Nuove fasce gol da punteggio — DECISA
+
+Decisione prodotto (2026-08-01):
+
+- `score <= 25` → 0 gol
+- oltre 25: +1 gol ogni 2 punti
+
+Formula:
+
+```text
+goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
+```
+
+Esempi: 25→0, 26.9→0, 27→1, 29→2, 31→3
+
+Impatto sul progetto attuale:
+
+- oggi esiste una conversione diversa in `convert-score-to-goals.ts` (soglia 30, step 5)
+
+Come applicarla al progetto:
+
+- aggiornare `convertScoreToGoals`
+- aggiornare i check manuali
+- aggiornare eventuali testi UI che descrivono le fasce
+
+### 9. Nuovi bonus e malus — AGGIORNATO 2026-08-01
+
+Codici evento richiesti nel pannello voti / file import:
+
+| Codice | Significato | Impatto fantavoto (se noto) | Campo attuale / target |
+|--------|-------------|-----------------------------|-------------------------|
+| `gf` | goal fatto | `+3` ciascuno | `goals` |
+| `gs` | goal subito | `-1` ciascuno | **manca** → `goalsConceded` |
+| `rp` | rigore parato | `+3` ciascuno | `penaltiesSaved` |
+| `rf` | rigore **fallito** | `-3` ciascuno | `penaltiesMissed` (chiuso) |
+| `rs` | rigore subito | **TBD punti** | **solo portieri**; nel file XLS puo comparire anche su non-P → da confermare se ignorare |
+
+| `au` | autogol | `-2` ciascuno | `ownGoals` |
+| `amm` | ammonizione | `-0.5` ciascuna | `yellowCards` |
+| `esp` | espulsione | `-1` ciascuna | `redCards` |
+| `ass` | assist | `+1` ciascuno | `assists` |
+| porta inviolata | auto se portiere con `gs = 0` | `+1` | `cleanSheet` |
+
+Nota: il vecchio malus "rigore sbagliato `-3`" (`penaltiesMissed`) resta nel motore finche non si decide se coincide con `rs`/`rf` o resta distinto.
+
+Regola automatica porta inviolata (decisa):
+
+- se il giocatore e portiere e `gs == 0`, il sistema assegna `cleanSheet = 1` (+1)
+- non richiedere inserimento manuale del bonus se la regola e soddisfatta
+
+Impatto sul progetto attuale:
+
+- quasi tutto e gia allineato in `calculate-fantavote.ts`
+- manca `goalsConceded` (-1)
+- manca automazione clean sheet da `gs = 0` per portieri
+- `rs` / `rf`: punti e semantica da formalizzare al primo implement (se `rf` conta gia in `gf`, non doppiarlo)
+
+Come applicarla al progetto:
+
+- schema: aggiungere `goalsConceded` (e eventuali campi `rs`/`rf` se distinti)
+- scoring + UI admin voti + parser file voti
+- dopo import file: ricalcolare clean sheet per i portieri con `gs = 0`
+
+### 10. Le leghe non sono create dagli utenti ma dal super admin
+
+Richiesta:
+
+- solo il super admin crea le leghe
+- l'admin di lega viene eliminato come concetto
+
+Impatto sul progetto attuale:
+
+- oggi le leghe sono gia create dall'area admin protetta
+- esiste ancora il concetto di `LeagueRole`
+- l'architettura distingue `ADMIN` globale e membership di lega
+
+Come applicarla al progetto:
+
+- in pratica il sistema e gia vicino a questa richiesta
+- va solo semplificato il dominio:
+  - decidere se tenere o rimuovere `LeagueRole.ADMIN`
+  - rimuovere eventuali riferimenti concettuali ad admin di lega
+
+Conclusione:
+
+- questa e piu una pulizia del modello che una feature nuova
+
+### 11. Password di lega
+
+Richiesta:
+
+- il super admin crea la lega
+- per entrare nella lega serve una password
+
+Impatto sul progetto attuale:
+
+- oggi il join a una lega non usa password
+
+Come applicarla al progetto:
+
+- aggiungere nel modello `League` un campo per password hash, non password in chiaro
+- aggiornare `/leagues/[leagueId]/join`
+- aggiornare la action `createFantasyTeamAction`
+- aggiornare la creazione lega admin
+
+Osservazione importante:
+
+- non va mai salvata password lega in chiaro
+- serve hashing server-side
+
+### 12. Super admin con potere assoluto sulle rose
+
+Richiesta:
+
+- il super admin puo:
+  - aggiungere un giocatore alla rosa di un utente
+  - rimuoverlo
+  - sostituirlo
+
+Impatto sul progetto attuale:
+
+- oggi solo l'utente owner o admin puo agire sulla propria rosa tramite area utente
+- non esiste una UI admin per manipolare direttamente le rose utente
+
+Come applicarla al progetto:
+
+- aggiungere route admin per gestione squadre/rose
+- creare azioni admin dedicate
+- riusare la logica di validazione esistente evitando di duplicarla
+
+Osservazione importante:
+
+- fattibile, ma da fare dopo che la nuova composizione rosa e stata chiarita
+
+### 13. Pannello voti unificato tra leghe
+
+Richiesta:
+
+- creare un pannello voti accessibile solo al super admin
+- deve aggregare in un'unica lista i giocatori delle diverse leghe
+
+Impatto sul progetto attuale:
+
+- oggi i voti sono gestiti per singola giornata e singola lega
+- il pannello admin attuale e gia protetto da admin globale
+
+Come applicarla al progetto:
+
+- creare una nuova vista admin aggregata
+- la logica di salvataggio puo riusare `savePlayerVote`
+- il reader dati dovra unire:
+  - matchday
+  - lega
+  - required vote players
+
+Osservazione importante:
+
+- questa e soprattutto una feature UI/reader, meno un cambio di dominio
+
+### 14. Admin vede se la formazione e stata inserita — NUOVA 2026-08-01
+
+Richiesta:
+
+- l'admin deve sapere, per ogni squadra / giornata, se la formazione e stata messa
+
+Impatto sul progetto attuale:
+
+- esiste `Lineup` legato a team + matchday
+- oggi l'admin non ha una vista chiara "formazione presente / mancante" per tutte le squadre
+
+Come applicarla al progetto:
+
+- estendere reader admin matchday (e/o dashboard lega) con stato lineup per ogni `FantasyTeam`
+- stati minimi: `NON_INSERITA` | `INSERITA` (eventualmente anche bozza vs definitiva se esiste)
+- UI in `/admin/matchdays/[matchdayId]` o sezione dedicata
+
+### 15. Import file voti per compilare le pagelle — NUOVA 2026-08-01
+
+Richiesta:
+
+- i pannelli voti devono permettere di caricare un file con i voti
+- quei voti compilano automaticamente le pagelle (`PlayerVote`)
+
+Regole di interpretazione del file (decise):
+
+1. se un giocatore richiesto / in lista voti **non compare** nel file → `SV` (`isSv = true`, non ha giocato)
+2. se il voto base ha **asterisco** (es. `6*`, `6.5*`) → trattarlo come `SV`
+3. gli eventi usano i codici della sezione 9 (`gf`, `gs`, `rp`, `rs`, `rf`, `au`, `amm`, `esp`, `ass`)
+4. per i portieri: se `gs = 0` → assegna porta inviolata (`cleanSheet = 1`, +1)
+
+Impatto sul progetto attuale:
+
+- oggi i voti si inseriscono manualmente (singolo / bulk UI)
+- non esiste upload file ne parser voti
+- `isSv` e gia il meccanismo corretto per "non giocato" e per asterisco
+
+Come applicarla al progetto:
+
+- endpoint/action admin: upload file → parse → upsert `PlayerVote` riusando `savePlayerVote` / bulk
+- parser dedicato e testabile (puro) in `lib/server/votes/`
+- dopo parse: marcare SV i required-players assenti dal file
+- UI: controllo upload nel pannello voti (giornata e/o unificato)
+- chiarire al primo implement il **formato file** reale (CSV/XLSX e colonne) se non allegato
+
+Osservazione importante:
+
+- soluzione stabile = parser + regole SV centralizzate, non logica solo in UI
+- non duplicare il motore fantavoto: dopo import si ricalcola server-side come oggi
+
+## Conclusione tecnica
+
+Dal file emergono tre gruppi di lavoro molto diversi:
+
+### Gruppo A - modifiche chiare e compatibili
+
+- lega con password
+- pannello voti unificato
+- **upload file voti + regole SV (assente / asterisco)**
+- **admin: stato formazione inserita/mancante**
+- power tools del super admin sulle rose
+- nuova panchina da 4 e nuovi vincoli formazione
+- goal subito + automazione porta inviolata
+- mappatura eventi `gf/gs/rp/rs/rf/au/amm/esp/ass`
+
+### Gruppo B - modifiche grandi ma strutturabili
+
+- account allenatore invitato
+- torneo cross-league dopo la 18esima
+- campionato chiuso alla 18esima
+
+### Gruppo C - decisioni prodotto (chiuse / aggiornate 2026-08-01)
+
+- rosa da **25** (`3 + 8 + 8 + 6`)
+- `non giocato = SV` (anche: assente dal file voti, oppure voto con `*`)
+- fasce gol: `<=25 → 0`, poi `+1` ogni 2 punti (`floor((score-25)/2)`)
+- porta inviolata automatica se portiere con `gs = 0`
+- aperti solo i **valori punti** di `rs` (rigore subito); `rf` = rigore **fallito** (−3) chiuso
+- leghe da **10** squadre, solo andata/ritorno → **18** giornate
+- max **1** sostituzione automatica; `gs`/`rs`/clean sheet solo portieri (salvo chiarimento Rs su non-P nel file)
+
+## Raccomandazione
+
+Non implementare tutto insieme.
+
+Ordine consigliato:
+
+1. ~~chiarire le regole incoerenti~~ (fatto)
+2. bootstrap locale da zero (nuovo Supabase) — in corso / fatto in locale
+3. fare le modifiche piccole e sicure (password, pannello voti, **stato formazioni**, **import file voti**)
+4. rifattorizzare scoring, rosa e lineup
+5. solo dopo introdurre torneo e account allenatore

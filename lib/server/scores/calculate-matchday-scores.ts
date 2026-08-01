@@ -50,7 +50,8 @@ export async function calculateMatchdayScores(
                 player: {
                   select: {
                     id: true,
-                    name: true
+                    name: true,
+                    role: true
                   }
                 }
               }
@@ -107,6 +108,7 @@ export async function calculateMatchdayScores(
             playerId: lineupPlayer.player.id,
             playerName: lineupPlayer.player.name,
             positionOrder: lineupPlayer.positionOrder,
+            role: lineupPlayer.player.role,
             slotType: lineupPlayer.slotType,
             vote: playerVote
               ? {
@@ -114,6 +116,7 @@ export async function calculateMatchdayScores(
                   baseVote: prismaDecimalToNumber(playerVote.baseVote),
                   cleanSheet: playerVote.cleanSheet,
                   goals: playerVote.goals,
+                  goalsConceded: playerVote.goalsConceded,
                   isSv: playerVote.isSv,
                   ownGoals: playerVote.ownGoals,
                   penaltiesMissed: playerVote.penaltiesMissed,

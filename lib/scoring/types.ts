@@ -1,10 +1,11 @@
-import type { ScorePlayerFinalType, SlotType } from "@prisma/client";
+import type { PlayerRole, ScorePlayerFinalType, SlotType } from "@prisma/client";
 
 export type FantavoteInput = {
   assists?: number;
   baseVote: number | null;
   cleanSheet?: number;
   goals?: number;
+  goalsConceded?: number;
   isSv: boolean;
   ownGoals?: number;
   penaltiesMissed?: number;
@@ -29,6 +30,7 @@ export type TeamScoreLineupPlayerInput = {
   playerId: string;
   playerName: string;
   positionOrder: number;
+  role: PlayerRole;
   slotType: SlotType;
   vote?: TeamScoreVoteInput | null;
 };

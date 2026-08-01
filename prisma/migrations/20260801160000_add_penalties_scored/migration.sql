@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "PlayerVote" ADD COLUMN IF NOT EXISTS "penaltiesScored" INTEGER NOT NULL DEFAULT 0;

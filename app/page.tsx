@@ -13,7 +13,7 @@ const gettingStartedSteps = [
   },
   {
     description:
-      "Completa la rosa con 8 giocatori e preparati per la prossima giornata.",
+      "Completa la rosa con 25 giocatori (3P, 8D, 8C, 6A) e preparati per la prossima giornata.",
     title: "Completa la rosa"
   },
   {

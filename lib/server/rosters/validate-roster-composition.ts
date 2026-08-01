@@ -18,10 +18,12 @@ export type RosterCompositionValidationResult = {
   total: number;
 };
 
-const REQUIRED_ROSTER_SIZE = 8;
-const MIN_GOALKEEPERS = 1;
-const MIN_DEFENDERS = 2;
-const MIN_ATTACKERS = 2;
+/** Rosa Dream Team: 3P + 8D + 8C + 6A = 25 */
+export const REQUIRED_ROSTER_SIZE = 25;
+export const REQUIRED_ROSTER_GOALKEEPERS = 3;
+export const REQUIRED_ROSTER_DEFENDERS = 8;
+export const REQUIRED_ROSTER_MIDFIELDERS = 8;
+export const REQUIRED_ROSTER_ATTACKERS = 6;
 
 export function validateRosterComposition(
   players: RosterCompositionPlayer[]
@@ -50,20 +52,32 @@ export function validateRosterComposition(
 
   if (!isComplete) {
     errors.push(
-      `La rosa deve avere esattamente ${REQUIRED_ROSTER_SIZE} giocatori. Totale attuale: ${total}.`
+      `La rosa deve avere esattamente ${REQUIRED_ROSTER_SIZE} giocatori (3P, 8D, 8C, 6A). Totale attuale: ${total}.`
     );
   }
 
-  if (goalkeeperCount < MIN_GOALKEEPERS) {
-    errors.push(`La rosa deve avere almeno ${MIN_GOALKEEPERS} portiere.`);
+  if (goalkeeperCount !== REQUIRED_ROSTER_GOALKEEPERS) {
+    errors.push(
+      `La rosa deve avere esattamente ${REQUIRED_ROSTER_GOALKEEPERS} portieri. Attuali: ${goalkeeperCount}.`
+    );
   }
 
-  if (defenderCount < MIN_DEFENDERS) {
-    errors.push(`La rosa deve avere almeno ${MIN_DEFENDERS} difensori.`);
+  if (defenderCount !== REQUIRED_ROSTER_DEFENDERS) {
+    errors.push(
+      `La rosa deve avere esattamente ${REQUIRED_ROSTER_DEFENDERS} difensori. Attuali: ${defenderCount}.`
+    );
   }
 
-  if (attackerCount < MIN_ATTACKERS) {
-    errors.push(`La rosa deve avere almeno ${MIN_ATTACKERS} attaccanti.`);
+  if (midfielderCount !== REQUIRED_ROSTER_MIDFIELDERS) {
+    errors.push(
+      `La rosa deve avere esattamente ${REQUIRED_ROSTER_MIDFIELDERS} centrocampisti. Attuali: ${midfielderCount}.`
+    );
+  }
+
+  if (attackerCount !== REQUIRED_ROSTER_ATTACKERS) {
+    errors.push(
+      `La rosa deve avere esattamente ${REQUIRED_ROSTER_ATTACKERS} attaccanti. Attuali: ${attackerCount}.`
+    );
   }
 
   if (unavailableCount > 0) {

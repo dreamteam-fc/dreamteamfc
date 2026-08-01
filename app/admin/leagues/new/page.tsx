@@ -31,7 +31,7 @@ export default async function NewLeaguePage({
   return (
     <AdminShell
       title="Nuova lega"
-      subtitle="Crea una lega impostando nome e numero massimo di squadre."
+      subtitle="Crea una lega da 10 squadre con password obbligatoria (andata/ritorno = 18 giornate)."
     >
       <Feedback error={error} />
 
@@ -42,26 +42,28 @@ export default async function NewLeaguePage({
             <input
               type="text"
               name="name"
+              required
               className="w-full rounded-xl border border-slate-300 px-3 py-2"
               placeholder="Inserisci il nome della lega"
             />
           </label>
 
           <label className="block space-y-2 text-sm text-slate-700">
-            <span className="font-medium">Numero massimo squadre</span>
+            <span className="font-medium">Password di iscrizione</span>
             <input
-              type="number"
-              name="maxTeams"
-              min={2}
-              max={50}
-              step={1}
-              defaultValue={8}
+              type="password"
+              name="password"
+              required
+              minLength={4}
               className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              placeholder="Password che gli utenti useranno per entrare"
             />
           </label>
 
           <p className="text-sm text-slate-600">
-            Il numero massimo di squadre deve essere un intero, minimo 2 e massimo 50.
+            Ogni lega ha esattamente <strong>10</strong> posti. Il calendario e
+            solo andata e ritorno (18 giornate). La password non viene salvata in
+            chiaro.
           </p>
 
           <div className="flex flex-wrap gap-3">

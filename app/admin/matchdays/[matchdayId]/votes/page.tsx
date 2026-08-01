@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import {
   generateDemoVotesForPendingPlayersAction,
   generateRequiredVotePlayersAction,
+  importFantacalcioVotesFileAction,
   saveBulkPlayerVotesAction,
   saveSinglePlayerVoteFromBulkAction
 } from "@/app/admin/actions";
@@ -236,6 +237,32 @@ export default async function AdminMatchdayVotesPage({
                 Genera giocatori utili
               </button>
             </form>
+            <form
+              action={importFantacalcioVotesFileAction}
+              encType="multipart/form-data"
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2"
+            >
+              <input type="hidden" name="leagueId" value={data.matchday.league.id} />
+              <input type="hidden" name="matchdayId" value={matchdayId} />
+              <input type="hidden" name="redirectPath" value={redirectPath} />
+              <input type="hidden" name="sheetName" value="Fantacalcio" />
+              <label className="text-sm font-medium text-slate-700">
+                Import XLS voti
+                <input
+                  type="file"
+                  name="votesFile"
+                  accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  required
+                  className="mt-1 block w-full max-w-xs text-sm text-slate-600"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-800"
+              >
+                Carica e compila pagelle
+              </button>
+            </form>
             <Link
               href={`/admin/matchdays/${matchdayId}/scores`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
@@ -386,6 +413,7 @@ export default async function AdminMatchdayVotesPage({
                   <th className="px-3 py-3 font-medium">Stato</th>
                   <th className="px-3 py-3 font-medium">Voto base</th>
                   <th className="px-3 py-3 font-medium">Gol</th>
+                  <th className="px-3 py-3 font-medium">Gs</th>
                   <th className="px-3 py-3 font-medium">Assist</th>
                   <th className="px-3 py-3 font-medium">Gialli</th>
                   <th className="px-3 py-3 font-medium">Rossi</th>
@@ -464,6 +492,17 @@ export default async function AdminMatchdayVotesPage({
                       </td>
                       <td className="px-3 py-3 align-top">
                         <input
+                          name={getVoteFieldName(record.player.id, "goalsConceded")}
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={record.playerVote?.goalsConceded ?? 0}
+                          className="w-20 rounded-xl border border-slate-300 px-3 py-2"
+                          title="Goal subiti (solo portieri; porta inviolata auto se 0)"
+                        />
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <input
                           name={getVoteFieldName(record.player.id, "assists")}
                           type="number"
                           min="0"
@@ -518,16 +557,8 @@ export default async function AdminMatchdayVotesPage({
                               min="0"
                               step="1"
                               defaultValue={record.playerVote?.ownGoals ?? 0}
-                              placeholder="Autogol"
-                              className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
-                            />
-                            <input
-                              name={getVoteFieldName(record.player.id, "penaltiesMissed")}
-                              type="number"
-                              min="0"
-                              step="1"
-                              defaultValue={record.playerVote?.penaltiesMissed ?? 0}
-                              placeholder="Rig. sb."
+                              placeholder="Au"
+                              title="Autogol"
                               className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
                             />
                             <input
@@ -536,20 +567,43 @@ export default async function AdminMatchdayVotesPage({
                               min="0"
                               step="1"
                               defaultValue={record.playerVote?.penaltiesSaved ?? 0}
-                              placeholder="Rig. par."
+                              placeholder="Rp"
+                              title="Rigori parati (+3)"
+                              className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
+                            />
+                            <input
+                              name={getVoteFieldName(record.player.id, "penaltiesMissed")}
+                              type="number"
+                              min="0"
+                              step="1"
+                              defaultValue={record.playerVote?.penaltiesMissed ?? 0}
+                              placeholder="Rs"
+                              title="Rigori sbagliati (−3)"
                               className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
                             />
                           </div>
-                          <input
-                            name={getVoteFieldName(record.player.id, "cleanSheet")}
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="1"
-                            defaultValue={record.playerVote?.cleanSheet ?? 0}
-                            placeholder="Clean sheet"
-                            className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
-                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              name={getVoteFieldName(record.player.id, "penaltiesScored")}
+                              type="number"
+                              min="0"
+                              step="1"
+                              defaultValue={record.playerVote?.penaltiesScored ?? 0}
+                              placeholder="Rf"
+                              title="Rigori realizzati (0 pt; gol gia in Gf)"
+                              className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
+                            />
+                            <input
+                              name={getVoteFieldName(record.player.id, "cleanSheet")}
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="1"
+                              defaultValue={record.playerVote?.cleanSheet ?? 0}
+                              placeholder="Clean sheet"
+                              className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
+                            />
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-3 align-top">

@@ -14,7 +14,7 @@ type ResolvedVote = FantavoteCalculation & {
   playerVoteId?: string;
 };
 
-const DEFAULT_MAX_SUBSTITUTIONS = 3;
+const DEFAULT_MAX_SUBSTITUTIONS = 1;
 const DEFAULT_STARTERS_COUNT = 5;
 
 function roundToTwoDecimals(value: number): number {
@@ -34,6 +34,7 @@ function resolveVote(player: TeamScoreLineupPlayerInput): ResolvedVote {
       cleanSheet: 0,
       finalFantavote: null,
       goals: 0,
+      goalsConceded: 0,
       hasValidFantavote: false,
       isSv: false,
       malusPoints: 0,
@@ -61,6 +62,7 @@ function resolveVote(player: TeamScoreLineupPlayerInput): ResolvedVote {
       cleanSheet: player.vote.cleanSheet ?? 0,
       finalFantavote: null,
       goals: player.vote.goals ?? 0,
+      goalsConceded: player.vote.goalsConceded ?? 0,
       hasValidFantavote: false,
       isSv: player.vote.isSv,
       malusPoints: 0,
@@ -175,6 +177,10 @@ export function calculateTeamScore(
       for (const benchPlayer of bench) {
         const benchKey = getLineupPlayerKey(benchPlayer);
         if (usedBenchKeys.has(benchKey)) {
+          continue;
+        }
+
+        if (benchPlayer.role !== starter.role) {
           continue;
         }
 

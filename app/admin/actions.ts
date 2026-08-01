@@ -21,16 +21,24 @@ import { generateRequiredVotePlayers } from "@/lib/server/matchdays/generate-req
 import { publishMatchday } from "@/lib/server/matchdays/publish-matchday.ts";
 import { calculateMatchdayScores } from "@/lib/server/scores/calculate-matchday-scores.ts";
 import { savePlayerVote } from "@/lib/server/votes/save-player-vote.ts";
+import { importFantacalcioVotesFromBuffer } from "@/lib/server/votes/import-fantacalcio-votes.ts";
+import {
+  adminAddPlayerToRoster,
+  adminRemovePlayerFromRoster,
+  adminReplacePlayerInRoster
+} from "@/lib/server/rosters/admin-roster-mutations.ts";
 
 const VOTE_FIELD_NAMES = [
   "assists",
   "baseVote",
   "cleanSheet",
   "goals",
+  "goalsConceded",
   "notes",
   "ownGoals",
   "penaltiesMissed",
   "penaltiesSaved",
+  "penaltiesScored",
   "redCards",
   "yellowCards"
 ] as const;
@@ -74,13 +82,81 @@ async function assertAdminAction() {
 
 function revalidateAdminPaths(matchdayId: string, leagueId?: string | null) {
   revalidatePath("/admin");
+  revalidatePath("/admin/votes");
   revalidatePath(`/admin/matchdays/${matchdayId}`);
   revalidatePath(`/admin/matchdays/${matchdayId}/votes`);
   revalidatePath(`/admin/matchdays/${matchdayId}/scores`);
   if (leagueId) {
     revalidatePath(`/admin/leagues/${leagueId}/standings`);
     revalidatePath(`/admin/leagues/${leagueId}/matchdays/new`);
+    revalidatePath(`/admin/leagues/${leagueId}/teams`);
   }
+}
+
+function readPlayerMatchdayIds(formData: FormData, playerId: string) {
+  return Array.from(
+    new Set(
+      formData
+        .getAll(`playerMatchdayIds.${playerId}`)
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => value.length > 0)
+    )
+  );
+}
+
+async function saveVoteAcrossMatchdays(
+  formData: FormData,
+  playerId: string,
+  matchdayIds: string[]
+) {
+  if (matchdayIds.length === 0) {
+    throw new Error("Nessuna giornata collegata al giocatore.");
+  }
+
+  const template = buildBulkVoteInput(formData, matchdayIds[0], playerId);
+
+  if (template.kind === "skip") {
+    return { kind: "skip" as const };
+  }
+
+  if (template.kind === "invalid") {
+    return template;
+  }
+
+  for (const matchdayId of matchdayIds) {
+    await savePlayerVote({
+      ...template.input,
+      matchdayId
+    });
+  }
+
+  return {
+    kind: "save" as const,
+    matchdayCount: matchdayIds.length,
+    playerId
+  };
+}
+
+async function loadMatchdaysForUnifiedNumber(matchdayNumber: number) {
+  return prisma.matchday.findMany({
+    where: {
+      number: matchdayNumber,
+      status: {
+        in: [
+          MatchdayStatus.LINEUPS_LOCKED,
+          MatchdayStatus.VOTES_PENDING,
+          MatchdayStatus.VOTES_COMPLETED,
+          MatchdayStatus.SCORES_CALCULATED
+        ]
+      }
+    },
+    select: {
+      id: true,
+      leagueId: true,
+      number: true
+    },
+    orderBy: { leagueId: "asc" }
+  });
 }
 
 function revalidateLeaguePaths(leagueId: string) {
@@ -220,10 +296,6 @@ function readOptionalString(formData: FormData, fieldName: string): string | nul
   }
 
   return value;
-}
-
-function isRoundRobinMode(value: string): value is "SINGLE_ROUND" | "DOUBLE_ROUND" {
-  return value === "SINGLE_ROUND" || value === "DOUBLE_ROUND";
 }
 
 function getVoteFieldName(playerId: string, fieldName: VoteFieldName) {
@@ -386,9 +458,11 @@ function buildBulkVoteInput(formData: FormData, matchdayId: string, playerId: st
   const assists = readVoteCounter(formData, playerId, "assists");
   const cleanSheet = readVoteCounter(formData, playerId, "cleanSheet");
   const goals = readVoteCounter(formData, playerId, "goals");
+  const goalsConceded = readVoteCounter(formData, playerId, "goalsConceded");
   const ownGoals = readVoteCounter(formData, playerId, "ownGoals");
   const penaltiesMissed = readVoteCounter(formData, playerId, "penaltiesMissed");
   const penaltiesSaved = readVoteCounter(formData, playerId, "penaltiesSaved");
+  const penaltiesScored = readVoteCounter(formData, playerId, "penaltiesScored");
   const redCards = readVoteCounter(formData, playerId, "redCards");
   const yellowCards = readVoteCounter(formData, playerId, "yellowCards");
 
@@ -396,9 +470,11 @@ function buildBulkVoteInput(formData: FormData, matchdayId: string, playerId: st
     assists > 0 ||
     cleanSheet > 0 ||
     goals > 0 ||
+    goalsConceded > 0 ||
     ownGoals > 0 ||
     penaltiesMissed > 0 ||
     penaltiesSaved > 0 ||
+    penaltiesScored > 0 ||
     redCards > 0 ||
     yellowCards > 0;
   const isTouched =
@@ -424,12 +500,14 @@ function buildBulkVoteInput(formData: FormData, matchdayId: string, playerId: st
       baseVote,
       cleanSheet,
       goals,
+      goalsConceded,
       isSv,
       matchdayId,
       notes,
       ownGoals,
       penaltiesMissed,
       penaltiesSaved,
+      penaltiesScored,
       playerId,
       redCards,
       yellowCards
@@ -461,25 +539,22 @@ export async function generateRequiredVotePlayersAction(formData: FormData) {
 export async function createLeagueAction(formData: FormData) {
   const authContext = await requireAdminAccess();
   const rawName = formData.get("name");
-  const rawMaxTeams = formData.get("maxTeams");
+  const rawPassword = formData.get("password");
 
   const name = typeof rawName === "string" ? rawName : "";
-  const maxTeams =
-    typeof rawMaxTeams === "string" && rawMaxTeams.trim().length > 0
-      ? Number(rawMaxTeams)
-      : Number.NaN;
+  const password = typeof rawPassword === "string" ? rawPassword : "";
 
   try {
     const result = await createLeague({
       createdById: authContext.appUser.id,
-      maxTeams,
-      name
+      name,
+      password
     });
 
     revalidateLeaguePaths(result.leagueId);
 
     redirectWithMessage("/admin", {
-      notice: `Lega creata: ${result.name}. Max squadre: ${result.maxTeams}.`
+      notice: `Lega creata: ${result.name}. Max squadre: ${result.maxTeams} (andata/ritorno = 18 giornate).`
     });
   } catch (error) {
     redirectWithMessage("/admin/leagues/new", {
@@ -667,25 +742,18 @@ export async function createMatchdayAction(formData: FormData) {
 export async function generateLeagueScheduleAction(formData: FormData) {
   await assertAdminAction();
   const leagueId = readRequiredString(formData, "leagueId");
-  const rawMode = readRequiredString(formData, "mode");
-
-  if (!isRoundRobinMode(rawMode)) {
-    redirectWithMessage(buildAdminLeagueSchedulePath(leagueId), {
-      error: "Modalita calendario non valida."
-    });
-  }
 
   try {
     const result = await generateLeagueSchedule({
       leagueId,
-      mode: rawMode
+      mode: "DOUBLE_ROUND"
     });
 
     revalidateLeaguePaths(leagueId);
     revalidatePath(buildAdminLeagueSchedulePath(leagueId));
 
     redirectWithMessage(buildAdminLeagueSchedulePath(leagueId), {
-      notice: `Calendario generato. Modalita: ${result.mode}. Giornate: ${result.matchdayCount}. Partite: ${result.fixtureCount}. Turni di riposo: ${result.byeCount}.`
+      notice: `Calendario andata/ritorno generato. Giornate: ${result.matchdayCount}. Partite: ${result.fixtureCount}. Turni di riposo: ${result.byeCount}.`
     });
   } catch (error) {
     redirectWithMessage(buildAdminLeagueSchedulePath(leagueId), {
@@ -817,6 +885,7 @@ export async function savePlayerVoteAction(formData: FormData) {
       baseVote,
       cleanSheet: readCounter(formData, "cleanSheet"),
       goals: readCounter(formData, "goals"),
+      goalsConceded: readCounter(formData, "goalsConceded"),
       isSv,
       matchdayId,
       notes:
@@ -826,6 +895,7 @@ export async function savePlayerVoteAction(formData: FormData) {
       ownGoals: readCounter(formData, "ownGoals"),
       penaltiesMissed: readCounter(formData, "penaltiesMissed"),
       penaltiesSaved: readCounter(formData, "penaltiesSaved"),
+      penaltiesScored: readCounter(formData, "penaltiesScored"),
       playerId,
       redCards: readCounter(formData, "redCards"),
       yellowCards: readCounter(formData, "yellowCards")
@@ -871,6 +941,50 @@ export async function saveSinglePlayerVoteFromBulkAction(
   } catch (error) {
     errorMessage =
       error instanceof Error ? error.message : "Salvataggio non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function importFantacalcioVotesFileAction(formData: FormData) {
+  await assertAdminAction();
+  const matchdayId = readRequiredString(formData, "matchdayId");
+  const leagueId = readOptionalString(formData, "leagueId");
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  const sheetNameRaw = readOptionalString(formData, "sheetName");
+  const fileValue = formData.get("votesFile");
+
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    if (!(fileValue instanceof File) || fileValue.size === 0) {
+      throw new Error("Seleziona un file XLS/XLSX dei voti Fantacalcio.");
+    }
+
+    const fileName = fileValue.name.toLowerCase();
+    if (!fileName.endsWith(".xls") && !fileName.endsWith(".xlsx")) {
+      throw new Error("Formato non supportato. Carica un file .xls o .xlsx.");
+    }
+
+    const buffer = Buffer.from(await fileValue.arrayBuffer());
+    const result = await importFantacalcioVotesFromBuffer({
+      buffer,
+      matchdayId,
+      sheetName: sheetNameRaw || undefined
+    });
+
+    revalidateAdminPaths(matchdayId, leagueId);
+
+    const unmatchedPreview =
+      result.skippedUnmatchedCodes.length > 0
+        ? ` Codici non in DB: ${result.skippedUnmatchedCodes.slice(0, 8).join(", ")}${result.skippedUnmatchedCodes.length > 8 ? "…" : ""}.`
+        : "";
+
+    notice = `Import voti (${result.sheetName}): ${result.savedCount} salvati, ${result.matchedCount} dal file, ${result.missingMarkedSvCount} SV per assenti.${unmatchedPreview}`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error ? error.message : "Import voti non riuscito.";
   }
 
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
@@ -931,6 +1045,220 @@ export async function saveBulkPlayerVotesAction(formData: FormData) {
   } catch (error) {
     errorMessage =
       error instanceof Error ? error.message : "Salvataggio bulk non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function saveSingleUnifiedPlayerVoteAction(
+  playerId: string,
+  formData: FormData
+) {
+  await assertAdminAction();
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const matchdayIds = readPlayerMatchdayIds(formData, playerId);
+    const result = await saveVoteAcrossMatchdays(formData, playerId, matchdayIds);
+
+    if (result.kind === "skip") {
+      throw new Error("Nessun dato da salvare per questo giocatore.");
+    }
+
+    if (result.kind === "invalid") {
+      throw new Error(`Riga non valida: ${result.reason}.`);
+    }
+
+    for (const matchdayId of matchdayIds) {
+      await checkVotesCompletion(matchdayId);
+      revalidateAdminPaths(matchdayId);
+    }
+
+    notice = `Voto salvato su ${result.matchdayCount} leghe per ${result.playerId}.`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error ? error.message : "Salvataggio unificato non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function saveBulkUnifiedPlayerVotesAction(formData: FormData) {
+  await assertAdminAction();
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  const playerIds = Array.from(
+    new Set(
+      formData
+        .getAll("playerIds")
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => value.length > 0)
+    )
+  );
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const savedPlayerIds: string[] = [];
+    const touchedMatchdayIds = new Set<string>();
+    const invalidRows: string[] = [];
+    let skippedCount = 0;
+    let fanOutCount = 0;
+
+    for (const playerId of playerIds) {
+      const playerLabel = readVotePlayerLabel(formData, playerId);
+      const matchdayIds = readPlayerMatchdayIds(formData, playerId);
+      const result = await saveVoteAcrossMatchdays(
+        formData,
+        playerId,
+        matchdayIds
+      );
+
+      if (result.kind === "skip") {
+        skippedCount += 1;
+        continue;
+      }
+
+      if (result.kind === "invalid") {
+        invalidRows.push(`${playerLabel}: ${result.reason}`);
+        continue;
+      }
+
+      savedPlayerIds.push(playerId);
+      fanOutCount += result.matchdayCount;
+      for (const matchdayId of matchdayIds) {
+        touchedMatchdayIds.add(matchdayId);
+      }
+    }
+
+    for (const matchdayId of touchedMatchdayIds) {
+      await checkVotesCompletion(matchdayId);
+      revalidateAdminPaths(matchdayId);
+    }
+
+    revalidatePath("/admin/votes");
+
+    if (savedPlayerIds.length === 0 && invalidRows.length === 0) {
+      notice =
+        "Nessuna riga compilata da salvare. Le righe vuote sono state ignorate.";
+    } else if (invalidRows.length > 0) {
+      errorMessage = `Salvati ${savedPlayerIds.length} giocatori (${fanOutCount} voti multi-lega). Ignorati: ${skippedCount}. Non validi: ${invalidRows.join(" | ")}.`;
+    } else {
+      notice = `Salvati ${savedPlayerIds.length} giocatori su ${fanOutCount} voti multi-lega. Ignorati: ${skippedCount}.`;
+    }
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Salvataggio bulk unificato non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function generateRequiredVotesForUnifiedMatchdayNumberAction(
+  formData: FormData
+) {
+  await assertAdminAction();
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  const matchdayNumber = Number(readRequiredString(formData, "matchdayNumber"));
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    if (!Number.isInteger(matchdayNumber) || matchdayNumber <= 0) {
+      throw new Error("Numero giornata non valido.");
+    }
+
+    const matchdays = await loadMatchdaysForUnifiedNumber(matchdayNumber);
+    if (matchdays.length === 0) {
+      throw new Error("Nessuna giornata trovata per questo numero.");
+    }
+
+    let totalRequired = 0;
+    for (const matchday of matchdays) {
+      const result = await generateRequiredVotePlayers(matchday.id);
+      totalRequired += result.totalRequired;
+      revalidateAdminPaths(matchday.id, matchday.leagueId);
+    }
+
+    notice = `Liste voti generate su ${matchdays.length} leghe (giornata ${matchdayNumber}). Totale richiesti: ${totalRequired}.`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Generazione liste voti multi-lega non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function importFantacalcioVotesAcrossLeaguesAction(
+  formData: FormData
+) {
+  await assertAdminAction();
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  const matchdayNumber = Number(readRequiredString(formData, "matchdayNumber"));
+  const sheetNameRaw = readOptionalString(formData, "sheetName");
+  const fileValue = formData.get("votesFile");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    if (!Number.isInteger(matchdayNumber) || matchdayNumber <= 0) {
+      throw new Error("Numero giornata non valido.");
+    }
+
+    if (!(fileValue instanceof File) || fileValue.size === 0) {
+      throw new Error("Seleziona un file XLS/XLSX dei voti Fantacalcio.");
+    }
+
+    const fileName = fileValue.name.toLowerCase();
+    if (!fileName.endsWith(".xls") && !fileName.endsWith(".xlsx")) {
+      throw new Error("Formato non supportato. Carica un file .xls o .xlsx.");
+    }
+
+    const matchdays = await loadMatchdaysForUnifiedNumber(matchdayNumber);
+    if (matchdays.length === 0) {
+      throw new Error("Nessuna giornata trovata per questo numero.");
+    }
+
+    const buffer = Buffer.from(await fileValue.arrayBuffer());
+    let savedCount = 0;
+    let matchedCount = 0;
+    let missingMarkedSvCount = 0;
+    let sheetName = sheetNameRaw || "Fantacalcio";
+    const unmatched = new Set<string>();
+
+    for (const matchday of matchdays) {
+      await generateRequiredVotePlayers(matchday.id);
+      const result = await importFantacalcioVotesFromBuffer({
+        buffer,
+        matchdayId: matchday.id,
+        sheetName: sheetNameRaw || undefined
+      });
+      savedCount += result.savedCount;
+      matchedCount += result.matchedCount;
+      missingMarkedSvCount += result.missingMarkedSvCount;
+      sheetName = result.sheetName;
+      for (const code of result.skippedUnmatchedCodes) {
+        unmatched.add(code);
+      }
+      revalidateAdminPaths(matchday.id, matchday.leagueId);
+    }
+
+    const unmatchedPreview =
+      unmatched.size > 0
+        ? ` Codici non in DB: ${Array.from(unmatched).slice(0, 8).join(", ")}${unmatched.size > 8 ? "…" : ""}.`
+        : "";
+
+    notice = `Import multi-lega giornata ${matchdayNumber} (${sheetName}) su ${matchdays.length} leghe: ${savedCount} salvati, ${matchedCount} match file, ${missingMarkedSvCount} SV assenti.${unmatchedPreview}`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Import voti multi-lega non riuscito.";
   }
 
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
@@ -1130,4 +1458,93 @@ export async function resetLeagueDataAction(formData: FormData) {
           : "Reset dati leghe non riuscito."
     });
   }
+}
+
+function revalidateAdminRosterPaths(options: {
+  fantasyTeamId: string;
+  leagueId: string;
+}) {
+  revalidatePath("/admin");
+  revalidatePath(`/admin/leagues/${options.leagueId}/teams`);
+  revalidatePath(`/admin/teams/${options.fantasyTeamId}/roster`);
+  revalidatePath(`/me/teams/${options.fantasyTeamId}`);
+  revalidatePath(`/me/teams/${options.fantasyTeamId}/roster`);
+  revalidatePath(`/leagues/${options.leagueId}`);
+}
+
+export async function adminAddPlayerToRosterAction(formData: FormData) {
+  await assertAdminAction();
+  const teamId = readRequiredString(formData, "teamId");
+  const playerId = readRequiredString(formData, "playerId");
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const result = await adminAddPlayerToRoster({
+      fantasyTeamId: teamId,
+      playerId
+    });
+    revalidateAdminRosterPaths(result);
+    notice = `Giocatore aggiunto. Rosa: ${result.rosterCount}/25.`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Aggiunta giocatore non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function adminRemovePlayerFromRosterAction(formData: FormData) {
+  await assertAdminAction();
+  const teamId = readRequiredString(formData, "teamId");
+  const playerId = readRequiredString(formData, "playerId");
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const result = await adminRemovePlayerFromRoster({
+      fantasyTeamId: teamId,
+      playerId
+    });
+    revalidateAdminRosterPaths(result);
+    notice = `Giocatore rimosso. Rosa: ${result.rosterCount}/25.`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Rimozione giocatore non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function adminReplacePlayerInRosterAction(formData: FormData) {
+  await assertAdminAction();
+  const teamId = readRequiredString(formData, "teamId");
+  const outgoingPlayerId = readRequiredString(formData, "outgoingPlayerId");
+  const incomingPlayerId = readRequiredString(formData, "incomingPlayerId");
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const result = await adminReplacePlayerInRoster({
+      fantasyTeamId: teamId,
+      incomingPlayerId,
+      outgoingPlayerId
+    });
+    revalidateAdminRosterPaths(result);
+    notice = `Sostituzione completata. Rosa: ${result.rosterCount}/25.`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Sostituzione giocatore non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }

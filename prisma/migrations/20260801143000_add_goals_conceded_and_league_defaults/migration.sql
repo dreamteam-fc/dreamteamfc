@@ -1,0 +1,6 @@
+﻿-- AlterTable
+ALTER TABLE "League" ALTER COLUMN "maxAutoSubs" SET DEFAULT 1;
+ALTER TABLE "League" ALTER COLUMN "maxTeams" SET DEFAULT 10;
+
+-- AlterTable
+ALTER TABLE "PlayerVote" ADD COLUMN "goalsConceded" INTEGER NOT NULL DEFAULT 0;

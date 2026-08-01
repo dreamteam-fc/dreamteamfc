@@ -144,6 +144,18 @@ export default async function JoinLeaguePage({
                 />
               </label>
 
+              <label className="block space-y-2 text-sm text-slate-700">
+                <span className="font-medium">Password di lega</span>
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  disabled={!data.canJoin}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  placeholder="Password impostata dall'admin"
+                />
+              </label>
+
               <div className="flex flex-wrap gap-3">
                 <button
                   type="submit"

@@ -19,48 +19,72 @@ export async function savePlayerVote(
   input: SavePlayerVoteInput
 ): Promise<SavePlayerVoteResult> {
   const validatedInput = validatePlayerVoteInput(input);
-  const { finalFantavote, requiredVoteStatus } =
-    calculatePersistedFantavote(validatedInput);
 
   return prisma.$transaction(async (tx) => {
+    const player = await tx.player.findUnique({
+      where: { id: validatedInput.playerId },
+      select: { role: true }
+    });
+
+    if (!player) {
+      throw new Error("Giocatore non trovato.");
+    }
+
+    const isGoalkeeper = player.role === "GOALKEEPER";
+    const goalsConceded = isGoalkeeper ? validatedInput.goalsConceded : 0;
+    const cleanSheet =
+      !validatedInput.isSv && isGoalkeeper && goalsConceded === 0 ? 1 : 0;
+
+    const voteForPersist = {
+      ...validatedInput,
+      cleanSheet,
+      goalsConceded
+    };
+    const { finalFantavote, requiredVoteStatus } =
+      calculatePersistedFantavote(voteForPersist);
+
     const playerVote = await tx.playerVote.upsert({
       where: {
         matchdayId_playerId: {
-          matchdayId: validatedInput.matchdayId,
-          playerId: validatedInput.playerId
+          matchdayId: voteForPersist.matchdayId,
+          playerId: voteForPersist.playerId
         }
       },
       update: {
-        assists: validatedInput.assists,
-        baseVote: validatedInput.baseVote,
-        cleanSheet: validatedInput.cleanSheet,
+        assists: voteForPersist.assists,
+        baseVote: voteForPersist.baseVote,
+        cleanSheet: voteForPersist.cleanSheet,
         finalFantavote,
-        goals: validatedInput.goals,
-        isSv: validatedInput.isSv,
-        notes: validatedInput.notes,
-        ownGoals: validatedInput.ownGoals,
-        penaltiesMissed: validatedInput.penaltiesMissed,
-        penaltiesSaved: validatedInput.penaltiesSaved,
-        redCards: validatedInput.redCards,
+        goals: voteForPersist.goals,
+        goalsConceded: voteForPersist.goalsConceded,
+        isSv: voteForPersist.isSv,
+        notes: voteForPersist.notes,
+        ownGoals: voteForPersist.ownGoals,
+        penaltiesMissed: voteForPersist.penaltiesMissed,
+        penaltiesSaved: voteForPersist.penaltiesSaved,
+        penaltiesScored: voteForPersist.penaltiesScored,
+        redCards: voteForPersist.redCards,
         status: VoteStatus.CONFIRMED,
-        yellowCards: validatedInput.yellowCards
+        yellowCards: voteForPersist.yellowCards
       },
       create: {
-        assists: validatedInput.assists,
-        baseVote: validatedInput.baseVote,
-        cleanSheet: validatedInput.cleanSheet,
+        assists: voteForPersist.assists,
+        baseVote: voteForPersist.baseVote,
+        cleanSheet: voteForPersist.cleanSheet,
         finalFantavote,
-        goals: validatedInput.goals,
-        isSv: validatedInput.isSv,
-        matchdayId: validatedInput.matchdayId,
-        notes: validatedInput.notes,
-        ownGoals: validatedInput.ownGoals,
-        penaltiesMissed: validatedInput.penaltiesMissed,
-        penaltiesSaved: validatedInput.penaltiesSaved,
-        playerId: validatedInput.playerId,
-        redCards: validatedInput.redCards,
+        goals: voteForPersist.goals,
+        goalsConceded: voteForPersist.goalsConceded,
+        isSv: voteForPersist.isSv,
+        matchdayId: voteForPersist.matchdayId,
+        notes: voteForPersist.notes,
+        ownGoals: voteForPersist.ownGoals,
+        penaltiesMissed: voteForPersist.penaltiesMissed,
+        penaltiesSaved: voteForPersist.penaltiesSaved,
+        penaltiesScored: voteForPersist.penaltiesScored,
+        playerId: voteForPersist.playerId,
+        redCards: voteForPersist.redCards,
         status: VoteStatus.CONFIRMED,
-        yellowCards: validatedInput.yellowCards
+        yellowCards: voteForPersist.yellowCards
       },
       select: {
         id: true,
@@ -73,16 +97,16 @@ export async function savePlayerVote(
     await tx.requiredVotePlayer.upsert({
       where: {
         matchdayId_playerId: {
-          matchdayId: validatedInput.matchdayId,
-          playerId: validatedInput.playerId
+          matchdayId: voteForPersist.matchdayId,
+          playerId: voteForPersist.playerId
         }
       },
       update: {
         status: requiredVoteStatus
       },
       create: {
-        matchdayId: validatedInput.matchdayId,
-        playerId: validatedInput.playerId,
+        matchdayId: voteForPersist.matchdayId,
+        playerId: voteForPersist.playerId,
         status: requiredVoteStatus,
         usageCount: 1
       }

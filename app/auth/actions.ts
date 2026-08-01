@@ -46,6 +46,15 @@ export async function loginAction(formData: FormData) {
   });
 
   if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("email not confirmed")) {
+      redirectToLogin({
+        error:
+          "Email non confermata. Controlla la casella di posta oppure disattiva Confirm email in Supabase (Auth → Providers → Email) in locale.",
+        next: nextPath
+      });
+    }
+
     redirectToLogin({ error: "Credenziali non valide.", next: nextPath });
   }
 
@@ -98,6 +107,31 @@ function redirectToResetPassword(
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function mapSignupErrorMessage(message: string, code?: string) {
+  const normalized = `${code ?? ""} ${message}`.toLowerCase();
+
+  if (
+    normalized.includes("over_email_send_rate_limit") ||
+    normalized.includes("email rate limit")
+  ) {
+    return "Limite email Supabase raggiunto. In locale: Authentication → Providers → Email → disattiva Confirm email, poi riprova tra qualche minuto.";
+  }
+
+  if (normalized.includes("already") || normalized.includes("registered")) {
+    return "Questa email risulta gia registrata. Usa il login oppure recupera la password.";
+  }
+
+  if (normalized.includes("password")) {
+    return "Password non accettata da Supabase. Usa almeno 8 caratteri e riprova.";
+  }
+
+  if (normalized.includes("email") && normalized.includes("invalid")) {
+    return "Email non accettata da Supabase. Prova con un altro indirizzo.";
+  }
+
+  return "Impossibile completare la registrazione.";
 }
 
 function validatePasswordOrRedirect(
@@ -185,7 +219,17 @@ export async function signupAction(formData: FormData) {
 
   if (error) {
     redirectToSignup({
-      error: "Impossibile completare la registrazione.",
+      error: mapSignupErrorMessage(error.message, error.code),
+      next: nextPath
+    });
+  }
+
+  // Supabase, per anti-enumeration, risponde "ok" anche se l'email e gia registrata,
+  // ma senza identities e senza session.
+  if ((data.user?.identities?.length ?? 0) === 0) {
+    redirectToSignup({
+      error:
+        "Questa email risulta gia registrata. Usa il login oppure recupera la password.",
       next: nextPath
     });
   }

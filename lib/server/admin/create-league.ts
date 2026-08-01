@@ -1,11 +1,15 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { hashSecret } from "@/lib/server/security/secret-hash.ts";
+
+/** Dream Team: leghe fisse a 10 squadre (andata/ritorno = 18 giornate). */
+export const REQUIRED_LEAGUE_MAX_TEAMS = 10;
 
 export type CreateLeagueInput = {
   createdById: string;
-  maxTeams: number;
   name: string;
+  password: string;
 };
 
 export type CreateLeagueResult = {
@@ -27,13 +31,12 @@ export async function createLeague(
     throw new Error("Il nome lega e obbligatorio.");
   }
 
-  if (!Number.isInteger(input.maxTeams)) {
-    throw new Error("maxTeams deve essere un numero intero.");
+  const password = input.password.trim();
+  if (password.length === 0) {
+    throw new Error("La password di iscrizione e obbligatoria.");
   }
 
-  if (input.maxTeams < 2 || input.maxTeams > 50) {
-    throw new Error("maxTeams deve essere compreso tra 2 e 50.");
-  }
+  const passwordHash = hashSecret(password);
 
   const duplicateLeague = await prisma.league.findFirst({
     where: {
@@ -55,8 +58,11 @@ export async function createLeague(
     const league = await prisma.league.create({
       data: {
         createdById: input.createdById,
-        maxTeams: input.maxTeams,
-        name
+        maxAutoSubs: 1,
+        maxTeams: REQUIRED_LEAGUE_MAX_TEAMS,
+        name,
+        passwordHash,
+        startersCount: 5
       },
       select: {
         id: true,

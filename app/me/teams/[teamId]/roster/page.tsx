@@ -159,15 +159,15 @@ export default async function TeamRosterPage({
           <div>
             <h3 className="text-xl font-semibold text-slate-900">Stato rosa</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Rosa: <strong>{data.rosterValidation.total}/8</strong> | Portieri:{" "}
-              <strong>{data.rosterValidation.goalkeeperCount}</strong> | Difensori:{" "}
-              <strong>{data.rosterValidation.defenderCount}</strong> | Centrocampisti:{" "}
-              <strong>{data.rosterValidation.midfielderCount}</strong> | Attaccanti:{" "}
-              <strong>{data.rosterValidation.attackerCount}</strong>
+              Rosa: <strong>{data.rosterValidation.total}/25</strong> | Portieri:{" "}
+              <strong>{data.rosterValidation.goalkeeperCount}/3</strong> | Difensori:{" "}
+              <strong>{data.rosterValidation.defenderCount}/8</strong> | Centrocampisti:{" "}
+              <strong>{data.rosterValidation.midfielderCount}/8</strong> | Attaccanti:{" "}
+              <strong>{data.rosterValidation.attackerCount}/6</strong>
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              Vincoli: minimo 1 portiere, minimo 2 difensori, minimo 2 attaccanti,
-              totale 8 giocatori.
+              Vincoli: esattamente 3 portieri, 8 difensori, 8 centrocampisti, 6
+              attaccanti (totale 25).
             </p>
           </div>
 

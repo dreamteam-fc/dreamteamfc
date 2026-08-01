@@ -2,10 +2,12 @@ import { LeagueRole, Prisma } from "@prisma/client";
 
 import { hasLeagueScheduleGeneratedWithDb } from "@/lib/server/leagues/has-league-schedule-generated.ts";
 import { prisma } from "@/lib/prisma.ts";
+import { verifySecret } from "@/lib/server/security/secret-hash.ts";
 
 export type CreateUserFantasyTeamInput = {
   appUserId: string;
   leagueId: string;
+  password: string;
   teamName: string;
 };
 
@@ -43,12 +45,23 @@ export async function createUserFantasyTeam(
             }
           },
           id: true,
-          maxTeams: true
+          maxTeams: true,
+          passwordHash: true
         }
       });
 
       if (!league) {
         throw new Error("Lega non trovata.");
+      }
+
+      if (!league.passwordHash) {
+        throw new Error(
+          "Questa lega non ha una password di iscrizione configurata. Contatta l'admin."
+        );
+      }
+
+      if (!verifySecret(input.password, league.passwordHash)) {
+        throw new Error("Password di lega non valida.");
       }
 
       if (await hasLeagueScheduleGeneratedWithDb(tx, input.leagueId)) {

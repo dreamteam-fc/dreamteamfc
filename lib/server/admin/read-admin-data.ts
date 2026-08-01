@@ -9,6 +9,7 @@ export type AdminPlayerSourceFilter =
   | "ALL"
   | "api-football"
   | "demo"
+  | "fantacalcio-quotazioni"
   | "unknown";
 
 export type AdminPlayerStatusFilter = "ACTIVE" | "ALL" | "INACTIVE";
@@ -109,6 +110,7 @@ export async function getAdminMatchdayVotesData(
           cleanSheet: true,
           finalFantavote: true,
           goals: true,
+          goalsConceded: true,
           id: true,
           isSv: true,
           matchdayId: true,
@@ -116,6 +118,7 @@ export async function getAdminMatchdayVotesData(
           ownGoals: true,
           penaltiesMissed: true,
           penaltiesSaved: true,
+          penaltiesScored: true,
           playerId: true,
           redCards: true,
           status: true,
@@ -696,6 +699,37 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
         select: {
           id: true,
           name: true,
+          fantasyTeams: {
+            orderBy: {
+              name: "asc"
+            },
+            select: {
+              id: true,
+              name: true,
+              user: {
+                select: {
+                  displayName: true,
+                  email: true
+                }
+              },
+              lineups: {
+                where: {
+                  matchdayId
+                },
+                select: {
+                  id: true,
+                  status: true,
+                  submittedAt: true,
+                  _count: {
+                    select: {
+                      players: true
+                    }
+                  }
+                },
+                take: 1
+              }
+            }
+          },
           _count: {
             select: {
               fantasyTeams: true
@@ -742,12 +776,417 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
     (fixture) => fixture.status === "SCHEDULED"
   );
 
+  const teamLineupStatuses = matchday.league.fantasyTeams.map((team) => {
+    const lineup = team.lineups[0] ?? null;
+    const isInserted = lineup != null;
+
+    return {
+      fantasyTeamId: team.id,
+      fantasyTeamName: team.name,
+      ownerDisplayName: team.user.displayName,
+      ownerEmail: team.user.email,
+      lineupId: lineup?.id ?? null,
+      lineupPlayerCount: lineup?._count.players ?? 0,
+      lineupStatus: lineup?.status ?? null,
+      submittedAt: lineup?.submittedAt ?? null,
+      formationStatus: isInserted
+        ? ("INSERITA" as const)
+        : ("NON_INSERITA" as const)
+    };
+  });
+
+  const insertedLineupsCount = teamLineupStatuses.filter(
+    (team) => team.formationStatus === "INSERITA"
+  ).length;
+  const missingLineupsCount = teamLineupStatuses.length - insertedLineupsCount;
+
+  const { fantasyTeams: _fantasyTeams, ...leagueWithoutTeams } = matchday.league;
+
   return {
     ...matchday,
+    league: leagueWithoutTeams,
     completedVotesCount,
     hasCalculatedFixtures,
     hasPublishedFixtures,
     hasScheduledFixtures,
-    missingVotesCount
+    insertedLineupsCount,
+    missingLineupsCount,
+    missingVotesCount,
+    teamLineupStatuses
   };
+}
+
+const UNIFIED_VOTES_MATCHDAY_STATUSES = [
+  "LINEUPS_LOCKED",
+  "VOTES_PENDING",
+  "VOTES_COMPLETED",
+  "SCORES_CALCULATED"
+] as const;
+
+type UnifiedVoteSnapshot = {
+  assists: number;
+  baseVote: number | null;
+  cleanSheet: number;
+  finalFantavote: number | null;
+  goals: number;
+  goalsConceded: number;
+  isSv: boolean;
+  leagueName: string;
+  matchdayId: string;
+  notes: string | null;
+  ownGoals: number;
+  penaltiesMissed: number;
+  penaltiesSaved: number;
+  penaltiesScored: number;
+  redCards: number;
+  status: string;
+  yellowCards: number;
+};
+
+export async function getAdminUnifiedVotesData(options?: {
+  matchdayNumber?: number;
+  searchQuery?: string;
+}) {
+  const matchdayNumber = options?.matchdayNumber;
+  const normalizedSearchQuery = options?.searchQuery?.trim() ?? "";
+
+  const numberRows = await prisma.matchday.findMany({
+    where: {
+      status: { in: [...UNIFIED_VOTES_MATCHDAY_STATUSES] }
+    },
+    distinct: ["number"],
+    orderBy: { number: "asc" },
+    select: { number: true }
+  });
+  const availableNumbers = numberRows.map((row) => row.number);
+
+  const selectedNumber =
+    typeof matchdayNumber === "number" && Number.isFinite(matchdayNumber)
+      ? matchdayNumber
+      : (availableNumbers[0] ?? null);
+
+  if (selectedNumber == null) {
+    return {
+      availableNumbers,
+      matchdays: [],
+      players: [],
+      searchQuery: normalizedSearchQuery,
+      selectedNumber: null,
+      totals: {
+        leagueCount: 0,
+        pendingPlayers: 0,
+        playerCount: 0
+      }
+    };
+  }
+
+  const selectedMatchdays = await prisma.matchday.findMany({
+    where: {
+      number: selectedNumber,
+      status: { in: [...UNIFIED_VOTES_MATCHDAY_STATUSES] }
+    },
+    orderBy: [{ league: { name: "asc" } }],
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      league: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      lineups: {
+        select: {
+          players: {
+            where: { slotType: "STARTER" },
+            select: {
+              playerId: true,
+              player: {
+                select: {
+                  id: true,
+                  isActive: true,
+                  name: true,
+                  role: true,
+                  teamName: true
+                }
+              }
+            }
+          }
+        }
+      },
+      teamScores: {
+        select: {
+          players: {
+            where: {
+              finalType: { in: ["STARTER_PLAYED", "AUTO_SUB_IN"] }
+            },
+            select: {
+              playerId: true,
+              finalType: true,
+              player: {
+                select: {
+                  id: true,
+                  isActive: true,
+                  name: true,
+                  role: true,
+                  teamName: true
+                }
+              }
+            }
+          }
+        }
+      },
+      requiredVotes: {
+        select: {
+          playerId: true,
+          status: true,
+          usageCount: true
+        }
+      },
+      playerVotes: {
+        select: {
+          assists: true,
+          baseVote: true,
+          cleanSheet: true,
+          finalFantavote: true,
+          goals: true,
+          goalsConceded: true,
+          isSv: true,
+          notes: true,
+          ownGoals: true,
+          penaltiesMissed: true,
+          penaltiesSaved: true,
+          penaltiesScored: true,
+          playerId: true,
+          redCards: true,
+          status: true,
+          yellowCards: true
+        }
+      }
+    }
+  });
+
+  const playersById = new Map<
+    string,
+    {
+      appearances: Array<{
+        leagueId: string;
+        leagueName: string;
+        matchdayId: string;
+        requiredStatus: string | null;
+        source: "AUTO_SUB_IN" | "STARTER" | "STARTER_PLAYED";
+      }>;
+      player: {
+        id: string;
+        isActive: boolean;
+        name: string;
+        role: "ATTACKER" | "DEFENDER" | "GOALKEEPER" | "MIDFIELDER";
+        teamName: string | null;
+      };
+      votes: UnifiedVoteSnapshot[];
+    }
+  >();
+
+  function toVoteSnapshot(
+    matchday: (typeof selectedMatchdays)[number],
+    vote: (typeof selectedMatchdays)[number]["playerVotes"][number]
+  ): UnifiedVoteSnapshot {
+    return {
+      assists: vote.assists,
+      baseVote: prismaDecimalToNumber(vote.baseVote),
+      cleanSheet: vote.cleanSheet,
+      finalFantavote: prismaDecimalToNumber(vote.finalFantavote),
+      goals: vote.goals,
+      goalsConceded: vote.goalsConceded,
+      isSv: vote.isSv,
+      leagueName: matchday.league.name,
+      matchdayId: matchday.id,
+      notes: vote.notes,
+      ownGoals: vote.ownGoals,
+      penaltiesMissed: vote.penaltiesMissed,
+      penaltiesSaved: vote.penaltiesSaved,
+      penaltiesScored: vote.penaltiesScored,
+      redCards: vote.redCards,
+      status: vote.status,
+      yellowCards: vote.yellowCards
+    };
+  }
+
+  function upsertPlayerAppearance(options: {
+    matchday: (typeof selectedMatchdays)[number];
+    player: {
+      id: string;
+      isActive: boolean;
+      name: string;
+      role: "ATTACKER" | "DEFENDER" | "GOALKEEPER" | "MIDFIELDER";
+      teamName: string | null;
+    };
+    requiredStatus: string | null;
+    source: "AUTO_SUB_IN" | "STARTER" | "STARTER_PLAYED";
+    vote: (typeof selectedMatchdays)[number]["playerVotes"][number] | undefined;
+  }) {
+    const appearance = {
+      leagueId: options.matchday.league.id,
+      leagueName: options.matchday.league.name,
+      matchdayId: options.matchday.id,
+      requiredStatus: options.requiredStatus,
+      source: options.source
+    };
+    const existing = playersById.get(options.player.id);
+    const voteEntry = options.vote
+      ? toVoteSnapshot(options.matchday, options.vote)
+      : null;
+
+    if (existing) {
+      existing.appearances.push(appearance);
+      if (voteEntry) {
+        existing.votes.push(voteEntry);
+      }
+      return;
+    }
+
+    playersById.set(options.player.id, {
+      appearances: [appearance],
+      player: options.player,
+      votes: voteEntry ? [voteEntry] : []
+    });
+  }
+
+  for (const matchday of selectedMatchdays) {
+    const requiredByPlayerId = new Map(
+      matchday.requiredVotes.map((entry) => [entry.playerId, entry])
+    );
+    const voteByPlayerId = new Map(
+      matchday.playerVotes.map((entry) => [entry.playerId, entry])
+    );
+    const hasScores = matchday.teamScores.length > 0;
+
+    if (hasScores) {
+      for (const teamScore of matchday.teamScores) {
+        for (const scorePlayer of teamScore.players) {
+          upsertPlayerAppearance({
+            matchday,
+            player: scorePlayer.player,
+            requiredStatus:
+              requiredByPlayerId.get(scorePlayer.playerId)?.status ?? null,
+            source:
+              scorePlayer.finalType === "AUTO_SUB_IN"
+                ? "AUTO_SUB_IN"
+                : "STARTER_PLAYED",
+            vote: voteByPlayerId.get(scorePlayer.playerId)
+          });
+        }
+      }
+      continue;
+    }
+
+    for (const lineup of matchday.lineups) {
+      for (const lineupPlayer of lineup.players) {
+        upsertPlayerAppearance({
+          matchday,
+          player: lineupPlayer.player,
+          requiredStatus:
+            requiredByPlayerId.get(lineupPlayer.playerId)?.status ?? null,
+          source: "STARTER",
+          vote: voteByPlayerId.get(lineupPlayer.playerId)
+        });
+      }
+    }
+  }
+
+  let players = Array.from(playersById.values()).map((entry) => {
+    const pendingAppearances = entry.appearances.filter(
+      (appearance) => appearance.requiredStatus === "PENDING"
+    ).length;
+    const leagueNames = Array.from(
+      new Set(entry.appearances.map((appearance) => appearance.leagueName))
+    ).sort((left, right) => left.localeCompare(right));
+    const matchdayIds = Array.from(
+      new Set(entry.appearances.map((appearance) => appearance.matchdayId))
+    );
+    const formVote =
+      entry.votes.find((vote) => vote.isSv || vote.baseVote != null) ??
+      entry.votes[0] ??
+      null;
+
+    return {
+      ...entry,
+      formVote,
+      leagueCount: leagueNames.length,
+      leagueNames,
+      matchdayIds,
+      pendingAppearances
+    };
+  });
+
+  if (normalizedSearchQuery.length > 0) {
+    const query = normalizedSearchQuery.toLowerCase();
+    players = players.filter((entry) =>
+      entry.player.name.toLowerCase().includes(query)
+    );
+  }
+
+  players.sort((left, right) => {
+    if (right.pendingAppearances !== left.pendingAppearances) {
+      return right.pendingAppearances - left.pendingAppearances;
+    }
+    return left.player.name.localeCompare(right.player.name, "it");
+  });
+
+  return {
+    availableNumbers,
+    matchdays: selectedMatchdays.map((matchday) => ({
+      id: matchday.id,
+      leagueId: matchday.league.id,
+      leagueName: matchday.league.name,
+      number: matchday.number,
+      status: matchday.status,
+      hasScores: matchday.teamScores.length > 0
+    })),
+    players,
+    searchQuery: normalizedSearchQuery,
+    selectedNumber,
+    totals: {
+      leagueCount: selectedMatchdays.length,
+      pendingPlayers: players.filter((entry) => entry.pendingAppearances > 0)
+        .length,
+      playerCount: players.length
+    }
+  };
+}
+
+export async function getAdminLeagueTeamsData(leagueId: string) {
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: {
+      id: true,
+      name: true,
+      maxTeams: true,
+      fantasyTeams: {
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          user: {
+            select: {
+              displayName: true,
+              email: true
+            }
+          },
+          _count: {
+            select: {
+              roster: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!league) {
+    return null;
+  }
+
+  return { league };
 }

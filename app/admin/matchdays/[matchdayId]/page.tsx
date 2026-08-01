@@ -110,7 +110,16 @@ export default async function AdminMatchdayDetailPage({
             <p className="mt-2 text-sm text-slate-600">
               Numero giornata: <strong>{matchday.number}</strong> | Squadre lega:{" "}
               <strong>{matchday.league._count.fantasyTeams}</strong> | Formazioni
-              inserite: <strong>{matchday._count.lineups}</strong>
+              inserite:{" "}
+              <strong>
+                {matchday.insertedLineupsCount}/{matchday.league._count.fantasyTeams}
+              </strong>
+              {matchday.missingLineupsCount > 0 ? (
+                <>
+                  {" "}
+                  | Mancanti: <strong>{matchday.missingLineupsCount}</strong>
+                </>
+              ) : null}
             </p>
             <p className="mt-2 text-sm text-slate-600">
               Fixture generate: <strong>{matchday._count.fixtures}</strong> | Voti
@@ -130,6 +139,61 @@ export default async function AdminMatchdayDetailPage({
 
           <StatusBadge status={matchday.status} />
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">
+              Stato formazioni
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Per ogni squadra: se la formazione e stata inserita per questa
+              giornata.
+            </p>
+          </div>
+          <p className="text-sm text-slate-600">
+            Inserite: <strong>{matchday.insertedLineupsCount}</strong> | Non
+            inserite: <strong>{matchday.missingLineupsCount}</strong>
+          </p>
+        </div>
+
+        {matchday.teamLineupStatuses.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">
+            Nessuna squadra in questa lega.
+          </p>
+        ) : (
+          <ul className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200">
+            {matchday.teamLineupStatuses.map((team) => {
+              const isInserted = team.formationStatus === "INSERITA";
+
+              return (
+                <li
+                  key={team.fantasyTeamId}
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {team.fantasyTeamName}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {team.ownerDisplayName ?? team.ownerEmail}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      isInserted
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {isInserted ? "INSERITA" : "NON INSERITA"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

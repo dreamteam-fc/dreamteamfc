@@ -214,9 +214,11 @@ function revalidateLineupPaths(teamId: string, matchdayId: string, leagueId?: st
 export async function createFantasyTeamAction(formData: FormData) {
   const rawLeagueId = formData.get("leagueId");
   const rawTeamName = formData.get("teamName");
+  const rawPassword = formData.get("password");
 
   const leagueId = typeof rawLeagueId === "string" ? rawLeagueId : "";
   const teamName = typeof rawTeamName === "string" ? rawTeamName : "";
+  const password = typeof rawPassword === "string" ? rawPassword : "";
 
   if (leagueId.trim().length === 0) {
     redirect("/me");
@@ -230,6 +232,7 @@ export async function createFantasyTeamAction(formData: FormData) {
     const result = await createUserFantasyTeam({
       appUserId: authContext.appUser.id,
       leagueId,
+      password,
       teamName
     });
 
@@ -422,8 +425,8 @@ export async function addPlayerToRosterAction(
         throw new Error("Questo giocatore e gia presente nella rosa.");
       }
 
-      if (fullTeam.roster.length >= 8) {
-        throw new Error("La rosa ha gia raggiunto il limite di 8 giocatori.");
+      if (fullTeam.roster.length >= 25) {
+        throw new Error("La rosa ha gia raggiunto il limite di 25 giocatori.");
       }
 
       await tx.fantasyRoster.create({
@@ -661,19 +664,20 @@ export async function saveLineupAction(formData: FormData) {
       }
 
       if (benchSelections.some((entry) => entry.order === null)) {
-        throw new Error("Ogni panchinaro deve avere un ordine tra 1 e 3.");
+        throw new Error("Ogni panchinaro deve avere un ordine tra 1 e 4.");
       }
 
       const benchOrders = benchSelections.map((entry) => entry.order as number);
       const sortedBenchOrders = [...benchOrders].sort((left, right) => left - right);
       const hasValidBenchOrderSequence =
-        sortedBenchOrders.length === 3 &&
+        sortedBenchOrders.length === 4 &&
         sortedBenchOrders[0] === 1 &&
         sortedBenchOrders[1] === 2 &&
-        sortedBenchOrders[2] === 3;
+        sortedBenchOrders[2] === 3 &&
+        sortedBenchOrders[3] === 4;
 
       if (!hasValidBenchOrderSequence) {
-        throw new Error("La panchina deve avere ordini unici 1, 2 e 3.");
+        throw new Error("La panchina deve avere ordini unici 1, 2, 3 e 4.");
       }
 
       const duplicateCheck = new Set<string>();
