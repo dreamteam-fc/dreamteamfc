@@ -1,11 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { leaveLeagueAction } from "@/app/me/actions";
+import {
+  inviteTeamCoachAction,
+  leaveLeagueAction,
+  revokeTeamCoachAction,
+  revokeTeamCoachInviteAction
+} from "@/app/me/actions";
 import { getPlayerRoleLabel } from "@/lib/players/player-role";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
+import { listTeamCoachManagement } from "@/lib/server/coaches/team-coach-invites";
 import { getUserTeamPageData } from "@/lib/server/me/read-user-data";
 import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-composition";
+import {
+  canManageCoachInvites,
+  canManageRoster,
+  canViewTeamAsCoachOrOwner,
+  resolveTeamAccessRole
+} from "@/lib/server/teams/team-access";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +26,7 @@ type TeamPageProps = {
     teamId: string;
   }>;
   searchParams: Promise<{
+    coachInviteToken?: string;
     error?: string;
     notice?: string;
   }>;
@@ -76,7 +89,7 @@ function getFixtureSummary(
 
 export default async function TeamPage({ params, searchParams }: TeamPageProps) {
   const { teamId } = await params;
-  const { error, notice } = await searchParams;
+  const { coachInviteToken, error, notice } = await searchParams;
   const authContext = await requireAuthenticatedAppUser(`/me/teams/${teamId}`);
   const team = await getUserTeamPageData(teamId);
 
@@ -84,18 +97,28 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
     notFound();
   }
 
-  const canAccess =
-    authContext.appUser.role === "ADMIN" ||
-    authContext.appUser.id === team.userId;
-  const isOwner = authContext.appUser.id === team.userId;
+  const accessRole = await resolveTeamAccessRole({
+    appUserId: authContext.appUser.id,
+    appUserRole: authContext.appUser.role,
+    teamId: team.id,
+    teamOwnerId: team.userId
+  });
 
-  if (!canAccess) {
+  if (!canViewTeamAsCoachOrOwner(accessRole)) {
     return (
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 shadow-sm">
         Accesso non autorizzato.
       </section>
     );
   }
+
+  const isOwner = accessRole === "owner";
+  const isCoach = accessRole === "coach";
+  const showRosterManage = canManageRoster(accessRole);
+  const showCoachManage = canManageCoachInvites(accessRole);
+  const coachManagement = showCoachManage
+    ? await listTeamCoachManagement(team.id)
+    : null;
 
   const rosterValidation = validateRosterComposition(
     team.roster.map((entry) => ({
@@ -117,6 +140,25 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
     <div className="space-y-6">
       <Feedback error={error} notice={notice} />
 
+      {coachInviteToken ? (
+        <section className="rounded-2xl border border-brand-blue/30 bg-blue-50 p-5 text-sm text-slate-800">
+          <p className="font-semibold text-brand-ink">Link invito allenatore</p>
+          <p className="mt-2 break-all font-mono text-xs sm:text-sm">
+            {`/me/coach-invites/${coachInviteToken}`}
+          </p>
+          <p className="mt-2 text-slate-600">
+            Condividi questo link con l&apos;allenatore. Scade tra 14 giorni.
+          </p>
+        </section>
+      ) : null}
+
+      {isCoach ? (
+        <section className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+          Accesso allenatore: puoi solo impostare le formazioni. Rosa e lega restano
+          del proprietario.
+        </section>
+      ) : null}
+
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -127,12 +169,14 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/me/teams/${team.id}/roster`}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
-            >
-              Gestisci rosa
-            </Link>
+            {showRosterManage ? (
+              <Link
+                href={`/me/teams/${team.id}/roster`}
+                className="btn-brand"
+              >
+                Gestisci rosa
+              </Link>
+            ) : null}
             <Link
               href={`/leagues/${team.league.id}`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
@@ -332,6 +376,95 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
           </div>
         </section>
       )}
+
+      {showCoachManage && coachManagement ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">Allenatore</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Invita un account che potra solo schierare la formazione di questa
+            squadra.
+          </p>
+
+          {coachManagement.activeCoaches.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {coachManagement.activeCoaches.map((coach) => (
+                <div
+                  key={coach.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+                  <div className="text-sm text-slate-700">
+                    <strong>{coach.user.displayName ?? coach.user.email}</strong>
+                    <span className="text-slate-500"> — {coach.user.email}</span>
+                  </div>
+                  <form action={revokeTeamCoachAction}>
+                    <input type="hidden" name="teamId" value={team.id} />
+                    <button
+                      type="submit"
+                      className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Rimuovi
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-600">Nessun allenatore attivo.</p>
+          )}
+
+          {coachManagement.pendingInvites.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Inviti pendenti
+              </h3>
+              {coachManagement.pendingInvites.map((invite) => (
+                <div
+                  key={invite.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm"
+                >
+                  <div>
+                    <strong>{invite.inviteeEmail}</strong>
+                    <span className="text-slate-600">
+                      {" "}
+                      — scade{" "}
+                      {new Intl.DateTimeFormat("it-IT", {
+                        dateStyle: "medium"
+                      }).format(invite.expiresAt)}
+                    </span>
+                  </div>
+                  <form action={revokeTeamCoachInviteAction}>
+                    <input type="hidden" name="teamId" value={team.id} />
+                    <input type="hidden" name="inviteId" value={invite.id} />
+                    <button
+                      type="submit"
+                      className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-medium text-amber-800 transition hover:border-amber-400"
+                    >
+                      Annulla invito
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <form action={inviteTeamCoachAction} className="mt-5 space-y-3">
+            <input type="hidden" name="teamId" value={team.id} />
+            <label className="block space-y-2 text-sm text-slate-700">
+              <span className="font-medium">Email allenatore</span>
+              <input
+                type="email"
+                name="inviteeEmail"
+                required
+                className="w-full max-w-md rounded-xl border border-slate-300 px-3 py-2"
+                placeholder="allenatore@email.com"
+              />
+            </label>
+            <button type="submit" className="btn-brand">
+              Crea invito
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       {isOwner ? (
         <section className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">

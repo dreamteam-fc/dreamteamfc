@@ -46,11 +46,11 @@ const quickLinks = [
     title: "La mia squadra"
   },
   {
-    cta: "Vai alla mia squadra",
+    cta: "Vedi i tornei",
     description:
-      "Se hai gia una squadra, riparti da qui per controllare la prossima giornata.",
-    href: "/me",
-    title: "Prossima formazione"
+      "Tornei cross-lega a eliminazione: tabellone, sblocco accesso e formazioni.",
+    href: "/tournaments",
+    title: "Tornei"
   },
   {
     cta: "Vedi leghe disponibili",

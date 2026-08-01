@@ -73,7 +73,57 @@ export async function getUserDashboardData(appUserId: string) {
           }
         }
       },
-      role: true
+      role: true,
+      teamCoaching: {
+        where: {
+          revokedAt: null
+        },
+        orderBy: [{ createdAt: "asc" }],
+        select: {
+          id: true,
+          fantasyTeam: {
+            select: {
+              id: true,
+              name: true,
+              leagueId: true,
+              league: {
+                select: {
+                  id: true,
+                  name: true,
+                  matchdays: {
+                    where: {
+                      status: MatchdayStatus.LINEUPS_OPEN
+                    },
+                    orderBy: [{ number: "asc" }],
+                    select: {
+                      id: true,
+                      number: true,
+                      status: true
+                    }
+                  }
+                }
+              },
+              lineups: {
+                where: {
+                  matchday: {
+                    status: MatchdayStatus.LINEUPS_OPEN
+                  }
+                },
+                select: {
+                  id: true,
+                  matchdayId: true
+                }
+              },
+              user: {
+                select: {
+                  displayName: true,
+                  email: true
+                }
+              }
+            }
+          }
+        }
+      }
     }
   });
 
@@ -124,7 +174,23 @@ export async function getUserDashboardData(appUserId: string) {
     }))
   }));
 
+  const coachedTeams = user.teamCoaching.map((entry) => {
+    const team = entry.fantasyTeam;
+    return {
+      id: team.id,
+      league: team.league,
+      leagueId: team.leagueId,
+      name: team.name,
+      owner: team.user,
+      openMatchdays: team.league.matchdays.map((matchday) => ({
+        ...matchday,
+        hasLineup: team.lineups.some((lineup) => lineup.matchdayId === matchday.id)
+      }))
+    };
+  });
+
   return {
+    coachedTeams,
     leagues: Array.from(leaguesMap.values()).sort((left, right) =>
       left.name.localeCompare(right.name, "it")
     ),
@@ -421,7 +487,17 @@ export async function getUserLineupPageData(
 
   const canAccess =
     authContext.appUser.role === UserRole.ADMIN ||
-    authContext.appUser.id === team.userId;
+    authContext.appUser.id === team.userId ||
+    Boolean(
+      await prisma.teamCoach.findFirst({
+        where: {
+          fantasyTeamId: teamId,
+          userId: authContext.appUser.id,
+          revokedAt: null
+        },
+        select: { id: true }
+      })
+    );
 
   if (!canAccess) {
     return {

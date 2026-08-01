@@ -11,6 +11,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
+import {
+  acceptTeamCoachInvite,
+  createTeamCoachInvite,
+  revokeActiveTeamCoach,
+  revokeTeamCoachInvite
+} from "@/lib/server/coaches/team-coach-invites.ts";
+import { activateTournamentEntry } from "@/lib/server/tournaments/activate-tournament-entry.ts";
+import { saveTournamentLineup } from "@/lib/server/tournaments/save-tournament-lineup.ts";
 import { hasLeagueScheduleGeneratedWithDb } from "@/lib/server/leagues/has-league-schedule-generated.ts";
 import type { PlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { parsePlayerRoleFilter } from "@/lib/players/player-role.ts";
@@ -18,6 +26,10 @@ import { prisma } from "@/lib/prisma.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
 import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-composition";
 import { createUserFantasyTeam } from "@/lib/server/teams/create-user-fantasy-team";
+import {
+  canManageLineup,
+  resolveTeamAccessRole
+} from "@/lib/server/teams/team-access.ts";
 
 function buildJoinLeagueRedirectPath(leagueId: string, error?: string) {
   const searchParams = new URLSearchParams();
@@ -35,6 +47,7 @@ function buildJoinLeagueRedirectPath(leagueId: string, error?: string) {
 function buildTeamRedirectPath(
   teamId: string,
   options?: {
+    coachInviteToken?: string;
     error?: string;
     notice?: string;
   }
@@ -47,6 +60,10 @@ function buildTeamRedirectPath(
 
   if (options?.notice) {
     searchParams.set("notice", options.notice);
+  }
+
+  if (options?.coachInviteToken) {
+    searchParams.set("coachInviteToken", options.coachInviteToken);
   }
 
   const search = searchParams.toString();
@@ -110,6 +127,63 @@ function buildLineupRedirectPath(
 
 async function assertTeamOwnerOrAdmin(teamId: string) {
   return requireOwnedFantasyTeam(teamId);
+}
+
+async function requireLineupAccess(teamId: string) {
+  const authContext = await requireAuthenticatedAppUser(`/me/teams/${teamId}`);
+  const team = await prisma.fantasyTeam.findUnique({
+    where: { id: teamId },
+    select: {
+      id: true,
+      leagueId: true,
+      userId: true,
+      league: {
+        select: {
+          members: {
+            select: { id: true },
+            take: 1,
+            where: { userId: authContext.appUser.id }
+          }
+        }
+      }
+    }
+  });
+
+  if (!team) {
+    throw new Error("Squadra non trovata.");
+  }
+
+  const accessRole = await resolveTeamAccessRole({
+    appUserId: authContext.appUser.id,
+    appUserRole: authContext.appUser.role,
+    teamId: team.id,
+    teamOwnerId: team.userId
+  });
+
+  if (!canManageLineup(accessRole)) {
+    throw new Error("Non autorizzato.");
+  }
+
+  const isAdmin = accessRole === "admin";
+  const isOwner = accessRole === "owner";
+  const isCoach = accessRole === "coach";
+
+  if (isOwner && team.league.members.length === 0) {
+    throw new Error("Non autorizzato.");
+  }
+
+  return {
+    accessRole,
+    appUserId: authContext.appUser.id,
+    isAdmin,
+    isCoach,
+    isOwner,
+    team: {
+      id: team.id,
+      leagueId: team.leagueId,
+      userId: team.userId
+    }
+  };
 }
 
 async function requireOwnedFantasyTeam(
@@ -545,7 +619,7 @@ export async function saveLineupAction(formData: FormData) {
     redirect("/me");
   }
 
-  const access = await assertTeamOwnerOrAdmin(teamId);
+  const access = await requireLineupAccess(teamId);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -577,7 +651,7 @@ export async function saveLineupAction(formData: FormData) {
         throw new Error("Squadra non trovata.");
       }
 
-      if (!access.isAdmin) {
+      if (access.isOwner) {
         await assertLeagueMemberInTransaction(tx, fullTeam.leagueId, access.appUserId);
       }
 
@@ -813,6 +887,256 @@ export async function saveLineupAction(formData: FormData) {
             ? error.message
             : "Impossibile salvare la formazione."
       })
+    );
+  }
+}
+
+export async function inviteTeamCoachAction(formData: FormData) {
+  const rawTeamId = formData.get("teamId");
+  const rawEmail = formData.get("inviteeEmail");
+  const teamId = typeof rawTeamId === "string" ? rawTeamId : "";
+  const inviteeEmail = typeof rawEmail === "string" ? rawEmail : "";
+
+  if (teamId.length === 0) {
+    redirect("/me");
+  }
+
+  const access = await requireOwnedFantasyTeam(teamId, { allowAdmin: false });
+
+  try {
+    const invite = await createTeamCoachInvite({
+      fantasyTeamId: access.team.id,
+      invitedById: access.appUserId,
+      inviteeEmail
+    });
+
+    revalidatePath(`/me/teams/${teamId}`);
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        coachInviteToken: invite.token,
+        notice: `Invito creato per ${invite.inviteeEmail}. Copia il link qui sotto e invialo all'allenatore.`
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossibile creare l'invito allenatore."
+      })
+    );
+  }
+}
+
+export async function revokeTeamCoachInviteAction(formData: FormData) {
+  const rawTeamId = formData.get("teamId");
+  const rawInviteId = formData.get("inviteId");
+  const teamId = typeof rawTeamId === "string" ? rawTeamId : "";
+  const inviteId = typeof rawInviteId === "string" ? rawInviteId : "";
+
+  if (teamId.length === 0 || inviteId.length === 0) {
+    redirect("/me");
+  }
+
+  const access = await requireOwnedFantasyTeam(teamId, { allowAdmin: false });
+
+  try {
+    await revokeTeamCoachInvite({
+      inviteId,
+      ownerUserId: access.appUserId
+    });
+    revalidatePath(`/me/teams/${teamId}`);
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        notice: "Invito allenatore revocato."
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossibile revocare l'invito."
+      })
+    );
+  }
+}
+
+export async function revokeTeamCoachAction(formData: FormData) {
+  const rawTeamId = formData.get("teamId");
+  const teamId = typeof rawTeamId === "string" ? rawTeamId : "";
+
+  if (teamId.length === 0) {
+    redirect("/me");
+  }
+
+  const access = await requireOwnedFantasyTeam(teamId, { allowAdmin: false });
+
+  try {
+    await revokeActiveTeamCoach({
+      fantasyTeamId: access.team.id,
+      ownerUserId: access.appUserId
+    });
+    revalidatePath("/me");
+    revalidatePath(`/me/teams/${teamId}`);
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        notice: "Allenatore rimosso."
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossibile rimuovere l'allenatore."
+      })
+    );
+  }
+}
+
+export async function acceptTeamCoachInviteAction(formData: FormData) {
+  const rawToken = formData.get("token");
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+
+  if (token.length === 0) {
+    redirect("/me");
+  }
+
+  const authContext = await requireAuthenticatedAppUser(
+    `/me/coach-invites/${token}`
+  );
+
+  try {
+    const result = await acceptTeamCoachInvite({
+      token,
+      appUserId: authContext.appUser.id,
+      appUserEmail: authContext.appUser.email
+    });
+
+    revalidatePath("/me");
+    revalidatePath(`/me/teams/${result.teamId}`);
+    redirect(
+      `/me/teams/${result.teamId}?notice=${encodeURIComponent(
+        `Ora sei allenatore di ${result.teamName}. Puoi solo impostare le formazioni.`
+      )}`
+    );
+  } catch (error) {
+    redirect(
+      `/me/coach-invites/${token}?error=${encodeURIComponent(
+        error instanceof Error
+          ? error.message
+          : "Impossibile accettare l'invito."
+      )}`
+    );
+  }
+}
+
+export async function activateTournamentEntryAction(formData: FormData) {
+  const rawTournamentId = formData.get("tournamentId");
+  const rawTeamId = formData.get("fantasyTeamId");
+  const rawPassword = formData.get("password");
+  const tournamentId =
+    typeof rawTournamentId === "string" ? rawTournamentId : "";
+  const fantasyTeamId = typeof rawTeamId === "string" ? rawTeamId : "";
+  const password = typeof rawPassword === "string" ? rawPassword : "";
+
+  if (tournamentId.length === 0 || fantasyTeamId.length === 0) {
+    redirect("/me");
+  }
+
+  const authContext = await requireAuthenticatedAppUser(
+    `/tournaments/${tournamentId}/activate`
+  );
+
+  try {
+    const result = await activateTournamentEntry({
+      appUserId: authContext.appUser.id,
+      fantasyTeamId,
+      password,
+      tournamentId
+    });
+
+    revalidatePath("/me");
+    revalidatePath(`/tournaments/${tournamentId}`);
+    revalidatePath(`/tournaments/${tournamentId}/activate`);
+    redirect(
+      `/tournaments/${tournamentId}?notice=${encodeURIComponent(
+        result.alreadyActivated
+          ? `Accesso gia attivo per ${result.teamName}.`
+          : `Accesso sbloccato per ${result.teamName}. Ora puoi schierare le formazioni.`
+      )}`
+    );
+  } catch (error) {
+    redirect(
+      `/tournaments/${tournamentId}/activate?error=${encodeURIComponent(
+        error instanceof Error
+          ? error.message
+          : "Impossibile sbloccare il torneo."
+      )}`
+    );
+  }
+}
+
+export async function saveTournamentLineupAction(formData: FormData) {
+  const rawTeamId = formData.get("teamId");
+  const rawFixtureId = formData.get("tournamentFixtureId");
+  const teamId = typeof rawTeamId === "string" ? rawTeamId : "";
+  const tournamentFixtureId =
+    typeof rawFixtureId === "string" ? rawFixtureId : "";
+
+  if (teamId.length === 0 || tournamentFixtureId.length === 0) {
+    redirect("/me");
+  }
+
+  const authContext = await requireAuthenticatedAppUser(
+    `/me/teams/${teamId}/tournaments/fixtures/${tournamentFixtureId}/lineup`
+  );
+
+  const selections = [];
+  for (const [key, value] of formData.entries()) {
+    if (typeof key !== "string" || !key.startsWith("playerSelection:")) {
+      continue;
+    }
+
+    const playerId = key.slice("playerSelection:".length);
+    const selection = parseLineupSelection(value);
+    selections.push({
+      benchOrder: parseBenchOrder(formData.get(`benchOrder:${playerId}`)),
+      playerId,
+      selection
+    });
+  }
+
+  try {
+    const result = await saveTournamentLineup({
+      appUserId: authContext.appUser.id,
+      appUserRole: authContext.appUser.role,
+      fantasyTeamId: teamId,
+      selections,
+      tournamentFixtureId
+    });
+
+    revalidatePath("/me");
+    revalidatePath(`/tournaments/${result.tournamentId}`);
+    revalidatePath(
+      `/me/teams/${teamId}/tournaments/fixtures/${tournamentFixtureId}/lineup`
+    );
+    redirect(
+      `/me/teams/${teamId}/tournaments/fixtures/${tournamentFixtureId}/lineup?notice=${encodeURIComponent(
+        "Formazione torneo salvata."
+      )}`
+    );
+  } catch (error) {
+    redirect(
+      `/me/teams/${teamId}/tournaments/fixtures/${tournamentFixtureId}/lineup?error=${encodeURIComponent(
+        error instanceof Error
+          ? error.message
+          : "Impossibile salvare la formazione torneo."
+      )}`
     );
   }
 }

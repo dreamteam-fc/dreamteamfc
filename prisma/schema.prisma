@@ -86,6 +86,13 @@ enum PlayerRole {
   ATTACKER
 }
 
+enum TeamCoachInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -98,6 +105,11 @@ model User {
   leagues       League[]       @relation("LeagueCreator")
   leagueMembers LeagueMember[]
   fantasyTeams  FantasyTeam[]
+  coachInvitesSent     TeamCoachInvite[] @relation("TeamCoachInvitesSent")
+  coachInvitesReceived TeamCoachInvite[] @relation("TeamCoachInvitesReceived")
+  teamCoaching         TeamCoach[]       @relation("TeamCoachUser")
+  teamCoachesGranted   TeamCoach[]       @relation("TeamCoachGrantedBy")
+  tournamentsCreated   Tournament[]      @relation("TournamentCreator")
 }
 
 model League {
@@ -117,6 +129,7 @@ model League {
   fantasyTeams   FantasyTeam[]
   matchdays      Matchday[]
   blockedPlayers LeagueBlockedPlayer[]
+  tournamentEntries TournamentTeamEntry[]
 
   @@index([createdById])
 }
@@ -151,6 +164,7 @@ model Player {
   votes            PlayerVote[]
   teamScorePlayers TeamScorePlayer[]
   leagueBlocks     LeagueBlockedPlayer[]
+  tournamentLineupPlayers TournamentLineupPlayer[]
 
   @@unique([source, externalId])
 }
@@ -184,9 +198,56 @@ model FantasyTeam {
   teamScores   TeamScore[]
   homeFixtures FantasyFixture[] @relation("FantasyFixtureHomeTeam")
   awayFixtures FantasyFixture[] @relation("FantasyFixtureAwayTeam")
+  coachInvites TeamCoachInvite[]
+  coaches      TeamCoach[]
+  tournamentEntries TournamentTeamEntry[]
+  tournamentHomeFixtures TournamentFixture[] @relation("TournamentFixtureHomeTeam")
+  tournamentAwayFixtures TournamentFixture[] @relation("TournamentFixtureAwayTeam")
+  tournamentLineups TournamentLineup[]
 
   @@unique([leagueId, userId])
   @@index([userId])
+}
+
+model TeamCoachInvite {
+  id            String                @id @default(cuid())
+  fantasyTeamId String
+  invitedById   String
+  inviteeEmail  String
+  inviteeUserId String?
+  tokenHash     String                @unique
+  status        TeamCoachInviteStatus @default(PENDING)
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  fantasyTeam   FantasyTeam           @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  invitedBy     User                  @relation("TeamCoachInvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  inviteeUser   User?                 @relation("TeamCoachInvitesReceived", fields: [inviteeUserId], references: [id], onDelete: SetNull)
+  acceptedCoach TeamCoach?
+
+  @@index([fantasyTeamId, status])
+  @@index([inviteeEmail, status])
+}
+
+/// Delega attiva (o revocata) per impostare solo la formazione di una squadra.
+model TeamCoach {
+  id            String          @id @default(cuid())
+  fantasyTeamId String
+  userId        String
+  invitedById   String
+  inviteId      String?         @unique
+  createdAt     DateTime        @default(now())
+  revokedAt     DateTime?
+  fantasyTeam   FantasyTeam     @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  user          User            @relation("TeamCoachUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy     User            @relation("TeamCoachGrantedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  invite        TeamCoachInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+
+  @@unique([fantasyTeamId, userId])
+  @@index([userId])
+  @@index([fantasyTeamId, revokedAt])
 }
 
 model FantasyRoster {
@@ -369,4 +430,135 @@ model FantasyFixture {
 
   @@unique([matchdayId, homeTeamId, awayTeamId])
   @@index([matchdayId])
+}
+
+enum TournamentStatus {
+  DRAFT
+  ENTRIES_SET
+  BRACKET_GENERATED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Torneo cross-lega post-campionato (dominio separato da League/Matchday).
+model Tournament {
+  id           String                   @id @default(cuid())
+  name         String
+  status       TournamentStatus         @default(DRAFT)
+  /// Hash password iscrizione torneo (mai in chiaro).
+  passwordHash String
+  /// Se true, le squadre attivate possono schierare formazioni sulle partite READY.
+  lineupsOpen  Boolean                  @default(true)
+  createdById  String
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  createdBy    User                     @relation("TournamentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  entries      TournamentTeamEntry[]
+  rounds       TournamentRound[]
+
+  @@index([createdById])
+  @@index([status])
+}
+
+model TournamentTeamEntry {
+  id              String      @id @default(cuid())
+  tournamentId    String
+  fantasyTeamId   String
+  sourceLeagueId  String
+  /// Punti classifica di lega al momento della selezione (snapshot).
+  seedPoints      Int         @default(0)
+  /// Rank seeding 1 = più alto. Valorizzato alla generazione tabellone.
+  seedRank        Int?
+  /// Null finche il proprietario non sblocca con la password torneo.
+  activatedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  tournament      Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  fantasyTeam     FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Restrict)
+  sourceLeague    League      @relation(fields: [sourceLeagueId], references: [id], onDelete: Restrict)
+
+  @@unique([tournamentId, fantasyTeamId])
+  @@index([tournamentId])
+  @@index([sourceLeagueId])
+}
+
+enum TournamentFixtureStatus {
+  SCHEDULED
+  READY
+  COMPLETED
+}
+
+model TournamentRound {
+  id           String              @id @default(cuid())
+  tournamentId String
+  /// 0 = prima fase, poi crescente fino alla finale.
+  roundIndex   Int
+  name         String
+  isFinal      Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  tournament   Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  fixtures     TournamentFixture[]
+
+  @@unique([tournamentId, roundIndex])
+  @@index([tournamentId])
+}
+
+/// Partita (o gamba) di un torneo. Serie A/R condividono seriesKey.
+model TournamentFixture {
+  id            String                  @id @default(cuid())
+  roundId       String
+  /// Slot nel tabellone della fase (0..n/2-1).
+  bracketSlot   Int
+  /// Chiave serie: stesso valore per andata e ritorno.
+  seriesKey     String
+  /// 1 = andata, 2 = ritorno (finale solo leg=1).
+  leg           Int                     @default(1)
+  homeTeamId    String?
+  awayTeamId    String?
+  homeGoals     Int?
+  awayGoals     Int?
+  status        TournamentFixtureStatus @default(SCHEDULED)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  round         TournamentRound         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  homeTeam      FantasyTeam?            @relation("TournamentFixtureHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam      FantasyTeam?            @relation("TournamentFixtureAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  lineups       TournamentLineup[]
+
+  @@unique([roundId, seriesKey, leg])
+  @@index([roundId, bracketSlot])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+}
+
+model TournamentLineup {
+  id                  String                   @id @default(cuid())
+  fantasyTeamId       String
+  tournamentFixtureId String
+  status              LineupStatus             @default(SUBMITTED)
+  submittedAt         DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  fantasyTeam         FantasyTeam              @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  tournamentFixture   TournamentFixture        @relation(fields: [tournamentFixtureId], references: [id], onDelete: Cascade)
+  players             TournamentLineupPlayer[]
+
+  @@unique([fantasyTeamId, tournamentFixtureId])
+  @@index([tournamentFixtureId, status])
+}
+
+model TournamentLineupPlayer {
+  id            String           @id @default(cuid())
+  lineupId      String
+  playerId      String
+  slotType      SlotType
+  positionOrder Int
+  createdAt     DateTime         @default(now())
+  lineup        TournamentLineup @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player        Player           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([lineupId, playerId])
+  @@unique([lineupId, slotType, positionOrder])
+  @@index([playerId])
 }

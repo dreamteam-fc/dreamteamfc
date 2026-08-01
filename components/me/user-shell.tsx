@@ -38,6 +38,12 @@ export function UserShell({ children, subtitle, title }: UserShellProps) {
               >
                 Dashboard
               </Link>
+              <Link
+                href="/tournaments"
+                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                Tornei
+              </Link>
               <form action={logoutAction}>
                 <button
                   type="submit"

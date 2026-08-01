@@ -59,6 +59,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
           <div className="flex flex-wrap gap-3">
             <Link
+              href="/admin/tournaments"
+              className="rounded-xl border border-brand-blue/30 bg-blue-50 px-4 py-2 text-sm font-medium text-brand-blue transition hover:bg-blue-100"
+            >
+              Tornei
+            </Link>
+            <Link
               href="/admin/votes"
               className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-100"
             >
