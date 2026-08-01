@@ -1,5 +1,8 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
+# Lockfile is generated with npm 11 (Windows/local). Image default is npm 10,
+# which fails `npm ci` on optional @emnapi/* resolution. Pin npm to match lockfile.
+RUN npm install -g npm@11.6.2
 COPY package.json package-lock.json ./
 RUN npm ci
 
