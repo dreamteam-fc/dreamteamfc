@@ -102,7 +102,9 @@ Template: `.env.example`.
 
 **Ruoli utente oggi:** `USER` e `ADMIN` (super admin globale). Le leghe si creano dall'area admin.
 
-**Non implementato ancora:** asta/mercato, notifiche, torneo cross-league, account allenatore, storico stagioni.
+**Gia implementato (Dream Team):** torneo cross-league V1 + voti XLS per fase, account allenatore invitato, password lega, rosa 25 / lineup 5+4, import voti Fantacalcio, `LeagueRole` solo OWNER/MEMBER.
+
+**Non implementato ancora:** asta/mercato, notifiche, storico stagioni.
 
 ---
 
@@ -180,12 +182,22 @@ Per ogni squadra/giornata: `INSERITA` / `NON_INSERITA`.
 - solo modalita **andata e ritorno** → 18 giornate
 - dopo la 18ª il campionato e chiuso
 
-### 5.7 Torneo — DECISO (dettaglio)
+### 5.7 Torneo — **FATTO** (V1 + voti XLS)
 
 - admin sceglie **a mano** le squadre (+ lega di provenienza)
 - password obbligatoria; seeding alto↔basso; 1ª fase no stessa lega; A/R salvo finale
+- voti scoped a `TournamentRound`: genera lista → import XLS Fantacalcio → calcola READY con `convertScoreToGoals`; risultato manuale resta override
+- modelli: `TournamentRequiredVotePlayer`, `TournamentPlayerVote`
 
 Vedi dettaglio completo: [09_DECISIONI_PRODOTTO_CHIUSE.md](./09_DECISIONI_PRODOTTO_CHIUSE.md).
+
+### 5.8 Coach invitato — **FATTO**
+
+- invito email → token → accettazione; coach puo solo formare sulla squadra invitante
+
+### 5.9 LeagueRole — **FATTO**
+
+- enum `LeagueRole`: solo `OWNER` | `MEMBER` (`ADMIN` rimosso; super admin resta `User.role = ADMIN`)
 
 ---
 
@@ -223,28 +235,24 @@ Poi:
 
 Flusso QA minimo: crea lega → join → rosa → calendario → formazioni → voti → punteggi → pubblica.
 
-### Fase 1 — Feature piccole e sicure
+### Fase 1 — Feature piccole e sicure — **FATTO**
 
-- Password di lega (hash server-side, mai in chiaro)
-- Pulizia concetto admin di lega (`LeagueRole.ADMIN` vs super admin globale)
-- Pannello voti unificato multi-lega (UI/reader; riusare `savePlayerVote`)
-- Admin: stato formazione inserita / non inserita per giornata
-- Upload file voti → pagelle (SV se assente o con `*`; eventi `gf/gs/rp/...`; clean sheet auto)
+- ~~Password di lega~~ **FATTO**
+- ~~Pulizia `LeagueRole.ADMIN`~~ **FATTO** (solo OWNER/MEMBER)
+- ~~Pannello voti unificato multi-lega~~ **FATTO**
+- ~~Admin: stato formazione inserita / non inserita~~ **FATTO**
+- ~~Upload file voti → pagelle~~ **FATTO**
 
-### Fase 2 — Dominio medio
+### Fase 2 — Dominio medio — **FATTO**
 
-- Malus **goal subito** (`goalsConceded`, -1) + mappa eventi completa — schema + scoring + UI voti
-- Chiarire punti `rs` / `rf` se distinti
-- Nuova formazione: 5 titolari (1P 1D 1C 1A + 1 libero D/C/A) + **panchina da 4** (1 per ruolo)
-- Sostituzioni automatiche **solo stesso ruolo**
-- Rosa da 25 con vincoli ruolo
-- Nuove fasce gol (formula sopra)
+- ~~Malus goal subito + mappa eventi~~ **FATTO** (`rs`/`rf` chiusi in `09`)
+- ~~Formazione 5+4, sub stesso ruolo, rosa 25, fasce gol~~ **FATTO**
 
-### Fase 3 — Epic separati (non mischiare con Fase 1/2)
+### Fase 3 — Epic separati — **FATTO** (V1)
 
-- Campionato chiuso a **18 giornate**
-- Account **allenatore invitato** (delega per team, non ruolo globale)
-- **Torneo** post-campionato cross-league (nuovo dominio: Tournament / Round / Fixture, non forzarlo dentro League)
+- ~~Campionato chiuso a 18 giornate~~ **FATTO** (maxTeams=10, solo A/R)
+- ~~Account allenatore invitato~~ **FATTO**
+- ~~Torneo post-campionato~~ **FATTO** (bracket + formazioni + voti XLS per fase)
 
 ### Ordine vincolante
 
@@ -260,23 +268,23 @@ npm run check:all
 
 ## 8. Elenco completo richieste Dream Team (mappa)
 
-| # | Richiesta | Stato decisione | Priorita |
-|---|-----------|-----------------|----------|
-| 1 | Campionato max 18 giornate | Da implementare | Epic Fase 3 |
-| 2 | Torneo finale tra leghe | Da implementare (nuovo dominio) | Epic Fase 3 |
-| 3 | Account allenatore invitato | Da implementare (delega) | Epic Fase 3 |
-| 4 | Non giocato in voti | = SV; anche assente da file / voto con `*` | Fase 1 (import) |
-| 5 | Rosa 25 (3/8/8/6) | Deciso | Fase 2 |
-| 6 | Formazione 5+4 con vincoli ruolo | Deciso | Fase 2 |
-| 7 | Sub automatiche stesso ruolo | Deciso | Fase 2 |
-| 8 | Fasce gol ≤25 / +1 ogni 2 | Deciso | Fase 2 |
-| 9 | Bonus/malus `gf gs rp rs rf au amm esp ass` + clean sheet auto | Quasi allineati; manca `gs`; `rs`/`rf` TBD | Fase 1–2 |
-| 10 | Solo super admin crea leghe | Gia vicino; pulizia modello | Fase 1 |
-| 11 | Password di lega | Da implementare | Fase 1 |
-| 12 | Super admin gestisce rose utenti | Da implementare | Dopo regole rosa |
-| 13 | Pannello voti unificato | Da implementare | Fase 1 |
-| 14 | Admin vede se formazione inserita | Deciso | Fase 1 |
-| 15 | Upload file voti → pagelle | Deciso (formato file da fissare al primo implement) | Fase 1 |
+| # | Richiesta | Stato | Note |
+|---|-----------|-------|------|
+| 1 | Campionato max 18 giornate | **FATTO** | maxTeams=10, solo A/R |
+| 2 | Torneo finale tra leghe | **FATTO** | V1 + voti XLS per `TournamentRound` |
+| 3 | Account allenatore invitato | **FATTO** | delega team, sola formazione |
+| 4 | Non giocato in voti | **FATTO** | = SV; assente / `*` |
+| 5 | Rosa 25 (3/8/8/6) | **FATTO** | |
+| 6 | Formazione 5+4 con vincoli ruolo | **FATTO** | |
+| 7 | Sub automatiche stesso ruolo | **FATTO** | max 1 |
+| 8 | Fasce gol ≤25 / +1 ogni 2 | **FATTO** | `convertScoreToGoals` |
+| 9 | Bonus/malus + clean sheet auto | **FATTO** | `rs`/`rf` chiusi in `09` |
+| 10 | Solo super admin crea leghe | **FATTO** | `LeagueRole.ADMIN` rimosso |
+| 11 | Password di lega | **FATTO** | |
+| 12 | Super admin gestisce rose utenti | **FATTO** | add/remove/replace |
+| 13 | Pannello voti unificato | **FATTO** | `/admin/votes` |
+| 14 | Admin vede se formazione inserita | **FATTO** | |
+| 15 | Upload file voti → pagelle | **FATTO** | lega + torneo (per fase) |
 
 Dettaglio analisi: `05_ANALISI_MODIFICHE_DREAM_TEAM_FC.md`.
 Dettaglio piano file-per-file: `06_PIANO_APPLICAZIONE_AL_PROGETTO.md`.
@@ -299,21 +307,19 @@ Decisioni gia chiuse (non riaprire):
 - non giocato = SV (assente da file voti, oppure voto con *)
 - gol squadra = score<=25 ? 0 : floor((score-25)/2)
 - upload XLS voti; Cod.=externalId Fantacalcio; foglio default Fantacalcio
-- eventi: gf+3 ass+1 rp+3 gs-1(solo P) rf(fallito)-3 au-2 amm-0.5 esp-1; clean sheet auto se P gs=0
-- leghe 10 squadre, solo A/R = 18 giornate; password obbligatoria; no admin di lega
-- torneo: admin sceglie a mano; password; alto vs basso; no stessa lega in 1a fase
+- eventi: gf+3 ass+1 rp+3 gs-1(solo P) rs(sbagliato)-3 rf(realizzato)0 au-2 amm-0.5 esp-1; clean sheet auto se P gs=0
+- leghe 10 squadre, solo A/R = 18 giornate; password obbligatoria; LeagueRole solo OWNER/MEMBER
+- torneo V1 fatto: admin sceglie a mano; password; alto vs basso; no stessa lega in 1a fase; voti XLS per fase
+- coach invitato fatto (sola formazione)
 - leggere anche docs/CURSOR_HANDOFF/09_DECISIONI_PRODOTTO_CHIUSE.md
 
-Aperti:
-- punti esatti di rs (rigore subito, solo P)
-- Rs su non-portieri nel file XLS: ignorare?
+Aperti prodotto Dream Team: nessuno.
 
 Regole:
 - ispeziona i file reali prima di modificare
 - non toccare schema Prisma se non serve al task corrente
 - se un requisito e ambiguo, fermati e segnala
 - task incrementali e verificabili; niente mega-refactor
-- torneo e coach = epic separati
 - soluzioni stabili, non toppe one-off
 - non commit/push se non richiesti esplicitamente
 - non stampare segreti (.env) in chat o docs

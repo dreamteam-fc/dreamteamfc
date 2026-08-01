@@ -57,9 +57,9 @@ Osservazione importante:
 - questa richiesta impatta direttamente la generazione calendario e le regole di campionato
 - va chiarito prima se `18` e sempre fisso oppure configurabile
 
-### 2. Torneo finale tra leghe
+### 2. Torneo finale tra leghe — **FATTO** (V1 + voti XLS)
 
-Richiesta:
+Richiesta (implementata):
 
 - dopo la 18esima giornata l'admin crea un torneo
 - il torneo unisce squadre provenienti da leghe diverse
@@ -69,58 +69,26 @@ Richiesta:
 - finale solo andata
 - accesso al torneo con password impostata dal super admin
 
-Impatto sul progetto attuale:
+Stato implementazione:
 
-- oggi esiste solo il dominio `League -> Matchday -> FantasyFixture`
-- non esiste un'entita separata per un torneo cross-league
-- non esiste una fase knockout tra leghe diverse
+- dominio separato: `Tournament` / `TournamentTeamEntry` / `TournamentRound` / `TournamentFixture` / lineups
+- voti per fase: `TournamentRequiredVotePlayer` + `TournamentPlayerVote` (non Matchday fake)
+- flusso: formazioni READY → genera lista → import XLS Fantacalcio → calcola gol (`convertScoreToGoals`) → avanzamento serie; manuale = override
+- UI admin: `/admin/tournaments/.../bracket`
 
-Come applicarla al progetto:
+### 3. Account allenatore invitato — **FATTO**
 
-- introdurre un nuovo dominio separato dal campionato di lega
-- probabili nuove entita:
-  - `Tournament`
-  - `TournamentTeamEntry`
-  - `TournamentRound`
-  - `TournamentFixture`
-- la classifica di lega attuale non basta per gestire il torneo
-- serve una logica di seeding che legga i risultati delle leghe e costruisca il bracket
-
-Osservazione importante:
-
-- questa non e una modifica piccola: e una macro-feature nuova
-- va sviluppata dopo aver stabilizzato campionato e ruoli
-
-### 3. Account allenatore invitato
-
-Richiesta:
+Richiesta (implementata):
 
 - un utente esistente puo invitare un account allenatore
 - l'account allenatore puo solo impostare la formazione
 - solo per la squadra del giocatore principale che lo ha invitato
 
-Impatto sul progetto attuale:
+Stato implementazione:
 
-- oggi esistono solo `USER` e `ADMIN`
-- l'ownership squadra e collegata direttamente all'utente proprietario
-- il salvataggio formazione oggi controlla owner team o admin
-
-Come applicarla al progetto:
-
-- introdurre un nuovo concetto di delega, non necessariamente un nuovo ruolo globale
-- opzione pulita:
-  - nuovo modello tipo `TeamCoachInvite` o `TeamDelegate`
-  - un utente invitato ha permesso solo su `saveLineupAction`
-- non deve avere permessi su:
-  - roster
-  - join/leave lega
-  - admin
-  - punteggi
-
-Osservazione importante:
-
-- questa feature tocca auth e permessi
-- va fatta con attenzione per non aprire falle autorizzative
+- delega team (`TeamCoachInvite` / coach attivo), non nuovo `UserRole`
+- permesso limitato alle formazioni; no roster / join / admin / punteggi
+- UI: gestione inviti su `/me/teams/[teamId]`, accettazione `/me/coach-invites/[token]`
 
 ### 4. Gestione "giocatore non giocato" nel pannello voti — DECISA
 
@@ -282,29 +250,17 @@ Come applicarla al progetto:
 - scoring + UI admin voti + parser file voti
 - dopo import file: ricalcolare clean sheet per i portieri con `gs = 0`
 
-### 10. Le leghe non sono create dagli utenti ma dal super admin
+### 10. Le leghe non sono create dagli utenti ma dal super admin — **FATTO**
 
-Richiesta:
+Richiesta (implementata):
 
 - solo il super admin crea le leghe
 - l'admin di lega viene eliminato come concetto
 
-Impatto sul progetto attuale:
+Stato implementazione:
 
-- oggi le leghe sono gia create dall'area admin protetta
-- esiste ancora il concetto di `LeagueRole`
-- l'architettura distingue `ADMIN` globale e membership di lega
-
-Come applicarla al progetto:
-
-- in pratica il sistema e gia vicino a questa richiesta
-- va solo semplificato il dominio:
-  - decidere se tenere o rimuovere `LeagueRole.ADMIN`
-  - rimuovere eventuali riferimenti concettuali ad admin di lega
-
-Conclusione:
-
-- questa e piu una pulizia del modello che una feature nuova
+- creazione leghe solo area admin (`User.role = ADMIN`)
+- `LeagueRole` = solo `OWNER` | `MEMBER` (`ADMIN` rimosso da schema + migration)
 
 ### 11. Password di lega
 
@@ -443,30 +399,32 @@ Dal file emergono tre gruppi di lavoro molto diversi:
 - goal subito + automazione porta inviolata
 - mappatura eventi `gf/gs/rp/rs/rf/au/amm/esp/ass`
 
-### Gruppo B - modifiche grandi ma strutturabili
+### Gruppo B - modifiche grandi — **FATTO**
 
-- account allenatore invitato
-- torneo cross-league dopo la 18esima
-- campionato chiuso alla 18esima
+- ~~account allenatore invitato~~ **FATTO**
+- ~~torneo cross-league dopo la 18esima~~ **FATTO** (V1 + voti XLS per fase)
+- ~~campionato chiuso alla 18esima~~ **FATTO**
 
-### Gruppo C - decisioni prodotto (chiuse / aggiornate 2026-08-01)
+### Gruppo C - decisioni prodotto (chiuse)
 
 - rosa da **25** (`3 + 8 + 8 + 6`)
 - `non giocato = SV` (anche: assente dal file voti, oppure voto con `*`)
 - fasce gol: `<=25 → 0`, poi `+1` ogni 2 punti (`floor((score-25)/2)`)
 - porta inviolata automatica se portiere con `gs = 0`
-- aperti solo i **valori punti** di `rs` (rigore subito); `rf` = rigore **fallito** (−3) chiuso
+- `rs` = sbagliato (−3), `rf` = realizzato (0 pt); vedi `09`
 - leghe da **10** squadre, solo andata/ritorno → **18** giornate
-- max **1** sostituzione automatica; `gs`/`rs`/clean sheet solo portieri (salvo chiarimento Rs su non-P nel file)
+- max **1** sostituzione automatica
+- `LeagueRole.ADMIN` rimosso
 
 ## Raccomandazione
 
-Non implementare tutto insieme.
+Dream Team FC (scope prodotto chiuso in `09`) e implementato.
+Prossimi lavori = nuove richieste esplicite o hardening/QA, non epic aperti da quel file.
 
-Ordine consigliato:
+Ordine storico (completato):
 
-1. ~~chiarire le regole incoerenti~~ (fatto)
-2. bootstrap locale da zero (nuovo Supabase) — in corso / fatto in locale
-3. fare le modifiche piccole e sicure (password, pannello voti, **stato formazioni**, **import file voti**)
-4. rifattorizzare scoring, rosa e lineup
-5. solo dopo introdurre torneo e account allenatore
+1. ~~chiarire le regole incoerenti~~
+2. ~~bootstrap locale~~
+3. ~~modifiche piccole (password, pannello voti, stato formazioni, import file)~~
+4. ~~scoring, rosa, lineup~~
+5. ~~torneo + account allenatore + voti XLS torneo~~

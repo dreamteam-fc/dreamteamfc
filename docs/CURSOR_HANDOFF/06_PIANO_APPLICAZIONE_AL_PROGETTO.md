@@ -92,10 +92,10 @@ File/aree da rivedere:
 - riferimenti a `LeagueRole.ADMIN`
 - documentazione admin
 
-Approccio corretto:
+Approccio corretto (applicato):
 
 - mantenere `User.role = ADMIN` come fonte del super admin
-- valutare se `LeagueRole.ADMIN` non serve piu
+- `LeagueRole.ADMIN` **rimosso**: enum solo `OWNER` | `MEMBER` (migration `20260801230000_tournament_votes_and_drop_league_role_admin`)
 
 ### C. Pannello voti unificato multi-lega
 

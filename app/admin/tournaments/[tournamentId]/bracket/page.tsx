@@ -2,10 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
+  calculateTournamentRoundFromVotesAction,
+  generateTournamentRoundRequiredVotesAction,
+  importTournamentRoundVotesAction,
   recordTournamentFixtureResultAction,
   setTournamentLineupsOpenAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { isRequiredVoteCompletedStatus } from "@/lib/server/votes/shared";
 import { getTournamentBracketPageData } from "@/lib/server/tournaments/generate-tournament-bracket";
 
 export const dynamic = "force-dynamic";
@@ -165,6 +169,100 @@ export default async function TournamentBracketPage({
                 {round.name}
                 {round.isFinal ? " (solo andata)" : " (andata/ritorno)"}
               </h2>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-900">
+                  Voti Fantacalcio (XLS)
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Genera la lista dai giocatori in formazione READY, importa il
+                  file, poi calcola i gol da fantavoto (stesse fasce del
+                  campionato). Puoi ancora inserire i risultati a mano sotto.
+                </p>
+                {round.requiredVotes.length > 0 ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Lista voti:{" "}
+                    {
+                      round.requiredVotes.filter((entry) =>
+                        isRequiredVoteCompletedStatus(entry.status)
+                      ).length
+                    }
+                    /{round.requiredVotes.length} pronti ·{" "}
+                    {round._count.playerVotes} voti salvati
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Lista voti non ancora generata per questa fase.
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <form action={generateTournamentRoundRequiredVotesAction}>
+                    <input
+                      type="hidden"
+                      name="tournamentId"
+                      value={tournament.id}
+                    />
+                    <input type="hidden" name="roundId" value={round.id} />
+                    <button
+                      type="submit"
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400"
+                    >
+                      Genera lista voti
+                    </button>
+                  </form>
+                  <form
+                    action={importTournamentRoundVotesAction}
+                    encType="multipart/form-data"
+                    className="flex flex-wrap items-end gap-2"
+                  >
+                    <input
+                      type="hidden"
+                      name="tournamentId"
+                      value={tournament.id}
+                    />
+                    <input type="hidden" name="roundId" value={round.id} />
+                    <label className="space-y-1 text-xs text-slate-600">
+                      <span>File XLS</span>
+                      <input
+                        type="file"
+                        name="votesFile"
+                        accept=".xls,.xlsx"
+                        required
+                        className="block text-sm"
+                      />
+                    </label>
+                    <label className="space-y-1 text-xs text-slate-600">
+                      <span>Foglio</span>
+                      <input
+                        type="text"
+                        name="sheetName"
+                        defaultValue="Fantacalcio"
+                        className="w-36 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                    >
+                      Importa XLS
+                    </button>
+                  </form>
+                  <form action={calculateTournamentRoundFromVotesAction}>
+                    <input
+                      type="hidden"
+                      name="tournamentId"
+                      value={tournament.id}
+                    />
+                    <input type="hidden" name="roundId" value={round.id} />
+                    <button
+                      type="submit"
+                      className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
+                    >
+                      Calcola partite da voti
+                    </button>
+                  </form>
+                </div>
+              </div>
 
               <div className="mt-4 space-y-4">
                 {series.map(([seriesKey, fixtures]) => {

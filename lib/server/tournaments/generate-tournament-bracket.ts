@@ -176,6 +176,16 @@ export async function getTournamentBracketPageData(tournamentId: string) {
           isFinal: true,
           name: true,
           roundIndex: true,
+          requiredVotes: {
+            select: {
+              status: true
+            }
+          },
+          _count: {
+            select: {
+              playerVotes: true
+            }
+          },
           fixtures: {
             orderBy: [{ bracketSlot: "asc" }, { leg: "asc" }],
             select: {

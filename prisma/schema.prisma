@@ -14,7 +14,6 @@ enum UserRole {
 
 enum LeagueRole {
   OWNER
-  ADMIN
   MEMBER
 }
 
@@ -165,6 +164,8 @@ model Player {
   teamScorePlayers TeamScorePlayer[]
   leagueBlocks     LeagueBlockedPlayer[]
   tournamentLineupPlayers TournamentLineupPlayer[]
+  tournamentRequiredVotes TournamentRequiredVotePlayer[]
+  tournamentVotes         TournamentPlayerVote[]
 
   @@unique([source, externalId])
 }
@@ -499,6 +500,8 @@ model TournamentRound {
   updatedAt    DateTime            @updatedAt
   tournament   Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   fixtures     TournamentFixture[]
+  requiredVotes TournamentRequiredVotePlayer[]
+  playerVotes   TournamentPlayerVote[]
 
   @@unique([tournamentId, roundIndex])
   @@index([tournamentId])
@@ -561,4 +564,49 @@ model TournamentLineupPlayer {
   @@unique([lineupId, playerId])
   @@unique([lineupId, slotType, positionOrder])
   @@index([playerId])
+}
+
+/// Lista voti richiesti per una fase di torneo (unione giocatori nelle formazioni READY).
+model TournamentRequiredVotePlayer {
+  id       String             @id @default(cuid())
+  roundId  String
+  playerId String
+  status   RequiredVoteStatus @default(PENDING)
+  usageCount Int              @default(1)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  round    TournamentRound    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  player   Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([roundId, playerId])
+  @@index([status])
+}
+
+/// Voti giocatore scoped alla fase torneo (import XLS Fantacalcio).
+model TournamentPlayerVote {
+  id              String     @id @default(cuid())
+  roundId         String
+  playerId        String
+  status          VoteStatus @default(PENDING)
+  isSv            Boolean    @default(false)
+  baseVote        Decimal?   @db.Decimal(4, 2)
+  goals           Int        @default(0)
+  goalsConceded   Int        @default(0)
+  assists         Int        @default(0)
+  yellowCards     Int        @default(0)
+  redCards        Int        @default(0)
+  ownGoals        Int        @default(0)
+  penaltiesMissed Int        @default(0)
+  penaltiesSaved  Int        @default(0)
+  penaltiesScored Int        @default(0)
+  cleanSheet      Int        @default(0)
+  finalFantavote  Decimal?   @db.Decimal(5, 2)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  round           TournamentRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  player          Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([roundId, playerId])
+  @@index([status, isSv])
 }

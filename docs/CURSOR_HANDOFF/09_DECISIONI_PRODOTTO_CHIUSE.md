@@ -74,24 +74,41 @@ goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 - Pannello unificato multi-lega: mostra **solo chi ha effettivamente giocato** dopo le sostituzioni (opzione A)
 - Admin vede per ogni squadra/giornata: formazione `INSERITA` / `NON_INSERITA`
 
-## 6. Torneo (epic separato)
+## 6. Torneo — **FATTO** (V1 + voti XLS)
 
 - Dopo 18ª giornata
 - Admin crea torneo e **sceglie a mano** le squadre + lega di provenienza
 - Seeding: alto vs basso; in 1ª fase **no** scontri stessa lega
 - Eliminazione diretta andata/ritorno; **finale solo andata**
 - Password iscrizione obbligatoria (come leghe)
+- Formazioni torneo su `TournamentFixture` READY (apri/chiudi con `Tournament.lineupsOpen`)
+- Avanzamento serie via `recordTournamentFixtureResult` (pareggio aggregato → seed migliore)
 
-## 7. Account allenatore (epic separato)
+### Voti Fantacalcio XLS sul torneo (scoped a `TournamentRound`)
 
-- Solo da invito di utente esistente
+Flusso admin su `/admin/tournaments/[id]/bracket` per ogni fase:
+
+1. Formazioni READY schierate
+2. **Genera lista voti** → `TournamentRequiredVotePlayer` (unione giocatori in lineup READY)
+3. **Importa XLS** → stesso parser lega (`parseFantacalcioVotesBuffer`); matching `Cod.` = `externalId`; assenti → SV
+4. **Calcola partite da voti** → fantavoto + `convertScoreToGoals` (stesse fasce campionato) → `recordTournamentFixtureResult` sulle fixture READY
+5. **Risultato manuale** resta override alternativo sulle partite READY (non forza Matchday fake)
+
+Modelli: `TournamentRequiredVotePlayer`, `TournamentPlayerVote` su `TournamentRound`.
+Libs: `lib/server/tournaments/tournament-votes.ts`, `import-tournament-votes.ts`, `calculate-tournament-round-results.ts`.
+
+## 7. Account allenatore — **FATTO**
+
+- Solo da invito di utente esistente (`TeamCoachInvite` / coach attivo su squadra)
 - Puo solo impostare formazione della squadra dell’invitante
+- UI: `/me/teams/[teamId]` (gestione inviti) + `/me/coach-invites/[token]` (accettazione)
 
 ## 8. Poteri admin
 
 - CRUD giocatori nelle rose utente (add/remove/replace)
 - Aprire/chiudere giornate, punteggi, calendario
 - Nessun admin di lega separato
+- `LeagueRole` = solo `OWNER` | `MEMBER` (`ADMIN` rimosso da schema + migration)
 
 ---
 
@@ -103,7 +120,7 @@ Nessuna domanda aperta su `rp` / `rs` / `rf` dopo conferma utente 2026-08-01:
 - `Rf` realizzati 0 pt (tracciati; gol in `Gf`)
 - foglio default: **Fantacalcio** (confermato in uso)
 
-Restano solo epic prodotti: coach, torneo.
+Epic prodotti coach + torneo V1 (con voti XLS) **chiusi**. Nessun altro epic prodotto aperto da `Dream Team FC.txt`.
 
 ### Ordine in corso (proposta, attiva)
 
@@ -114,5 +131,7 @@ Restano solo epic prodotti: coach, torneo.
 5. ~~Pannello voti unificato (solo chi ha giocato)~~ **FATTO** (`/admin/votes`, fan-out save/import)
 6. ~~Password lega + maxTeams=10 forzato A/R=18~~ **FATTO**
 7. ~~Poteri rose admin (add/remove/replace)~~ **FATTO** (`/admin/leagues/[id]/teams`, `/admin/teams/[id]/roster`)
-8. Coach  
-9. Torneo  
+8. ~~Coach (invito + sola formazione)~~ **FATTO**
+9. ~~Torneo V1 (bracket, seeding, password, formazioni, avanzamento)~~ **FATTO**
+10. ~~Torneo voti XLS → fantavoto → gol (stesso scoring lega; manuale = override)~~ **FATTO**
+11. ~~`LeagueRole.ADMIN` rimosso~~ **FATTO** (restano `OWNER`/`MEMBER`)
