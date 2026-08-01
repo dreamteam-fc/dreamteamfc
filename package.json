@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0 --port ${PORT:-3000}",
     "auth:link-admin": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/link-admin-auth-user.ts",
     "api-football:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/check-api-football.ts",
     "db:reset-leagues": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/reset-league-data.ts",
