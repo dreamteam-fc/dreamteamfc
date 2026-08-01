@@ -2,8 +2,18 @@ import Link from "next/link";
 
 import { resetLeagueDataAction } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PlatformRolesPanel } from "@/components/admin/platform-roles-panel";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { getAdminDashboardData } from "@/lib/server/admin/read-admin-data";
+import { requireStaffAccess } from "@/lib/auth/admin.ts";
+import {
+  canAssignAppRoles,
+  canManagePlatform,
+  isAppAdmin
+} from "@/lib/auth/app-roles.ts";
+import {
+  getAdminDashboardData,
+  getAdminPlatformUsersData
+} from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
 
@@ -39,49 +49,75 @@ function Feedback({
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const { error, notice } = await searchParams;
+  const authContext = await requireStaffAccess();
+  const role = authContext.appUser.role;
+  const showPlatform = canManagePlatform(role);
+  const showRoles = canAssignAppRoles(role);
   const { leagues } = await getAdminDashboardData();
+  const platformUsers = showRoles
+    ? (await getAdminPlatformUsersData()).users
+    : [];
 
   return (
     <AdminShell
-      title="Dashboard amministrazione"
-      subtitle="Area admin per gestire leghe, giornate, pagelle assistite e risultati."
+      eyebrow={isAppAdmin(role) ? "Admin" : "Mister"}
+      title={
+        isAppAdmin(role)
+          ? "Dashboard amministrazione"
+          : "Dashboard operativa"
+      }
+      subtitle={
+        isAppAdmin(role)
+          ? "Area admin per gestire leghe, giornate, pagelle assistite e risultati."
+          : "Gestisci pagelle Fantacalcio, calendario, giornate e calcolo punteggi."
+      }
     >
       <Feedback error={error} notice={notice} />
+
+      {showRoles ? <PlatformRolesPanel users={platformUsers} /> : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Leghe</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Crea nuove leghe e monitora capienza, giornate e classifica.
+              {showPlatform
+                ? "Crea nuove leghe e monitora capienza, giornate e classifica."
+                : "Calendario, giornate, pagelle e punteggi delle leghe attive."}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/admin/tournaments"
-              className="rounded-xl border border-brand-blue/30 bg-blue-50 px-4 py-2 text-sm font-medium text-brand-blue transition hover:bg-blue-100"
-            >
-              Tornei
-            </Link>
+            {showPlatform ? (
+              <Link
+                href="/admin/tournaments"
+                className="rounded-xl border border-brand-blue/30 bg-blue-50 px-4 py-2 text-sm font-medium text-brand-blue transition hover:bg-blue-100"
+              >
+                Tornei
+              </Link>
+            ) : null}
             <Link
               href="/admin/votes"
               className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-100"
             >
               Pagelle unificate
             </Link>
-            <Link
-              href="/admin/players"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-            >
-              Giocatori
-            </Link>
-            <Link
-              href="/admin/leagues/new"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-            >
-              Crea nuova lega
-            </Link>
+            {showPlatform ? (
+              <>
+                <Link
+                  href="/admin/players"
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                >
+                  Giocatori
+                </Link>
+                <Link
+                  href="/admin/leagues/new"
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                >
+                  Crea nuova lega
+                </Link>
+              </>
+            ) : null}
           </div>
         </div>
       </section>
@@ -89,7 +125,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       {leagues.length === 0 ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">
-            Nessuna lega trovata. Esegui il seed demo prima di usare l&apos;area admin.
+            Nessuna lega trovata. Esegui il seed demo prima di usare l&apos;area
+            admin.
           </p>
         </section>
       ) : (
@@ -106,8 +143,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </h2>
                   <p className="mt-2 text-sm text-slate-600">
                     Membri: {league._count.members} | Squadre:{" "}
-                    {league._count.fantasyTeams}/{league.maxTeams} | Posti disponibili:{" "}
-                    {league.availableSpots}
+                    {league._count.fantasyTeams}/{league.maxTeams} | Posti
+                    disponibili: {league.availableSpots}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -117,18 +154,22 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   >
                     Genera calendario
                   </Link>
-                  <Link
-                    href={`/admin/leagues/${league.id}/teams`}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                  >
-                    Squadre / rose
-                  </Link>
-                  <Link
-                    href={`/admin/leagues/${league.id}/players`}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                  >
-                    Giocatori
-                  </Link>
+                  {showPlatform ? (
+                    <>
+                      <Link
+                        href={`/admin/leagues/${league.id}/teams`}
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                      >
+                        Squadre / rose
+                      </Link>
+                      <Link
+                        href={`/admin/leagues/${league.id}/players`}
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                      >
+                        Giocatori
+                      </Link>
+                    </>
+                  ) : null}
                   <Link
                     href={`/admin/leagues/${league.id}/matchdays/new`}
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
@@ -206,32 +247,36 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       )}
 
-      <section className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-900">Zona pericolosa</h2>
-        <p className="mt-2 text-sm text-rose-700">
-          Cancella leghe, squadre, rose, giornate, voti, risultati e scontri.
-          Mantiene utenti e giocatori.
-        </p>
+      {showPlatform ? (
+        <section className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">
+            Zona pericolosa
+          </h2>
+          <p className="mt-2 text-sm text-rose-700">
+            Cancella leghe, squadre, rose, giornate, voti, risultati e scontri.
+            Mantiene utenti e giocatori.
+          </p>
 
-        <form action={resetLeagueDataAction} className="mt-5 space-y-4">
-          <label className="block space-y-2 text-sm text-slate-700">
-            <span className="font-medium">Conferma reset</span>
-            <input
-              type="text"
-              name="confirmation"
-              placeholder="RESET LEGHE"
-              className="w-full rounded-xl border border-rose-300 px-3 py-2"
-            />
-          </label>
+          <form action={resetLeagueDataAction} className="mt-5 space-y-4">
+            <label className="block space-y-2 text-sm text-slate-700">
+              <span className="font-medium">Conferma reset</span>
+              <input
+                type="text"
+                name="confirmation"
+                placeholder="RESET LEGHE"
+                className="w-full rounded-xl border border-rose-300 px-3 py-2"
+              />
+            </label>
 
-          <button
-            type="submit"
-            className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700"
-          >
-            Reset dati leghe
-          </button>
-        </form>
-      </section>
+            <button
+              type="submit"
+              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700"
+            >
+              Reset dati leghe
+            </button>
+          </form>
+        </section>
+      ) : null}
     </AdminShell>
   );
 }

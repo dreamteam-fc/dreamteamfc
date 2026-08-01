@@ -7,9 +7,16 @@ type AdminShellProps = {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
+  /** Eyebrow above title — e.g. "Admin" or "Mister". */
+  eyebrow?: string;
 };
 
-export function AdminShell({ children, title, subtitle }: AdminShellProps) {
+export function AdminShell({
+  children,
+  title,
+  subtitle,
+  eyebrow = "Admin"
+}: AdminShellProps) {
   return (
     <main className="min-h-screen bg-brand-fog px-6 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -20,7 +27,7 @@ export function AdminShell({ children, title, subtitle }: AdminShellProps) {
               <BrandMark size="sm" href="/" />
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-mute">
-                  Admin
+                  {eyebrow}
                 </p>
                 <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-wide sm:text-3xl">
                   {title}

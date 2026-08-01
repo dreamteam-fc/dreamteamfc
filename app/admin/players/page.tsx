@@ -1,5 +1,6 @@
 import type { PlayerRole } from "@prisma/client";
 import Link from "next/link";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import {
   deactivatePlayerGloballyAction,
@@ -144,6 +145,7 @@ function buildAdminPlayersPath(options: {
 export default async function AdminPlayersPage({
   searchParams
 }: AdminPlayersPageProps) {
+  await requireAdminAccess();
   const { error, notice, q, role, source, status } = await searchParams;
   const roleFilter = parsePlayerRoleFilter(role);
   const sourceFilter = parseSourceFilter(source);

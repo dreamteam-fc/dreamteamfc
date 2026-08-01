@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listTournamentsForAdmin } from "@/lib/server/tournaments/tournament-entries";
@@ -46,6 +47,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function TournamentsPage({
   searchParams
 }: TournamentsPageProps) {
+  await requireAdminAccess();
   const { error, notice } = await searchParams;
   const tournaments = await listTournamentsForAdmin();
 

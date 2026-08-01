@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import { createTournamentAction } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -26,6 +27,7 @@ function Feedback({ error }: { error?: string }) {
 export default async function NewTournamentPage({
   searchParams
 }: NewTournamentPageProps) {
+  await requireAdminAccess();
   const { error } = await searchParams;
 
   return (

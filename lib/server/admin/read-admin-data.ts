@@ -1,4 +1,4 @@
-import { RequiredVoteStatus } from "@prisma/client";
+import { RequiredVoteStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
 import type { PlayerRoleFilter } from "@/lib/players/player-role";
@@ -61,6 +61,37 @@ export async function getAdminDashboardData() {
       availableSpots: Math.max(league.maxTeams - league._count.fantasyTeams, 0)
     }))
   };
+}
+
+/** Registered app users for platform role assignment (Admin only UI). */
+export async function getAdminPlatformUsersData() {
+  const roleRank: Record<UserRole, number> = {
+    [UserRole.ADMIN]: 0,
+    [UserRole.MISTER]: 1,
+    [UserRole.USER]: 2
+  };
+
+  const users = await prisma.user.findMany({
+    orderBy: [{ email: "asc" }],
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      role: true,
+      createdAt: true,
+      authUserId: true
+    }
+  });
+
+  users.sort((a, b) => {
+    const rankDiff = roleRank[a.role] - roleRank[b.role];
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+    return a.email.localeCompare(b.email);
+  });
+
+  return { users };
 }
 
 export async function getAdminMatchdayVotesData(

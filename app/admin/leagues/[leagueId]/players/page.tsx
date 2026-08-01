@@ -1,6 +1,7 @@
 import type { PlayerRole } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import {
   blockPlayerInLeagueAction,
@@ -86,6 +87,7 @@ export default async function AdminLeaguePlayersPage({
   params,
   searchParams
 }: AdminLeaguePlayersPageProps) {
+  await requireAdminAccess();
   const { leagueId } = await params;
   const { error, notice, q, role } = await searchParams;
   const roleFilter = parsePlayerRoleFilter(role);

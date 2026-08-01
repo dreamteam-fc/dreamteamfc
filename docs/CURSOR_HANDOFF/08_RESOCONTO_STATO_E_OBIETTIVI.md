@@ -197,7 +197,14 @@ Vedi dettaglio completo: [09_DECISIONI_PRODOTTO_CHIUSE.md](./09_DECISIONI_PRODOT
 
 ### 5.9 LeagueRole — **FATTO**
 
-- enum `LeagueRole`: solo `OWNER` | `MEMBER` (`ADMIN` rimosso; super admin resta `User.role = ADMIN`)
+- enum `LeagueRole`: solo `OWNER` | `MEMBER` (`ADMIN` rimosso; membership lega)
+
+### 5.10 UserRole piattaforma — **FATTO**
+
+- enum `UserRole`: `USER` | `MISTER` | `ADMIN` (non confondere con `LeagueRole`)
+- Admin assegna ruoli da `/admin`; Mister: voti XLS + ops lega (calendario/giornate/punteggi)
+- Deny Mister: tornei, crea leghe, reset, giocatori globali, rose admin, assign ruoli
+- Bootstrap: `ADMIN_EMAIL` → promote `ADMIN` al login solo se zero Admin in DB; poi `User.role` è source of truth
 
 ---
 

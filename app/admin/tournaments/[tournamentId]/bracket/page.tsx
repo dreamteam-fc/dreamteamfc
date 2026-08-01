@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import {
   calculateTournamentRoundFromVotesAction,
@@ -57,6 +58,7 @@ export default async function TournamentBracketPage({
   params,
   searchParams
 }: BracketPageProps) {
+  await requireAdminAccess();
   const { tournamentId } = await params;
   const { error, notice } = await searchParams;
   const tournament = await getTournamentBracketPageData(tournamentId);

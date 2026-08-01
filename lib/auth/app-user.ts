@@ -164,10 +164,58 @@ export function deriveDisplayNameFromAuthUser(user: SupabaseAuthUser) {
   );
 }
 
+function getBootstrapAdminEmail() {
+  const raw = process.env.ADMIN_EMAIL?.trim();
+  return raw && raw.length > 0 ? raw.toLowerCase() : null;
+}
+
+function shouldBootstrapAsAdmin(email: string) {
+  const bootstrapEmail = getBootstrapAdminEmail();
+  return bootstrapEmail !== null && email.toLowerCase() === bootstrapEmail;
+}
+
+const appUserSelect = {
+  authUserId: true,
+  displayName: true,
+  email: true,
+  id: true,
+  role: true
+} as const;
+
+/**
+ * Safe bootstrap: if ADMIN_EMAIL matches AND no Admin exists yet (or all
+ * Admins were removed), promote this user to ADMIN.
+ * Otherwise User.role in DB is the source of truth (assignments from /admin stick).
+ */
+async function ensureBootstrapAdminRole(
+  appUser: AppUserRecord
+): Promise<AppUserRecord> {
+  if (
+    appUser.role === UserRole.ADMIN ||
+    !shouldBootstrapAsAdmin(appUser.email)
+  ) {
+    return appUser;
+  }
+
+  const adminCount = await prisma.user.count({
+    where: { role: UserRole.ADMIN }
+  });
+
+  if (adminCount > 0) {
+    return appUser;
+  }
+
+  return prisma.user.update({
+    where: { id: appUser.id },
+    data: { role: UserRole.ADMIN },
+    select: appUserSelect
+  });
+}
+
 export async function ensureAppUserForAuthUser(user: SupabaseAuthUser) {
   const existingByAuthUserId = await findAppUserByAuthUserId(user.id);
   if (existingByAuthUserId) {
-    return existingByAuthUserId;
+    return ensureBootstrapAdminRole(existingByAuthUserId);
   }
 
   if (!user.email) {
@@ -181,31 +229,38 @@ export async function ensureAppUserForAuthUser(user: SupabaseAuthUser) {
     where: {
       email: user.email
     },
-    select: {
-      authUserId: true,
-      displayName: true,
-      email: true,
-      id: true,
-      role: true
-    }
+    select: appUserSelect
   });
 
   if (existingByEmail) {
     if (existingByEmail.authUserId === user.id) {
-      return existingByEmail;
+      return ensureBootstrapAdminRole(existingByEmail);
     }
 
     if (existingByEmail.authUserId) {
       throw new Error("Questo account email e gia collegato a un altro utente.");
     }
 
+    // ADMIN rows without authUserId need an explicit link script, unless this
+    // login is ADMIN_EMAIL and there are no other linked admins (lockout escape).
     if (existingByEmail.role === UserRole.ADMIN) {
-      throw new Error(
-        "Questo account richiede un collegamento admin esplicito prima dell'accesso."
-      );
+      const canBootstrapLink =
+        shouldBootstrapAsAdmin(user.email) &&
+        (await prisma.user.count({
+          where: {
+            role: UserRole.ADMIN,
+            authUserId: { not: null }
+          }
+        })) === 0;
+
+      if (!canBootstrapLink) {
+        throw new Error(
+          "Questo account richiede un collegamento admin esplicito prima dell'accesso."
+        );
+      }
     }
 
-    return prisma.user.update({
+    const linked = await prisma.user.update({
       where: {
         id: existingByEmail.id
       },
@@ -213,31 +268,23 @@ export async function ensureAppUserForAuthUser(user: SupabaseAuthUser) {
         authUserId: user.id,
         displayName: existingByEmail.displayName ?? displayName
       },
-      select: {
-        authUserId: true,
-        displayName: true,
-        email: true,
-        id: true,
-        role: true
-      }
+      select: appUserSelect
     });
+
+    return ensureBootstrapAdminRole(linked);
   }
 
-  return prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       authUserId: user.id,
       displayName,
       email: user.email,
       role: UserRole.USER
     },
-    select: {
-      authUserId: true,
-      displayName: true,
-      email: true,
-      id: true,
-      role: true
-    }
+    select: appUserSelect
   });
+
+  return ensureBootstrapAdminRole(created);
 }
 
 export async function getAuthenticatedAppUserContext(): Promise<AuthenticatedAppUserContext | null> {

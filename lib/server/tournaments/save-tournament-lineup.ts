@@ -2,7 +2,8 @@ import {
   LineupStatus,
   SlotType,
   TournamentFixtureStatus,
-  TournamentStatus
+  TournamentStatus,
+  type UserRole
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
@@ -23,7 +24,7 @@ export type TournamentLineupSelectionInput = {
 
 export async function saveTournamentLineup(options: {
   appUserId: string;
-  appUserRole: "USER" | "ADMIN";
+  appUserRole: UserRole;
   fantasyTeamId: string;
   selections: TournamentLineupSelectionInput[];
   tournamentFixtureId: string;

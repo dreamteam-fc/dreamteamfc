@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getAdminLeagueTeamsData } from "@/lib/server/admin/read-admin-data";
@@ -44,6 +45,7 @@ export default async function AdminLeagueTeamsPage({
   params,
   searchParams
 }: LeagueTeamsPageProps) {
+  await requireAdminAccess();
   const { leagueId } = await params;
   const { error, notice } = await searchParams;
   const data = await getAdminLeagueTeamsData(leagueId);

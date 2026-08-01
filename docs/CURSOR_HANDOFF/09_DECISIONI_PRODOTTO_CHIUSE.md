@@ -103,12 +103,16 @@ Libs: `lib/server/tournaments/tournament-votes.ts`, `import-tournament-votes.ts`
 - Puo solo impostare formazione della squadra dell’invitante
 - UI: `/me/teams/[teamId]` (gestione inviti) + `/me/coach-invites/[token]` (accettazione)
 
-## 8. Poteri admin
+## 8. Poteri admin / ruoli piattaforma
 
-- CRUD giocatori nelle rose utente (add/remove/replace)
-- Aprire/chiudere giornate, punteggi, calendario
+- CRUD giocatori nelle rose utente (add/remove/replace) — solo **Admin**
+- Aprire/chiudere giornate, punteggi, calendario — **Admin** e **Mister**
+- Pagelle Fantacalcio XLS (lega / unificato) — **Admin** e **Mister**
+- Tornei, creazione leghe, reset, ruoli piattaforma — solo **Admin**
 - Nessun admin di lega separato
-- `LeagueRole` = solo `OWNER` | `MEMBER` (`ADMIN` rimosso da schema + migration)
+- `LeagueRole` = solo `OWNER` | `MEMBER` (membership in lega)
+- `UserRole` = `USER` | `MISTER` | `ADMIN` (ruolo piattaforma; assegnabile da `/admin`)
+- Bootstrap sicuro: `ADMIN_EMAIL` promuove a `ADMIN` al login solo se non esiste già alcun Admin; poi DB è source of truth
 
 ---
 
@@ -135,3 +139,4 @@ Epic prodotti coach + torneo V1 (con voti XLS) **chiusi**. Nessun altro epic pro
 9. ~~Torneo V1 (bracket, seeding, password, formazioni, avanzamento)~~ **FATTO**
 10. ~~Torneo voti XLS → fantavoto → gol (stesso scoring lega; manuale = override)~~ **FATTO**
 11. ~~`LeagueRole.ADMIN` rimosso~~ **FATTO** (restano `OWNER`/`MEMBER`)
+12. ~~Ruoli piattaforma `USER`/`MISTER`/`ADMIN` + pannello assegnazione~~ **FATTO**

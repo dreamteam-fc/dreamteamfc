@@ -1,4 +1,4 @@
-import { requireAdminAccess } from "@/lib/auth/admin.ts";
+import { requireStaffAccess } from "@/lib/auth/admin.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,8 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  await requireAdminAccess();
+  // Admin | Mister — page/actions enforce finer capabilities.
+  await requireStaffAccess();
 
   return children;
 }

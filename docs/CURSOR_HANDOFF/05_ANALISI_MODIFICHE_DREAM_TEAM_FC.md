@@ -261,6 +261,7 @@ Stato implementazione:
 
 - creazione leghe solo area admin (`User.role = ADMIN`)
 - `LeagueRole` = solo `OWNER` | `MEMBER` (`ADMIN` rimosso da schema + migration)
+- Ruolo piattaforma: `UserRole` = `USER` | `MISTER` | `ADMIN` (Mister = pagelle/ops lega; non God mode)
 
 ### 11. Password di lega
 

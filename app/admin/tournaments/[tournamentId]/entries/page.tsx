@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import {
   generateTournamentBracketAction,
@@ -48,6 +49,7 @@ export default async function TournamentEntriesPage({
   params,
   searchParams
 }: TournamentEntriesPageProps) {
+  await requireAdminAccess();
   const { tournamentId } = await params;
   const { error, notice } = await searchParams;
   const data = await getTournamentEntriesPageData(tournamentId);

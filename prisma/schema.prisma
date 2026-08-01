@@ -7,8 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Platform/app role (not league membership — see LeagueRole).
+/// USER: default registered user
+/// MISTER: league ops + Fantacalcio vote upload (not platform God mode)
+/// ADMIN: full /admin access including role assignment
 enum UserRole {
   USER
+  MISTER
   ADMIN
 }
 

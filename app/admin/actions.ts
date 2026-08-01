@@ -1,10 +1,16 @@
 "use server";
 
-import { MatchdayStatus, RequiredVoteStatus } from "@prisma/client";
+import { MatchdayStatus, RequiredVoteStatus, UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdminAccess } from "@/lib/auth/admin.ts";
+import {
+  assertCanAssignAppRoles,
+  assertCanManageLeagueOps,
+  assertCanManageVotes,
+  requireAdminAccess
+} from "@/lib/auth/admin.ts";
+import { parseAppRole } from "@/lib/auth/app-roles.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { calculateFantavote } from "@/lib/scoring/calculate-fantavote.ts";
 import { createLeague } from "@/lib/server/admin/create-league.ts";
@@ -83,8 +89,17 @@ function redirectWithMessage(
   redirect(`${url.pathname}${url.search}`);
 }
 
+/** Platform God mode only. */
 async function assertAdminAction() {
   await requireAdminAccess();
+}
+
+async function assertVotesAction() {
+  await assertCanManageVotes();
+}
+
+async function assertLeagueOpsAction() {
+  await assertCanManageLeagueOps();
 }
 
 function revalidateAdminPaths(matchdayId: string, leagueId?: string | null) {
@@ -523,7 +538,7 @@ function buildBulkVoteInput(formData: FormData, matchdayId: string, playerId: st
 }
 
 export async function generateRequiredVotePlayersAction(formData: FormData) {
-  await assertAdminAction();
+  await assertVotesAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -940,7 +955,7 @@ export async function reactivatePlayerGloballyAction(formData: FormData) {
 }
 
 export async function createMatchdayAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
   const leagueId = readRequiredString(formData, "leagueId");
   const rawNumber = formData.get("number");
   const number =
@@ -1008,7 +1023,7 @@ export async function createMatchdayAction(formData: FormData) {
 }
 
 export async function generateLeagueScheduleAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
   const leagueId = readRequiredString(formData, "leagueId");
 
   try {
@@ -1034,7 +1049,7 @@ export async function generateLeagueScheduleAction(formData: FormData) {
 }
 
 export async function openLineupsAction(matchdayId: string, _formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
 
   try {
     const matchday = await prisma.matchday.findUnique({
@@ -1081,7 +1096,7 @@ export async function openLineupsAction(matchdayId: string, _formData: FormData)
 }
 
 export async function lockLineupsAction(matchdayId: string, _formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
 
   try {
     const matchday = await prisma.matchday.findUnique({
@@ -1137,7 +1152,7 @@ export async function lockLineupsAction(matchdayId: string, _formData: FormData)
 }
 
 export async function savePlayerVoteAction(formData: FormData) {
-  await assertAdminAction();
+  await assertVotesAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const playerId = readRequiredString(formData, "playerId");
   const leagueId = readOptionalString(formData, "leagueId");
@@ -1184,7 +1199,7 @@ export async function saveSinglePlayerVoteFromBulkAction(
   playerId: string,
   formData: FormData
 ) {
-  await assertAdminAction();
+  await assertVotesAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1215,7 +1230,7 @@ export async function saveSinglePlayerVoteFromBulkAction(
 }
 
 export async function importFantacalcioVotesFileAction(formData: FormData) {
-  await assertAdminAction();
+  await assertVotesAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1259,7 +1274,7 @@ export async function importFantacalcioVotesFileAction(formData: FormData) {
 }
 
 export async function saveBulkPlayerVotesAction(formData: FormData) {
-  await assertAdminAction();
+  await assertVotesAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1322,7 +1337,7 @@ export async function saveSingleUnifiedPlayerVoteAction(
   playerId: string,
   formData: FormData
 ) {
-  await assertAdminAction();
+  await assertVotesAction();
   const redirectPath = readRequiredString(formData, "redirectPath");
   let notice: string | undefined;
   let errorMessage: string | undefined;
@@ -1354,7 +1369,7 @@ export async function saveSingleUnifiedPlayerVoteAction(
 }
 
 export async function saveBulkUnifiedPlayerVotesAction(formData: FormData) {
-  await assertAdminAction();
+  await assertVotesAction();
   const redirectPath = readRequiredString(formData, "redirectPath");
   const playerIds = Array.from(
     new Set(
@@ -1428,7 +1443,7 @@ export async function saveBulkUnifiedPlayerVotesAction(formData: FormData) {
 export async function generateRequiredVotesForUnifiedMatchdayNumberAction(
   formData: FormData
 ) {
-  await assertAdminAction();
+  await assertVotesAction();
   const redirectPath = readRequiredString(formData, "redirectPath");
   const matchdayNumber = Number(readRequiredString(formData, "matchdayNumber"));
   let notice: string | undefined;
@@ -1465,7 +1480,7 @@ export async function generateRequiredVotesForUnifiedMatchdayNumberAction(
 export async function importFantacalcioVotesAcrossLeaguesAction(
   formData: FormData
 ) {
-  await assertAdminAction();
+  await assertVotesAction();
   const redirectPath = readRequiredString(formData, "redirectPath");
   const matchdayNumber = Number(readRequiredString(formData, "matchdayNumber"));
   const sheetNameRaw = readOptionalString(formData, "sheetName");
@@ -1536,7 +1551,7 @@ export async function generateDemoVotesForPendingPlayersAction(
   matchdayId: string,
   redirectPath?: string
 ) {
-  await assertAdminAction();
+  await assertVotesAction();
   const targetRedirectPath =
     redirectPath ?? `/admin/matchdays/${matchdayId}/votes?status=PENDING`;
   let notice: string | undefined;
@@ -1618,7 +1633,7 @@ export async function generateDemoVotesForPendingPlayersAction(
 }
 
 export async function calculateMatchdayScoresAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1638,7 +1653,7 @@ export async function calculateMatchdayScoresAction(formData: FormData) {
 }
 
 export async function publishMatchdayAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1658,7 +1673,7 @@ export async function publishMatchdayAction(formData: FormData) {
 }
 
 export async function generateFantasyFixturesAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1678,7 +1693,7 @@ export async function generateFantasyFixturesAction(formData: FormData) {
 }
 
 export async function calculateFantasyFixtureResultsAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
   const leagueId = readOptionalString(formData, "leagueId");
   const redirectPath = readRequiredString(formData, "redirectPath");
@@ -1815,4 +1830,70 @@ export async function adminReplacePlayerInRosterAction(formData: FormData) {
   }
 
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function setUserAppRoleAction(formData: FormData) {
+  const authContext = await assertCanAssignAppRoles();
+  const userId = readRequiredString(formData, "userId");
+  const roleRaw = readRequiredString(formData, "role");
+  const role = parseAppRole(roleRaw);
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  if (!role) {
+    redirectWithMessage("/admin", {
+      error: "Ruolo non valido. Usa Utente, Mister o Admin."
+    });
+  }
+
+  try {
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true }
+    });
+
+    if (!target) {
+      throw new Error("Utente non trovato.");
+    }
+
+    if (target.role === role) {
+      notice = `Nessuna modifica: ${target.email} e gia ${role}.`;
+    } else {
+      const demotingSelf =
+        target.id === authContext.appUser.id &&
+        target.role === UserRole.ADMIN &&
+        role !== UserRole.ADMIN;
+
+      if (demotingSelf) {
+        const otherAdmins = await prisma.user.count({
+          where: {
+            role: UserRole.ADMIN,
+            id: { not: target.id }
+          }
+        });
+
+        if (otherAdmins === 0) {
+          throw new Error(
+            "Non puoi rimuovere l'ultimo Admin. Promuovi prima un altro utente."
+          );
+        }
+      }
+
+      await prisma.user.update({
+        where: { id: target.id },
+        data: { role }
+      });
+
+      notice = `Ruolo aggiornato: ${target.email} → ${role}.`;
+    }
+
+    revalidatePath("/admin");
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Assegnazione ruolo non riuscita.";
+  }
+
+  redirectWithMessage("/admin", { error: errorMessage, notice });
 }
