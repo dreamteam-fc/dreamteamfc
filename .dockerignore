@@ -1,0 +1,14 @@
+Dockerfile
+.dockerignore
+.next
+node_modules
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log*
+docs/CURSOR_HANDOFF.zip
+*.xlsx#
+.~lock.*
+data/api-football-import-progress.json
+tsconfig.tsbuildinfo
