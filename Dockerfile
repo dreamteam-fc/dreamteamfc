@@ -26,6 +26,7 @@ RUN addgroup --system --gid 1001 nodejs \
 # App runtime (official Next standalone layout)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Needed for Railway pre-deploy: `npx prisma migrate deploy`
 COPY --from=builder /app/prisma ./prisma
