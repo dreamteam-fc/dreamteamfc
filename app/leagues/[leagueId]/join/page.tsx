@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createFantasyTeamAction } from "@/app/me/actions";
+import { BrandPanel } from "@/components/brand/brand-panel";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 import { getLeagueJoinPageData } from "@/lib/server/me/read-user-data";
 
@@ -44,25 +45,18 @@ export default async function JoinLeaguePage({
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-6 py-10">
+    <main className="min-h-screen bg-brand-fog px-6 py-10">
       <div className="mx-auto max-w-2xl space-y-6">
-        <section className="rounded-3xl bg-slate-900 p-8 text-white shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
-            Fantacalcetto
-          </p>
-          <h1 className="mt-3 text-3xl font-bold">Entra nella lega</h1>
-          <p className="mt-3 text-sm text-slate-300">
-            Lega <strong>{data.league.name}</strong> | Membri{" "}
-            {data.league._count.members} | Squadre{" "}
-            {data.league._count.fantasyTeams}/{data.league.maxTeams}
-          </p>
-        </section>
+        <BrandPanel
+          title="Entra nella lega"
+          description={`Lega ${data.league.name} | Membri ${data.league._count.members} | Squadre ${data.league._count.fantasyTeams}/${data.league.maxTeams}`}
+        />
 
         <Feedback error={error} />
 
         {data.existingLeagueTeam ? (
-          <section className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">
+          <section className="surface-card p-6">
+            <h2 className="text-xl font-semibold text-brand-ink">
               Hai gia una squadra in questa lega: {data.existingLeagueTeam.name}
             </h2>
             {data.scheduleGenerated ? (
@@ -73,7 +67,7 @@ export default async function JoinLeaguePage({
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href={`/me/teams/${data.existingLeagueTeam.id}`}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                className="btn-brand"
               >
                 Apri la mia squadra
               </Link>
@@ -160,7 +154,7 @@ export default async function JoinLeaguePage({
                 <button
                   type="submit"
                   disabled={!data.canJoin}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+                  className="btn-brand"
                 >
                   Crea squadra
                 </button>

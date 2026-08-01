@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { updatePasswordAction } from "@/app/auth/actions";
+import { BrandPanel } from "@/components/brand/brand-panel";
 import { getSafeNextPath } from "@/lib/auth/app-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server.ts";
 
@@ -49,21 +50,16 @@ export default async function ResetPasswordPage({
   } = await supabase.auth.getUser();
 
   return (
-    <main className="min-h-screen bg-slate-100 px-6 py-10">
+    <main className="min-h-screen bg-brand-fog px-6 py-10">
       <div className="mx-auto max-w-md space-y-6">
-        <section className="rounded-3xl bg-slate-900 p-8 text-white shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
-            Fantacalcetto
-          </p>
-          <h1 className="mt-3 text-3xl font-bold">Nuova password</h1>
-          <p className="mt-3 text-sm text-slate-300">
-            Imposta una nuova password per il tuo account.
-          </p>
-        </section>
+        <BrandPanel
+          title="Nuova password"
+          description="Imposta una nuova password per il tuo account."
+        />
 
         <Feedback error={error} notice={notice} />
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="surface-card p-6">
           {!user ? (
             <div className="space-y-4 text-sm text-slate-600">
               <p>
@@ -73,7 +69,7 @@ export default async function ResetPasswordPage({
               <div className="flex flex-wrap gap-3">
                 <Link
                   href={`/forgot-password?next=${encodeURIComponent(nextPath)}`}
-                  className="rounded-xl bg-slate-900 px-4 py-2 font-medium text-white transition hover:bg-slate-700"
+                  className="btn-brand"
                 >
                   Richiedi nuovo link
                 </Link>
@@ -113,10 +109,7 @@ export default async function ResetPasswordPage({
                 />
               </label>
 
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-700"
-              >
+              <button type="submit" className="btn-brand w-full">
                 Aggiorna password
               </button>
             </form>

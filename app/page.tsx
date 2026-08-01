@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BrandMark } from "@/components/brand/brand-mark";
+
 const gettingStartedSteps = [
   {
     description:
@@ -61,105 +63,45 @@ const quickLinks = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-slate-100">
-      <section className="bg-gradient-to-br from-pitch via-emerald-800 to-emerald-700 px-5 py-8 text-white sm:px-6 sm:py-10">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid gap-6 lg:grid-cols-[1.25fr_0.95fr] lg:items-center">
-            <div className="rounded-3xl bg-white/10 p-6 backdrop-blur-sm sm:p-8">
-              <p className="text-sm uppercase tracking-[0.25em] text-emerald-100">
-                Fantacalcetto
-              </p>
-              <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
-                Entra in una lega, crea la tua rosa e segui ogni giornata.
-              </h1>
-              <p className="mt-4 max-w-3xl text-base leading-7 text-emerald-50">
-                Fantacalcetto e una web app per leghe private di fantasy calcetto:
-                scegli una lega, costruisci la tua squadra, schiera la formazione
-                e controlla risultati e classifica.
-              </p>
-              <p className="mt-4 text-sm font-medium text-emerald-100">
-                Primo passo: guarda le leghe disponibili e scegli dove giocare.
-              </p>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link
-                  href="/leagues"
-                  className="rounded-xl bg-white px-5 py-3 text-center text-base font-semibold text-emerald-900 transition hover:bg-emerald-50"
-                >
-                  Vedi leghe disponibili
-                </Link>
-                <Link
-                  href="/signup"
-                  className="rounded-xl border border-emerald-200 bg-emerald-500/20 px-5 py-3 text-center text-base font-medium text-white transition hover:bg-emerald-500/30"
-                >
-                  Registrati
-                </Link>
-                <Link
-                  href="/login"
-                  className="rounded-xl border border-white/40 bg-transparent px-5 py-3 text-center text-base font-medium text-white transition hover:border-white hover:bg-white/10"
-                >
-                  Accedi
-                </Link>
-                <Link
-                  href="/me"
-                  className="rounded-xl border border-white/40 bg-transparent px-5 py-3 text-center text-base font-medium text-white transition hover:border-white hover:bg-white/10"
-                >
-                  Vai alla mia squadra
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <section className="rounded-3xl bg-white p-6 text-slate-900 shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">
-                  Nuovo? Parti da qui
-                </p>
-                <h2 className="mt-3 text-xl font-semibold">
-                  In pochi passaggi sei pronto a giocare
-                </h2>
-                <ol className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                  <li>1. Registrati o accedi.</li>
-                  <li>2. Entra in una lega disponibile.</li>
-                  <li>3. Completa la tua rosa.</li>
-                  <li>4. Schiera la formazione per la giornata.</li>
-                  <li>5. Segui risultati e classifica.</li>
-                </ol>
-              </section>
-
-              <section className="rounded-3xl bg-slate-900 p-6 text-white shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
-                  Hai gia una squadra?
-                </p>
-                <h2 className="mt-3 text-xl font-semibold">
-                  Torna nella tua area personale
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Vai alla tua area personale per gestire rosa, formazione,
-                  calendario e risultati.
-                </p>
-                <div className="mt-5">
-                  <Link
-                    href="/me"
-                    className="inline-flex rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                  >
-                    Vai alla mia squadra
-                  </Link>
-                </div>
-              </section>
-            </div>
+    <main className="min-h-screen bg-brand-fog">
+      <section className="relative overflow-hidden bg-brand-void text-white">
+        <div className="brand-spectrum-bar" />
+        <div className="pointer-events-none absolute inset-0 bg-brand-aurora" />
+        <div className="relative mx-auto flex min-h-[88vh] max-w-5xl flex-col items-center justify-center px-5 py-14 text-center sm:px-6 sm:py-16">
+          <BrandMark size="hero" priority href={null} />
+          <h1 className="mt-8 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-wide sm:text-5xl md:text-6xl">
+            Entra in lega. Costruisci la rosa. Domina la giornata.
+          </h1>
+          <p className="mt-5 max-w-xl text-base leading-7 text-brand-mute sm:text-lg">
+            Fantasy calcetto per leghe private: iscrizione, rosa da 25, formazione
+            e classifica in un unico posto.
+          </p>
+          <div className="mt-10 flex w-full max-w-lg flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
+            <Link
+              href="/leagues"
+              className="rounded-xl bg-brand-gold px-6 py-3.5 text-center text-base font-bold text-brand-void transition hover:bg-[#ffd24a]"
+            >
+              Vedi leghe disponibili
+            </Link>
+            <Link href="/signup" className="btn-brand-secondary text-center">
+              Registrati
+            </Link>
+            <Link href="/login" className="btn-brand-secondary text-center">
+              Accedi
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="px-5 py-10 sm:px-6">
+      <section className="px-5 py-12 sm:px-6">
         <div className="mx-auto max-w-6xl space-y-10">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="surface-card p-6 sm:p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-blue">
                   Come funziona
                 </p>
-                <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                <h2 className="mt-3 font-display text-3xl font-bold uppercase tracking-wide text-brand-ink">
                   Dal primo accesso alla classifica
                 </h2>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
@@ -169,10 +111,10 @@ export default function HomePage() {
               </div>
 
               <Link
-                href="/leagues"
-                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                href="/me"
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-brand-ink transition hover:border-brand-blue hover:text-brand-blue"
               >
-                Vedi leghe disponibili
+                Vai alla mia squadra
               </Link>
             </div>
 
@@ -180,12 +122,12 @@ export default function HomePage() {
               {gettingStartedSteps.map((step, index) => (
                 <article
                   key={step.title}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                  className="rounded-2xl border border-slate-200 bg-brand-fog/60 p-5"
                 >
-                  <p className="text-sm font-semibold text-emerald-700">
+                  <p className="text-sm font-bold text-brand-blue">
                     Step {index + 1}
                   </p>
-                  <h3 className="mt-3 text-lg font-semibold text-slate-900">
+                  <h3 className="mt-3 text-lg font-semibold text-brand-ink">
                     {step.title}
                   </h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -201,15 +143,15 @@ export default function HomePage() {
               <Link
                 key={card.title}
                 href={card.href}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                className="group surface-card p-6 transition hover:-translate-y-0.5 hover:border-brand-blue/40 hover:shadow-md"
               >
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-brand-ink">
                   {card.title}
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   {card.description}
                 </p>
-                <p className="mt-5 text-sm font-semibold text-emerald-700 transition group-hover:text-emerald-800">
+                <p className="mt-5 text-sm font-bold text-brand-blue transition group-hover:text-[#0f4de0]">
                   {card.cta}
                 </p>
               </Link>

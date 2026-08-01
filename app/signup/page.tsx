@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { logoutAction, signupAction } from "@/app/auth/actions";
+import { BrandPanel } from "@/components/brand/brand-panel";
 import {
   getAuthenticatedAppUserContext,
   getSafeNextPath
@@ -53,21 +54,16 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const hasAuthenticatedButUnauthorizedUser = Boolean(authContext?.authUser);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-6 py-10">
+    <main className="min-h-screen bg-brand-fog px-6 py-10">
       <div className="mx-auto max-w-md space-y-6">
-        <section className="rounded-3xl bg-slate-900 p-8 text-white shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
-            Fantacalcetto
-          </p>
-          <h1 className="mt-3 text-3xl font-bold">Registrazione</h1>
-          <p className="mt-3 text-sm text-slate-300">
-            Crea un account utente normale. Il ruolo applicativo resta sempre USER.
-          </p>
-        </section>
+        <BrandPanel
+          title="Registrazione"
+          description="Crea un account utente. Il ruolo applicativo resta sempre USER."
+        />
 
         <Feedback error={error} notice={notice} />
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="surface-card p-6">
           <form action={signupAction} className="space-y-4">
             <input type="hidden" name="next" value={nextPath} />
 
@@ -111,10 +107,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               />
             </label>
 
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-700"
-            >
+            <button type="submit" className="btn-brand w-full">
               Registrati
             </button>
           </form>

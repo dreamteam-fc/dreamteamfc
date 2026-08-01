@@ -4,8 +4,50 @@
 
 :root {
   color-scheme: light;
+  --brand-void: #050505;
+  --brand-ink: #0c0e14;
+  --brand-fog: #e8eaef;
+  --brand-blue: #1a5fff;
+  --brand-cyan: #00c2a8;
+  --brand-gold: #ffc20e;
+  --brand-spectrum: linear-gradient(
+    90deg,
+    #d12027 0%,
+    #f58220 16%,
+    #ffc20e 32%,
+    #00a651 48%,
+    #00c2a8 64%,
+    #1a5fff 80%,
+    #662d91 90%,
+    #ed1e79 100%
+  );
 }
 
 body {
-  @apply bg-slate-100 text-slate-900 antialiased;
+  @apply bg-brand-fog font-sans text-brand-ink antialiased;
+}
+
+@layer components {
+  .brand-spectrum-bar {
+    @apply h-1 w-full bg-brand-spectrum;
+  }
+
+  .btn-brand {
+    @apply rounded-xl bg-brand-blue px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f4de0];
+  }
+
+  .btn-brand-secondary {
+    @apply rounded-xl border border-white/35 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:border-white/70 hover:bg-white/10;
+  }
+
+  .surface-card {
+    @apply rounded-3xl border border-slate-200/80 bg-white shadow-sm;
+  }
+
+  .text-brand-gradient {
+    background-image: var(--brand-spectrum);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
