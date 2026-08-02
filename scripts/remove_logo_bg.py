@@ -16,8 +16,8 @@ SRC = Path(
 OUT = Path(__file__).resolve().parents[1] / "public" / "brand" / "logo.png"
 CHECKER = Path(__file__).resolve().parents[1] / "tmp-logo-checker.png"
 
-HARD = 18.0
-SOFT = 48.0
+HARD = 28.0
+SOFT = 62.0
 
 
 def main() -> None:

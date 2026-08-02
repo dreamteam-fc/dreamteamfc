@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Dream Team FC",
   description: "Passione per il fantacalcio — leghe private, rose e formazioni.",
   icons: {
-    icon: "/brand/logo.png?v=2"
+    icon: "/brand/logo.png?v=3"
   }
 };
 

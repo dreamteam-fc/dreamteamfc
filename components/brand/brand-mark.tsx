@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
+/** Cache-bust static brand asset (bump when logo.png bytes change). */
+const LOGO_SRC = "/brand/logo.png?v=3";
+
 const sizes = {
   sm: { className: "h-16 w-auto sm:h-[4.5rem]", height: 72, width: 72 },
   md: { className: "h-28 w-auto sm:h-32", height: 128, width: 128 },
@@ -22,13 +25,15 @@ export function BrandMark({
   size = "md"
 }: BrandMarkProps) {
   const dims = sizes[size];
+  // unoptimized: serve PNG alpha as-is (avoid /_next/image cache flattening old opaque plate)
   const image = (
     <Image
-      src="/brand/logo.png?v=2"
+      src={LOGO_SRC}
       alt="Dream Team FC — Passione per il fantacalcio"
       width={dims.width}
       height={dims.height}
       priority={priority}
+      unoptimized
       className={`${dims.className} object-contain ${className}`.trim()}
     />
   );
