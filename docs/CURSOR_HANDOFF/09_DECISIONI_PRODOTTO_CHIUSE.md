@@ -13,6 +13,7 @@ Fonte primaria: `docs/Dream Team FC.txt` + risposte utente + file esempio
 | Regola | Valore |
 |--------|--------|
 | Rosa | **25** = 3P + 8D + 8C + 6A |
+| Lock rosa owner | owner può add/remove **solo se count < 25**; a **count >= 25** rosa congelata (solo Admin); policy in `lib/server/rosters/roster-edit-policy.ts` |
 | Titolari | **5**: 1P + 1D + 1C + 1A + 1 libero tra D/C/A |
 | Panchina | **4**: 1 per ruolo (P, D, C, A) |
 | Sostituzione auto | solo stesso ruolo |
@@ -105,7 +106,7 @@ Libs: `lib/server/tournaments/tournament-votes.ts`, `import-tournament-votes.ts`
 
 ## 8. Poteri admin / ruoli piattaforma
 
-- CRUD giocatori nelle rose utente (add/remove/replace) — solo **Admin**
+- CRUD giocatori nelle rose utente (add/remove/replace) — solo **Admin** (dopo il lock a 25; Mister/coach non modificano rose)
 - Aprire/chiudere giornate, punteggi, calendario — **Admin** e **Mister**
 - Pagelle Fantacalcio XLS (lega / unificato) — **Admin** e **Mister**
 - Tornei, creazione leghe, reset, ruoli piattaforma — solo **Admin**

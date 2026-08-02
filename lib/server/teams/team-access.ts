@@ -40,6 +40,12 @@ export async function resolveTeamAccessRole(options: {
   return coach ? "coach" : null;
 }
 
+/**
+ * Role-level roster access: owner or platform Admin only.
+ * Coach never manages roster. Mister is not a team access role here.
+ * Owner edits are further gated by `lib/server/rosters/roster-edit-policy.ts`
+ * (locked once roster count >= 25).
+ */
 export function canManageRoster(role: TeamAccessRole | null): boolean {
   return role === "owner" || role === "admin";
 }

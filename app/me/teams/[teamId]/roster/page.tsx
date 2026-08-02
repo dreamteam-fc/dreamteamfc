@@ -14,6 +14,12 @@ import {
   PLAYER_ROLE_FILTERS
 } from "@/lib/players/player-role";
 import { getUserTeamRosterPageData } from "@/lib/server/me/read-user-data";
+import {
+  canOwnerEditRoster,
+  OWNER_ROSTER_LOCKED_MESSAGE,
+  OWNER_ROSTER_LOCK_SIZE
+} from "@/lib/server/rosters/roster-edit-policy";
+
 
 export const dynamic = "force-dynamic";
 
@@ -113,9 +119,9 @@ export default async function TeamRosterPage({
     notFound();
   }
 
+  const isAdmin = authContext.appUser.role === "ADMIN";
   const canAccess =
-    authContext.appUser.role === "ADMIN" ||
-    authContext.appUser.id === data.team.userId;
+    isAdmin || authContext.appUser.id === data.team.userId;
 
   if (!canAccess) {
     return (
@@ -126,7 +132,9 @@ export default async function TeamRosterPage({
   }
 
   const rosterStatus = getRosterStatus(data.rosterValidation);
-  const rosterIsFull = data.rosterValidation.total >= 8;
+  const rosterPlayerCount = data.rosterValidation.total;
+  const rosterIsFull = rosterPlayerCount >= OWNER_ROSTER_LOCK_SIZE;
+  const canEditRoster = isAdmin || canOwnerEditRoster(rosterPlayerCount);
 
   return (
     <div className="space-y-6">
@@ -185,6 +193,12 @@ export default async function TeamRosterPage({
             ))}
           </ul>
         ) : null}
+
+        {!canEditRoster ? (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            {OWNER_ROSTER_LOCKED_MESSAGE}
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -192,7 +206,9 @@ export default async function TeamRosterPage({
           <div>
             <h3 className="text-xl font-semibold text-slate-900">Rosa corrente</h3>
             <p className="mt-2 text-sm text-slate-600">
-              I giocatori selezionati possono essere rimossi in qualsiasi momento.
+              {canEditRoster
+                ? "Puoi rimuovere giocatori finché la rosa non raggiunge i 25."
+                : OWNER_ROSTER_LOCKED_MESSAGE}
             </p>
           </div>
         </div>
@@ -249,14 +265,18 @@ export default async function TeamRosterPage({
                         {entry.player.source ?? "-"}
                       </td>
                       <td className="px-3 py-2">
-                        <form action={removeAction}>
-                          <button
-                            type="submit"
-                            className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:bg-rose-100"
-                          >
-                            Rimuovi
-                          </button>
-                        </form>
+                        {canEditRoster ? (
+                          <form action={removeAction}>
+                            <button
+                              type="submit"
+                              className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:bg-rose-100"
+                            >
+                              Rimuovi
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="text-sm text-slate-400">Bloccato</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -352,7 +372,8 @@ export default async function TeamRosterPage({
                     roleFilter,
                     data.searchQuery
                   );
-                  const isAddDisabled = player.isSelected || rosterIsFull;
+                  const isAddDisabled =
+                    !canEditRoster || player.isSelected || rosterIsFull;
 
                   return (
                     <tr key={player.id}>
@@ -373,20 +394,26 @@ export default async function TeamRosterPage({
                       <td className="px-3 py-2 text-slate-600">
                         {player.isSelected
                           ? "Gia in rosa"
-                          : rosterIsFull
-                            ? "Rosa piena"
-                            : "Disponibile"}
+                          : !canEditRoster
+                            ? "Rosa bloccata"
+                            : rosterIsFull
+                              ? "Rosa piena"
+                              : "Disponibile"}
                       </td>
                       <td className="px-3 py-2">
-                        <form action={addAction}>
-                          <button
-                            type="submit"
-                            disabled={isAddDisabled}
-                            className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition enabled:hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-200"
-                          >
-                            Aggiungi
-                          </button>
-                        </form>
+                        {canEditRoster ? (
+                          <form action={addAction}>
+                            <button
+                              type="submit"
+                              disabled={isAddDisabled}
+                              className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition enabled:hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-200"
+                            >
+                              Aggiungi
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="text-sm text-slate-400">Bloccato</span>
+                        )}
                       </td>
                     </tr>
                   );

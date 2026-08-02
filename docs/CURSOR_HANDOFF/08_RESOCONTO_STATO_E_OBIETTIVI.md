@@ -119,6 +119,7 @@ Queste NON vanno riaperte salvo richiesta esplicita del proprietario.
 - 8 centrocampisti
 - 6 attaccanti
 - Totale **25** (il "22" nel file sorgente Dream Team era un errore)
+- Lock owner: a count >= 25 la rosa e congelata (solo Admin modifica); policy in `lib/server/rosters/roster-edit-policy.ts`
 
 ### 5.2 "Non giocato" = SV
 

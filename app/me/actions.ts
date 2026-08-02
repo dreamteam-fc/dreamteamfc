@@ -24,7 +24,11 @@ import type { PlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { parsePlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
-import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-composition";
+import { assertCanEditTeamRoster } from "@/lib/server/rosters/roster-edit-policy";
+import {
+  REQUIRED_ROSTER_SIZE,
+  validateRosterComposition
+} from "@/lib/server/rosters/validate-roster-composition";
 import { createUserFantasyTeam } from "@/lib/server/teams/create-user-fantasy-team";
 import {
   canManageLineup,
@@ -499,8 +503,15 @@ export async function addPlayerToRosterAction(
         throw new Error("Questo giocatore e gia presente nella rosa.");
       }
 
-      if (fullTeam.roster.length >= 25) {
-        throw new Error("La rosa ha gia raggiunto il limite di 25 giocatori.");
+      assertCanEditTeamRoster({
+        mode: access.isAdmin ? "admin" : "owner",
+        rosterPlayerCount: fullTeam.roster.length
+      });
+
+      if (fullTeam.roster.length >= REQUIRED_ROSTER_SIZE) {
+        throw new Error(
+          `La rosa ha gia raggiunto il limite di ${REQUIRED_ROSTER_SIZE} giocatori.`
+        );
       }
 
       await tx.fantasyRoster.create({
@@ -548,6 +559,17 @@ export async function removePlayerFromRosterAction(
       if (!access.isAdmin) {
         await assertLeagueMemberInTransaction(tx, access.team.leagueId, access.appUserId);
       }
+
+      const rosterPlayerCount = await tx.fantasyRoster.count({
+        where: {
+          fantasyTeamId: access.team.id
+        }
+      });
+
+      assertCanEditTeamRoster({
+        mode: access.isAdmin ? "admin" : "owner",
+        rosterPlayerCount
+      });
 
       const rosterEntry = await tx.fantasyRoster.findUnique({
         where: {
