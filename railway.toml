@@ -4,8 +4,8 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Avoid npx (cache/HOME quirks as USER nextjs). Call Prisma CLI directly.
-preDeployCommand = "sh -c \"node node_modules/prisma/build/index.js migrate deploy\""
+# Uses scripts/migrate-deploy.mjs (global prisma CLI installed in Dockerfile).
+preDeployCommand = "node scripts/migrate-deploy.mjs"
 startCommand = "node server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30

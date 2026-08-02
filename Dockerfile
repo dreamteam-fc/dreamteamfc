@@ -23,30 +23,33 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
-# Writable home for nextjs: npx/prisma may write caches during preDeploy.
-ENV HOME=/home/nextjs
 
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 --home /home/nextjs nextjs \
-  && mkdir -p /home/nextjs \
-  && chown -R nextjs:nodejs /home/nextjs
-
+# Run as root in the container: Railway terminates TLS at the edge proxy, and
+# Prisma migrate (preDeploy) is unreliable as USER nextjs in Next standalone
+# images (HOME/npx/.bin + partial node_modules). Prefer a working migrate path.
+#
 # App runtime (official Next standalone layout)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
-# Needed for Railway pre-deploy migrate: CLI + engines + generated client.
-# Must be owned by nextjs — image USER is nextjs and preDeploy runs as that user.
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-RUN mkdir -p node_modules/.bin \
-  && ln -sf ../prisma/build/index.js node_modules/.bin/prisma \
-  && chown -R nextjs:nodejs node_modules/.bin
+# Schema + migrate helper script
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/scripts/migrate-deploy.mjs ./scripts/migrate-deploy.mjs
 
-USER nextjs
+# Generated client used by the app (standalone usually traces it; keep explicit).
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Install a complete Prisma CLI (with transitive deps: effect, c12, engines…).
+# Copying only node_modules/prisma + @prisma is NOT enough for `migrate deploy`.
+RUN PRISMA_VERSION="$(node -e "console.log(require('./package-lock.json').packages['node_modules/prisma'].version)")" \
+  && npm install -g "prisma@${PRISMA_VERSION}" \
+  && prisma -v \
+  && node -e "require('fs').accessSync('/usr/local/lib/node_modules/prisma/build/index.js')" \
+  && rm -f package-lock.json
+
 EXPOSE 3000
 CMD ["node", "server.js"]
