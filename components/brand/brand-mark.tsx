@@ -24,7 +24,7 @@ export function BrandMark({
   const dims = sizes[size];
   const image = (
     <Image
-      src="/brand/logo.png"
+      src="/brand/logo.png?v=2"
       alt="Dream Team FC — Passione per il fantacalcio"
       width={dims.width}
       height={dims.height}
