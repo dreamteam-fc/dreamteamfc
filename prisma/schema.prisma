@@ -3,12 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  // Runtime / pooled connections (often Supabase transaction pooler :6543).
-  url       = env("DATABASE_URL")
-  // Migrations need a direct/session URL (Supabase session pooler :5432).
-  // Set DIRECT_URL on Railway or migrate deploy will fail.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Single URL for app + `prisma migrate deploy` (Railway preDeploy).
+  // Prefer Supabase session pooler (:5432). Transaction pooler (:6543) can break migrations.
+  url      = env("DATABASE_URL")
 }
 
 /// Platform/app role (not league membership — see LeagueRole).

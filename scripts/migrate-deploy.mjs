@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /**
  * Railway preDeploy helper: run `prisma migrate deploy` with clear diagnostics.
- * Prefer local CLI (node_modules), then global `prisma` on PATH.
+ * Prefers the image-local CLI (installed with full transitive deps in Dockerfile).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+
+// Log before any filesystem work so Railway Pre-deploy logs never look empty.
+console.log("[migrate-deploy] start");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
+const requireFromRoot = createRequire(path.join(root, "package.json"));
 
 /** Minimal .env loader for local runs (Railway injects env vars directly). */
 function loadEnvFile(filePath) {
@@ -39,6 +44,15 @@ function exists(rel) {
   return fs.existsSync(path.join(root, rel));
 }
 
+function canRequire(id) {
+  try {
+    requireFromRoot.resolve(id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function redactDbUrl(value) {
   if (!value) return "(unset)";
   try {
@@ -52,38 +66,52 @@ function redactDbUrl(value) {
 
 const localCli = path.join(root, "node_modules", "prisma", "build", "index.js");
 const schemaPath = path.join(root, "prisma", "schema.prisma");
+const localCliComplete = fs.existsSync(localCli) && canRequire("effect");
+const databaseUrl = process.env.DATABASE_URL || "";
 
 console.log("[migrate-deploy] cwd=", process.cwd());
 console.log("[migrate-deploy] schema=", exists("prisma/schema.prisma") ? "ok" : "MISSING");
-console.log("[migrate-deploy] local CLI=", fs.existsSync(localCli) ? localCli : "MISSING");
-console.log("[migrate-deploy] DATABASE_URL=", redactDbUrl(process.env.DATABASE_URL));
-console.log("[migrate-deploy] DIRECT_URL=", redactDbUrl(process.env.DIRECT_URL));
+console.log(
+  "[migrate-deploy] local CLI=",
+  fs.existsSync(localCli)
+    ? localCliComplete
+      ? `${localCli} (deps ok)`
+      : `${localCli} (INCOMPLETE: missing effect)`
+    : "MISSING"
+);
+console.log("[migrate-deploy] DATABASE_URL=", redactDbUrl(databaseUrl));
 
 if (!fs.existsSync(schemaPath)) {
   console.error("[migrate-deploy] FATAL: prisma/schema.prisma not found in image.");
-  process.exit(1);
-}
-
-if (!process.env.DATABASE_URL) {
-  console.error("[migrate-deploy] FATAL: DATABASE_URL is not set.");
-  process.exit(1);
-}
-
-if (!process.env.DIRECT_URL) {
   console.error(
-    "[migrate-deploy] FATAL: DIRECT_URL is not set. Set it on Railway to the Supabase session/direct URL (port 5432), not the transaction pooler (6543)."
+    "[migrate-deploy] HINT: Dockerfile must COPY prisma/ and scripts/ into the runner stage."
   );
   process.exit(1);
 }
 
+if (!databaseUrl) {
+  console.error("[migrate-deploy] FATAL: DATABASE_URL is not set.");
+  console.error(
+    "[migrate-deploy] HINT: Set DATABASE_URL on Railway (Supabase session pooler :5432 recommended)."
+  );
+  process.exit(1);
+}
+
+if (/:(6543)\b/.test(databaseUrl)) {
+  console.warn(
+    "[migrate-deploy] WARN: DATABASE_URL looks like Supabase transaction pooler (:6543). Migrations often fail there; prefer session pooler (:5432)."
+  );
+}
+
 /** @type {{ command: string, args: string[], shell?: boolean }} */
 let invocation;
-if (fs.existsSync(localCli)) {
+if (localCliComplete) {
   invocation = {
     command: process.execPath,
     args: [localCli, "migrate", "deploy", "--schema", schemaPath]
   };
 } else {
+  // Fallback: global `prisma` on PATH (if image installed it that way).
   invocation = {
     command: "prisma",
     args: ["migrate", "deploy", "--schema", schemaPath],
@@ -108,7 +136,7 @@ if (result.error) {
   console.error("[migrate-deploy] spawn failed:", result.error.message);
   if (result.error.code === "ENOENT") {
     console.error(
-      "[migrate-deploy] HINT: Prisma CLI binary not found. Image should install prisma globally or copy node_modules/prisma + transitive deps."
+      "[migrate-deploy] HINT: Prisma CLI not found. Dockerfile should `npm install prisma@<lockfile-version>` so transitive deps (effect) are present."
     );
   }
   process.exit(1);
@@ -118,7 +146,7 @@ const code = result.status ?? 1;
 if (code !== 0) {
   console.error(`[migrate-deploy] prisma migrate deploy exited with code ${code}`);
   console.error(
-    "[migrate-deploy] HINT: Open Railway Pre-deploy → View logs. Common codes: P1001 (DB unreachable), EACCES (permissions), MODULE_NOT_FOUND (CLI deps)."
+    "[migrate-deploy] HINT: Open Railway Pre-deploy logs. Common: P1001 (DB unreachable), MODULE_NOT_FOUND (CLI deps), transaction pooler :6543."
   );
 }
 process.exit(code);
