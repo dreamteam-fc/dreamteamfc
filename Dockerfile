@@ -23,20 +23,29 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+# Writable home for nextjs: npx/prisma may write caches during preDeploy.
+ENV HOME=/home/nextjs
 
 RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
+  && adduser --system --uid 1001 --home /home/nextjs nextjs \
+  && mkdir -p /home/nextjs \
+  && chown -R nextjs:nodejs /home/nextjs
 
 # App runtime (official Next standalone layout)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Needed for Railway pre-deploy: `npx prisma migrate deploy`
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Needed for Railway pre-deploy migrate: CLI + engines + generated client.
+# Must be owned by nextjs — image USER is nextjs and preDeploy runs as that user.
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+RUN mkdir -p node_modules/.bin \
+  && ln -sf ../prisma/build/index.js node_modules/.bin/prisma \
+  && chown -R nextjs:nodejs node_modules/.bin
 
 USER nextjs
 EXPOSE 3000
