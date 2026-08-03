@@ -18,6 +18,9 @@ import { getPlayerRoleLabel } from "@/lib/players/player-role";
 import { getAdminUnifiedVotesData } from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+/** Multi-league XLS import + list generation can exceed default limits on Railway. */
+export const maxDuration = 300;
 
 type UnifiedVotesPageProps = {
   searchParams: Promise<{
@@ -41,7 +44,7 @@ function Feedback({
 
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 text-sm ${
+      className={`rounded-2xl border px-4 py-3 text-sm whitespace-pre-wrap break-words ${
         error
           ? "border-rose-200 bg-rose-50 text-rose-700"
           : "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -134,7 +137,9 @@ export default async function AdminUnifiedVotesPage({
             </p>
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
               Salvare un voto lo propaga a tutte le giornate collegate al
-              giocatore. Prima genera le liste voti se mancano.
+              giocatore. &quot;Carica e propaga&quot; genera automaticamente le
+              liste voti mancanti su ogni lega della giornata, poi importa il
+              file su tutte.
             </p>
           </div>
 

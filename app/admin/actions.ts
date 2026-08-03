@@ -1732,22 +1732,27 @@ export async function importFantacalcioVotesAcrossLeaguesAction(
     }
 
     const buffer = await fileToOwnedBuffer(fileValue);
+    // Built-in ensureRequiredLists generates missing required-vote lists for
+    // every eligible league first, then imports with bounded concurrency so
+    // Railway's ~60s silent-proxy window can cover all leagues in one click.
     const summary = await importFantacalcioVotesAcrossMatchdays({
       buffer,
+      concurrency: 3,
+      ensureRequiredLists: true,
       matchdays: matchdays.map((matchday) => ({
         id: matchday.id,
         leagueId: matchday.leagueId,
         leagueName: matchday.league.name
       })),
-      prepareMatchday: async (matchdayId) => {
-        await generateRequiredVotePlayers(matchdayId);
-      },
       sheetName: sheetNameRaw || undefined
     });
 
     revalidatePath("/admin");
     revalidatePath("/admin/votes");
     for (const item of summary.succeeded) {
+      revalidatePath(`/admin/matchdays/${item.matchdayId}/votes`);
+    }
+    for (const item of summary.failed) {
       revalidatePath(`/admin/matchdays/${item.matchdayId}/votes`);
     }
 

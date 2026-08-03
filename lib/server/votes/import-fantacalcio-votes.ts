@@ -9,6 +9,7 @@ import {
 
 import { FANTACALCIO_QUOTAZIONI_SOURCE } from "../players/parse-fantacalcio-quotazioni.ts";
 import { prisma } from "../../prisma.ts";
+import { generateRequiredVotePlayers } from "../matchdays/generate-required-vote-players.ts";
 import { checkVotesCompletion } from "../matchdays/check-votes-completion.ts";
 import {
   parseFantacalcioVotesBuffer,
@@ -73,9 +74,42 @@ type PlayerVoteWriteRow = {
   yellowCards: number;
 };
 
+type PrecomputedVoteByPlayerId = Map<
+  string,
+  Omit<SavePlayerVoteInput, "matchdayId">
+>;
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(Math.max(concurrency, 1), items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
 async function loadRequiredPlayers(matchdayId: string) {
   return prisma.requiredVotePlayer.findMany({
-    where: { matchdayId },
+    where: {
+      matchdayId,
+      status: { not: RequiredVoteStatus.IGNORED }
+    },
     select: {
       playerId: true,
       player: {
@@ -219,57 +253,77 @@ function resolvePlayerIdByExternalId(
   );
 }
 
-async function importParsedFantacalcioVotesForMatchday(options: {
-  matchdayId: string;
-  parsed: ParsedFantacalcioVotesFile;
-  playerIdByExternalId: Map<string, string>;
-}): Promise<ImportFantacalcioVotesResult> {
-  const requiredPlayers = await loadRequiredPlayers(options.matchdayId);
-  if (requiredPlayers.length === 0) {
-    throw new Error(
-      "Nessun giocatore in lista voti richiesti. Genera prima la lista voti."
-    );
-  }
-
-  const requiredByPlayerId = new Map(
-    requiredPlayers.map((entry) => [entry.playerId, entry])
-  );
-  const rowsByExternalId = new Map<string, ParsedFantacalcioVoteRow>();
-  for (const row of options.parsed.rows) {
-    rowsByExternalId.set(row.externalId, row);
-  }
-
+function precomputeVotesByPlayerId(
+  parsed: ParsedFantacalcioVotesFile,
+  playerIdByExternalId: Map<string, string>
+): {
+  skippedUnmatchedCodes: string[];
+  votesByPlayerId: PrecomputedVoteByPlayerId;
+} {
+  const votesByPlayerId: PrecomputedVoteByPlayerId = new Map();
   const skippedUnmatchedCodes: string[] = [];
-  const writeRows: PlayerVoteWriteRow[] = [];
-  let matchedCount = 0;
 
-  for (const row of options.parsed.rows) {
-    const playerId = options.playerIdByExternalId.get(row.externalId);
+  for (const row of parsed.rows) {
+    const playerId = playerIdByExternalId.get(row.externalId);
     if (!playerId) {
       skippedUnmatchedCodes.push(row.externalId);
       continue;
     }
 
+    try {
+      // Validate once for the whole multi-league run. Placeholder matchdayId is
+      // replaced per league when building write rows.
+      const input = toSavePlayerVoteInput(row, {
+        matchdayId: "__template__",
+        playerId
+      });
+      const { matchdayId: _matchdayId, ...voteWithoutMatchday } = input;
+      votesByPlayerId.set(playerId, voteWithoutMatchday);
+    } catch {
+      // Skip invalid rows instead of aborting every league.
+      skippedUnmatchedCodes.push(row.externalId);
+    }
+  }
+
+  return { skippedUnmatchedCodes, votesByPlayerId };
+}
+
+function buildWriteRowsForMatchday(options: {
+  matchdayId: string;
+  requiredPlayers: Awaited<ReturnType<typeof loadRequiredPlayers>>;
+  rowsByExternalId: Map<string, ParsedFantacalcioVoteRow>;
+  votesByPlayerId: PrecomputedVoteByPlayerId;
+}): {
+  matchedCount: number;
+  missingMarkedSvCount: number;
+  writeRows: PlayerVoteWriteRow[];
+} {
+  const requiredByPlayerId = new Map(
+    options.requiredPlayers.map((entry) => [entry.playerId, entry])
+  );
+  const writeRows: PlayerVoteWriteRow[] = [];
+  let matchedCount = 0;
+
+  for (const [playerId, vote] of options.votesByPlayerId) {
     const required = requiredByPlayerId.get(playerId);
     if (!required) {
-      // Solo i giocatori in lista voti richiesti vengono aggiornati dal file.
       continue;
     }
 
     matchedCount += 1;
     writeRows.push(
       buildVoteWriteRow(
-        toSavePlayerVoteInput(row, {
-          matchdayId: options.matchdayId,
-          playerId
-        }),
+        {
+          ...vote,
+          matchdayId: options.matchdayId
+        },
         required.player.role
       )
     );
   }
 
   let missingMarkedSvCount = 0;
-  for (const required of requiredPlayers) {
+  for (const required of options.requiredPlayers) {
     const externalId = required.player.externalId;
     const isFantacalcioPlayer =
       required.player.source === FANTACALCIO_QUOTAZIONI_SOURCE;
@@ -277,7 +331,7 @@ async function importParsedFantacalcioVotesForMatchday(options: {
     const presentInFile =
       isFantacalcioPlayer &&
       externalId != null &&
-      rowsByExternalId.has(externalId);
+      options.rowsByExternalId.has(externalId);
 
     if (presentInFile) {
       continue;
@@ -297,6 +351,74 @@ async function importParsedFantacalcioVotesForMatchday(options: {
     );
     missingMarkedSvCount += 1;
   }
+
+  return { matchedCount, missingMarkedSvCount, writeRows };
+}
+
+/**
+ * Ensure a usable required-vote list exists for the matchday.
+ * Generates from lineups only when the list is missing/empty.
+ */
+export async function ensureRequiredVotePlayersForMatchday(
+  matchdayId: string
+): Promise<void> {
+  const existingCount = await prisma.requiredVotePlayer.count({
+    where: {
+      matchdayId,
+      status: { not: RequiredVoteStatus.IGNORED }
+    }
+  });
+
+  if (existingCount > 0) {
+    return;
+  }
+
+  const generated = await generateRequiredVotePlayers(matchdayId);
+  if (generated.totalRequired === 0) {
+    throw new Error(
+      "Nessun giocatore in formazione: impossibile generare la lista voti."
+    );
+  }
+}
+
+async function importParsedFantacalcioVotesForMatchday(options: {
+  matchdayId: string;
+  parsed: ParsedFantacalcioVotesFile;
+  playerIdByExternalId: Map<string, string>;
+  votesByPlayerId?: PrecomputedVoteByPlayerId;
+}): Promise<ImportFantacalcioVotesResult> {
+  const requiredPlayers = await loadRequiredPlayers(options.matchdayId);
+  if (requiredPlayers.length === 0) {
+    throw new Error(
+      "Nessun giocatore in lista voti richiesti. Genera prima la lista voti."
+    );
+  }
+
+  const precomputed =
+    options.votesByPlayerId != null
+      ? {
+          skippedUnmatchedCodes: [] as string[],
+          votesByPlayerId: options.votesByPlayerId
+        }
+      : precomputeVotesByPlayerId(
+          options.parsed,
+          options.playerIdByExternalId
+        );
+
+  const rowsByExternalId = new Map<string, ParsedFantacalcioVoteRow>();
+  for (const row of options.parsed.rows) {
+    rowsByExternalId.set(row.externalId, row);
+  }
+
+  const { matchedCount, missingMarkedSvCount, writeRows } =
+    buildWriteRowsForMatchday({
+      matchdayId: options.matchdayId,
+      requiredPlayers,
+      rowsByExternalId,
+      votesByPlayerId: precomputed.votesByPlayerId
+    });
+
+  const skippedUnmatchedCodes = precomputed.skippedUnmatchedCodes;
 
   await persistPlayerVoteRows(options.matchdayId, writeRows);
   await checkVotesCompletion(options.matchdayId);
@@ -353,8 +475,10 @@ export async function importFantacalcioVotesFromBuffer(options: {
 /**
  * Propagate one Fantacalcio file across many matchdays (pagelle unificate).
  *
- * Parses the XLS once, resolves player codes once, then imports per matchday
- * with isolated errors so one failing league does not abort the others.
+ * Phases (Railway-safe):
+ * 1. Ensure required-vote lists for every league (generate only if missing)
+ * 2. Parse XLS + resolve codes once; precompute validated votes once
+ * 3. Import leagues with bounded concurrency (isolated errors)
  */
 export async function importFantacalcioVotesAcrossMatchdays(options: {
   buffer: Buffer;
@@ -363,9 +487,20 @@ export async function importFantacalcioVotesAcrossMatchdays(options: {
     leagueId: string;
     leagueName: string;
   }>;
+  /**
+   * @deprecated Prefer built-in ensureRequiredLists. Kept for callers that
+   * need a custom prepare hook; runs for every matchday before import.
+   */
   prepareMatchday?: (matchdayId: string) => Promise<void>;
+  /** Default true: auto-generate missing required-vote lists before import. */
+  ensureRequiredLists?: boolean;
   sheetName?: string;
+  /** Concurrent league imports. Default 3 — balances speed vs DB pool. */
+  concurrency?: number;
 }): Promise<ImportFantacalcioVotesAcrossMatchdaysResult> {
+  const ensureRequiredLists = options.ensureRequiredLists !== false;
+  const concurrency = options.concurrency ?? 3;
+
   const parsed = parseFantacalcioVotesBuffer(
     options.buffer,
     options.sheetName
@@ -386,54 +521,169 @@ export async function importFantacalcioVotesAcrossMatchdays(options: {
     }
   });
   const playerIdByExternalId = resolvePlayerIdByExternalId(matchedPlayers);
+  const { skippedUnmatchedCodes, votesByPlayerId } = precomputeVotesByPlayerId(
+    parsed,
+    playerIdByExternalId
+  );
+
+  const rowsByExternalId = new Map<string, ParsedFantacalcioVoteRow>();
+  for (const row of parsed.rows) {
+    rowsByExternalId.set(row.externalId, row);
+  }
 
   const result: ImportFantacalcioVotesAcrossMatchdaysResult = {
     failed: [],
     sheetName: parsed.sheetName,
-    skippedUnmatchedCodes: [],
+    skippedUnmatchedCodes,
     succeeded: [],
     totalRowsInFile: parsed.rows.length
   };
-  const unmatched = new Set<string>();
 
-  for (const matchday of options.matchdays) {
-    try {
-      if (options.prepareMatchday) {
-        await options.prepareMatchday(matchday.id);
+  // Phase 1: make sure every league has a required-vote list before any import.
+  // Doing this up-front avoids "only leagues that already had lists get votes".
+  const prepared = await mapPool(
+    options.matchdays,
+    concurrency,
+    async (matchday) => {
+      try {
+        if (options.prepareMatchday) {
+          await options.prepareMatchday(matchday.id);
+        } else if (ensureRequiredLists) {
+          await ensureRequiredVotePlayersForMatchday(matchday.id);
+        }
+        return { matchday, error: null as string | null };
+      } catch (error) {
+        return {
+          matchday,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Preparazione lista voti non riuscita."
+        };
       }
+    }
+  );
 
-      const importResult = await importParsedFantacalcioVotesForMatchday({
-        matchdayId: matchday.id,
-        parsed,
-        playerIdByExternalId
-      });
-
-      for (const code of importResult.skippedUnmatchedCodes) {
-        unmatched.add(code);
-      }
-
-      result.succeeded.push({
-        leagueId: matchday.leagueId,
-        leagueName: matchday.leagueName,
-        matchdayId: matchday.id,
-        matchedCount: importResult.matchedCount,
-        missingMarkedSvCount: importResult.missingMarkedSvCount,
-        savedCount: importResult.savedCount
-      });
-    } catch (error) {
+  const readyMatchdays = [];
+  for (const item of prepared) {
+    if (item.error) {
       result.failed.push({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Import voti non riuscito.",
-        leagueId: matchday.leagueId,
-        leagueName: matchday.leagueName,
-        matchdayId: matchday.id
+        error: item.error,
+        leagueId: item.matchday.leagueId,
+        leagueName: item.matchday.leagueName,
+        matchdayId: item.matchday.id
       });
+    } else {
+      readyMatchdays.push(item.matchday);
     }
   }
 
-  result.skippedUnmatchedCodes = Array.from(unmatched);
+  if (readyMatchdays.length === 0) {
+    return result;
+  }
+
+  // Phase 2: one query for all required players across ready leagues.
+  const allRequired = await prisma.requiredVotePlayer.findMany({
+    where: {
+      matchdayId: { in: readyMatchdays.map((matchday) => matchday.id) },
+      status: { not: RequiredVoteStatus.IGNORED }
+    },
+    select: {
+      matchdayId: true,
+      playerId: true,
+      player: {
+        select: {
+          id: true,
+          externalId: true,
+          name: true,
+          role: true,
+          source: true
+        }
+      }
+    }
+  });
+
+  const requiredByMatchdayId = new Map<
+    string,
+    Awaited<ReturnType<typeof loadRequiredPlayers>>
+  >();
+  for (const matchday of readyMatchdays) {
+    requiredByMatchdayId.set(matchday.id, []);
+  }
+  for (const row of allRequired) {
+    const bucket = requiredByMatchdayId.get(row.matchdayId);
+    if (bucket) {
+      bucket.push(row);
+    }
+  }
+
+  // Phase 3: persist votes per league with bounded concurrency.
+  const importOutcomes = await mapPool(
+    readyMatchdays,
+    concurrency,
+    async (matchday) => {
+      try {
+        const requiredPlayers = requiredByMatchdayId.get(matchday.id) ?? [];
+        if (requiredPlayers.length === 0) {
+          throw new Error(
+            "Nessun giocatore in lista voti richiesti. Genera prima la lista voti."
+          );
+        }
+
+        const { matchedCount, missingMarkedSvCount, writeRows } =
+          buildWriteRowsForMatchday({
+            matchdayId: matchday.id,
+            requiredPlayers,
+            rowsByExternalId,
+            votesByPlayerId
+          });
+
+        await persistPlayerVoteRows(matchday.id, writeRows);
+        await checkVotesCompletion(matchday.id);
+
+        return {
+          matchday,
+          error: null as string | null,
+          matchedCount,
+          missingMarkedSvCount,
+          savedCount: writeRows.length
+        };
+      } catch (error) {
+        return {
+          matchday,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Import voti non riuscito.",
+          matchedCount: 0,
+          missingMarkedSvCount: 0,
+          savedCount: 0
+        };
+      }
+    }
+  );
+
+  for (const outcome of importOutcomes) {
+    if (outcome.error) {
+      result.failed.push({
+        error: outcome.error,
+        leagueId: outcome.matchday.leagueId,
+        leagueName: outcome.matchday.leagueName,
+        matchdayId: outcome.matchday.id
+      });
+      continue;
+    }
+
+    result.succeeded.push({
+      leagueId: outcome.matchday.leagueId,
+      leagueName: outcome.matchday.leagueName,
+      matchdayId: outcome.matchday.id,
+      matchedCount: outcome.matchedCount,
+      missingMarkedSvCount: outcome.missingMarkedSvCount,
+      savedCount: outcome.savedCount
+    });
+  }
+
   return result;
 }
 
@@ -457,19 +707,18 @@ export function formatImportFantacalcioVotesAcrossMatchdaysNotice(
   const details: string[] = [];
 
   if (ok > 0) {
-    const preview = summary.succeeded
-      .slice(0, 4)
-      .map((item) => item.leagueName)
+    // List every league so admins can see full propagation at a glance.
+    const okList = summary.succeeded
+      .map((item) => `${item.leagueName} (${item.savedCount})`)
       .join(", ");
-    details.push(`ok: ${preview}${ok > 4 ? "…" : ""}`);
+    details.push(`ok: ${okList}`);
   }
 
   if (failed > 0) {
-    const preview = summary.failed
-      .slice(0, 3)
+    const failList = summary.failed
       .map((item) => `${item.leagueName}: ${item.error}`)
       .join(" | ");
-    details.push(`${preview}${failed > 3 ? "…" : ""}`);
+    details.push(`errori: ${failList}`);
   }
 
   if (summary.skippedUnmatchedCodes.length > 0) {
@@ -479,9 +728,16 @@ export function formatImportFantacalcioVotesAcrossMatchdaysNotice(
     );
   }
 
-  if (details.length === 0) {
-    return `${parts.join(", ")}.`;
+  const message =
+    details.length === 0
+      ? `${parts.join(", ")}.`
+      : `${parts.join(", ")}. ${details.join(" · ")}`;
+
+  // Query-string flash notices must stay short for browsers/proxies.
+  const MAX_NOTICE_CHARS = 1800;
+  if (message.length <= MAX_NOTICE_CHARS) {
+    return message;
   }
 
-  return `${parts.join(", ")}. ${details.join(" · ")}`;
+  return `${message.slice(0, MAX_NOTICE_CHARS - 1)}…`;
 }
