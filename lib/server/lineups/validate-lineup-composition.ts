@@ -30,7 +30,7 @@ export const MIN_STARTER_OUTFIELD_PER_ROLE = 1;
 export {
   BENCH_POSITION_ORDER_BY_ROLE,
   getBenchPositionOrderByRole
-} from "@/lib/lineups/bench-position-order.ts";
+} from "../../lineups/bench-position-order.ts";
 
 function countByRole(
   players: LineupCompositionPlayer[],
