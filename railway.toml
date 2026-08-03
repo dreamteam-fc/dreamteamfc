@@ -4,8 +4,11 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Local Prisma CLI is installed in the runner image with full transitive deps.
-preDeployCommand = "node scripts/migrate-deploy.mjs"
+# Temporarily disabled: old live app holds all Session pool slots → migrate via
+# DIRECT_URL hits EMAXCONNSESSION → deploy never replaces the old app (chicken-egg).
+# Re-enable after the pool is healthy; if needed run once locally:
+#   npx prisma migrate deploy
+# preDeployCommand = "node scripts/migrate-deploy.mjs"
 startCommand = "node server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30

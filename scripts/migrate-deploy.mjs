@@ -155,10 +155,10 @@ function printSessionPoolerHint(context) {
 
 function printPoolExhaustionHint() {
   console.error(
-    "[migrate-deploy] HINT IT: Pool session pieno (EMAXCONNSESSION). Se DATABASE_URL e DIRECT_URL sono entrambi Session :5432, l'app live consuma gli slot (~15 su Free) e preDeploy non entra. Imposta DATABASE_URL = Transaction pooler :6543 + ?pgbouncer=true (opz. &connection_limit=1); tieni DIRECT_URL = Session :5432 solo per migrate. Ferma npm run dev locale, ridistribuisci; se resta pieno, riavvia il progetto Supabase."
+    "[migrate-deploy] HINT IT: Pool session pieno (EMAXCONNSESSION). Chicken-egg: la vecchia app live tiene tutti gli slot Session (~15 Free) → preDeploy migrate via DIRECT_URL fallisce → la nuova app non sostituisce mai la vecchia. Fix: DATABASE_URL = Transaction :6543 + ?pgbouncer=true (o &pgbouncer=true se c'è già ?sslmode=…); DIRECT_URL = Session :5432 solo per migrate. Se già così ma il pool è ancora pieno: commenta temporaneamente preDeployCommand in railway.toml, ridistribuisci (la nuova app su :6543 libera gli slot), poi riabilita preDeploy; oppure riavvia il progetto Supabase e/o ferma npm run dev locale."
   );
   console.error(
-    "[migrate-deploy] HINT EN: Session pool exhausted (EMAXCONNSESSION). If both DATABASE_URL and DIRECT_URL use Session :5432, the live app fills ~15 Free slots and preDeploy cannot connect. Set DATABASE_URL = Transaction pooler :6543 + ?pgbouncer=true (opt. &connection_limit=1); keep DIRECT_URL = Session :5432 for migrate only. Stop local npm run dev, redeploy; if still full, restart the Supabase project."
+    "[migrate-deploy] HINT EN: Session pool exhausted (EMAXCONNSESSION). Chicken-egg: the old live app holds all Session slots (~15 Free) → preDeploy migrate via DIRECT_URL fails → the new app never replaces the old one. Fix: DATABASE_URL = Transaction :6543 + ?pgbouncer=true (or &pgbouncer=true if ?sslmode=… already present); DIRECT_URL = Session :5432 for migrate only. If already correct but pool still full: temporarily comment out preDeployCommand in railway.toml, redeploy (new app on :6543 frees slots), then re-enable preDeploy; or restart the Supabase project and/or stop local npm run dev."
   );
 }
 
