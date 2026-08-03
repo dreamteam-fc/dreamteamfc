@@ -1,24 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 
+import { normalizeRuntimeDatabaseUrl } from "./database-url.ts";
+
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
 };
 
-/** Cap Prisma→pooler sockets when URL omits connection_limit (Railway / Supabase Free). */
-function databaseUrlWithConnectionLimit(url: string | undefined, limit = 1): string | undefined {
-  if (!url) return url;
-  try {
-    const u = new URL(url);
-    if (!u.searchParams.has("connection_limit")) {
-      u.searchParams.set("connection_limit", String(limit));
-    }
-    return u.toString();
-  } catch {
-    return url;
-  }
-}
-
-const datasourceUrl = databaseUrlWithConnectionLimit(process.env.DATABASE_URL);
+/** Runtime URL: pgbouncer=true on :6543 + connection_limit when missing. */
+const datasourceUrl = normalizeRuntimeDatabaseUrl(process.env.DATABASE_URL);
 
 export const prisma =
   globalForPrisma.prisma ??

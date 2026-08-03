@@ -112,6 +112,22 @@ function withConnectionLimit(url, limit = 1) {
   }
 }
 
+/**
+ * Detect missing pgbouncer=true on Transaction pooler (:6543).
+ * App runtime auto-appends it in lib/database-url.ts; Railway env should still set it.
+ * Never add pgbouncer=true to DIRECT_URL / Session :5432 (migrate needs full protocol).
+ */
+function transactionPoolerMissingPgbouncer(url) {
+  try {
+    const u = new URL(url);
+    if (u.port !== "6543") return false;
+    const v = (u.searchParams.get("pgbouncer") || "").trim().toLowerCase();
+    return !(v === "true" || v === "1" || v === "yes");
+  } catch {
+    return /:(6543)(?:\/|[?&#]|$)/.test(url) && !/[?&]pgbouncer=(?:true|1|yes)\b/i.test(url);
+  }
+}
+
 function sleepSync(ms) {
   // Portable sync sleep for the preDeploy CLI (no async main).
   spawnSync(process.execPath, ["-e", `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${ms})`], {
@@ -195,6 +211,18 @@ if (!databaseUrl) {
     "[migrate-deploy] HINT: Set DATABASE_URL on Railway (Supabase Transaction pooler :6543 + ?pgbouncer=true for the app)."
   );
   process.exit(1);
+}
+
+if (transactionPoolerMissingPgbouncer(databaseUrl)) {
+  console.warn(
+    "[migrate-deploy] WARN: DATABASE_URL is Transaction pooler (:6543) without pgbouncer=true."
+  );
+  console.warn(
+    "[migrate-deploy] HINT IT: Aggiungi ?pgbouncer=true (o &pgbouncer=true se c'è già ?sslmode=…). Senza, Prisma può fallire a runtime con 42P05 prepared statement already exists. L'app prova ad aggiungerlo in lib/database-url.ts, ma conviene sistemare la var su Railway."
+  );
+  console.warn(
+    "[migrate-deploy] HINT EN: Add ?pgbouncer=true (or &pgbouncer=true if ?sslmode=… already present). Without it Prisma can fail at runtime with 42P05 prepared statement already exists. The app auto-appends it in lib/database-url.ts, but fix the Railway env anyway."
+  );
 }
 
 // Prisma requires DIRECT_URL when schema has directUrl=. Prefer it for migrate;

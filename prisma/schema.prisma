@@ -5,7 +5,9 @@ generator client {
 datasource db {
   provider  = "postgresql"
   // App runtime: Transaction pooler (:6543) + ?pgbouncer=true (see .env.example).
+  // lib/database-url.ts auto-appends pgbouncer=true + connection_limit=1 on :6543 if missing.
   // Migrations: Prisma uses directUrl — Session pooler (:5432) on Railway (brief).
+  // Never put pgbouncer=true on DIRECT_URL (migrate needs the full protocol).
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }

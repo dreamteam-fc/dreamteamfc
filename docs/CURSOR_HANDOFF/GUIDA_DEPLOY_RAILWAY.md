@@ -404,29 +404,21 @@ per il runtime dell'applicazione.
 Schema indicativo:
 
 ```env
-DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres"
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
 ```
 
 Cursor non deve inventare host, regione o project reference.
 
-Per un'app serverless o con scaling, Supabase raccomanda di iniziare con un limite
-prudente di connessioni. Cursor può proporre:
-
-```text
-?connection_limit=1
-```
-
-oppure un valore leggermente superiore solo se giustificato dal carico.
-
-Se la versione Prisma e il pooler richiedono la compatibilità PgBouncer, Cursor può
-proporre:
+Query string richiesta (o equivalente con `sslmode=require&…`):
 
 ```text
 ?pgbouncer=true&connection_limit=1
 ```
 
-ma deve prima controllare la versione Prisma e la documentazione pertinente, senza
-modificare una URI reale mostrata dall'utente in modo irreversibile.
+Senza `pgbouncer=true` su `:6543`, Prisma + Supavisor transaction mode può fallire con
+`42P05 prepared statement "sN" already exists`. L'app in `lib/database-url.ts`
+aggiunge automaticamente `pgbouncer=true` e `connection_limit=1` se mancano, ma la
+variabile Railway deve comunque essere corretta.
 
 ### `DIRECT_URL`
 
@@ -988,13 +980,14 @@ Database non raggiungibile:
 
 ## Errori di prepared statement o pooler
 
+Errore tipico: `42P05 prepared statement "s3" already exists`.
+
 Controllare:
 
-- uso di transaction mode sulla porta 6543;
-- compatibilità Prisma/Supavisor;
-- eventuale `pgbouncer=true`;
-- `connection_limit`;
-- uso di session mode 5432 per migrazioni.
+- `DATABASE_URL` = transaction pooler porta **6543** con `pgbouncer=true` (e di solito `connection_limit=1`);
+- non usare Session `:5432` come `DATABASE_URL` runtime su Railway Free;
+- `DIRECT_URL` = Session `:5432` solo per migrate (senza `pgbouncer=true`);
+- l'app normalizza `:6543` in `lib/database-url.ts` / `lib/prisma.ts` se il flag manca.
 
 ## Redirect a localhost
 
