@@ -10,6 +10,7 @@
     "api-football:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/check-api-football.ts",
     "db:reset-leagues": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/reset-league-data.ts",
     "db:seed": "node --experimental-strip-types --experimental-default-type=module prisma/seed.ts",
+    "db:seed-test-league": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/seed-test-league.ts",
     "demo:matchday": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/create-demo-matchday.ts",
     "fixtures:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/manual-fixtures-check.ts",
     "players:import-demo": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/import-demo-players.ts",
