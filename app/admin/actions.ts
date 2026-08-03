@@ -50,6 +50,11 @@ import {
   generateAllRandomLineups
 } from "@/lib/server/lineups/generate-all-random-lineups.ts";
 import { generateRandomLineupsForMatchday } from "@/lib/server/lineups/generate-random-lineups-for-matchday.ts";
+import {
+  formatLockAllLineupsNotice,
+  lockAllLineups
+} from "@/lib/server/lineups/lock-all-lineups.ts";
+import { lockMatchdayLineups } from "@/lib/server/lineups/lock-matchday-lineups.ts";
 
 const VOTE_FIELD_NAMES = [
   "assists",
@@ -1130,6 +1135,48 @@ export async function generateAllRandomLineupsAction(formData: FormData) {
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
+export async function lockAllLineupsAction(formData: FormData) {
+  await assertAdminAction();
+
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ?? "/admin";
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const summary = await lockAllLineups();
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/lineups");
+
+    for (const item of summary.locked) {
+      revalidateAdminPaths(item.result.matchdayId, item.leagueId);
+      revalidatePath(`/leagues/${item.leagueId}`);
+      revalidateLeaguePaths(item.leagueId);
+
+      const teams = await prisma.fantasyTeam.findMany({
+        where: { leagueId: item.leagueId },
+        select: { id: true }
+      });
+      for (const team of teams) {
+        revalidatePath(`/me/teams/${team.id}`);
+        revalidatePath(
+          `/me/teams/${team.id}/matchdays/${item.result.matchdayId}/lineup`
+        );
+      }
+    }
+
+    notice = formatLockAllLineupsNotice(summary);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Chiusura formazioni multi-lega non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
 export async function openLineupsAction(matchdayId: string, _formData: FormData) {
   await assertLeagueOpsAction();
 
@@ -1181,47 +1228,11 @@ export async function lockLineupsAction(matchdayId: string, _formData: FormData)
   await assertLeagueOpsAction();
 
   try {
-    const matchday = await prisma.matchday.findUnique({
-      where: {
-        id: matchdayId
-      },
-      select: {
-        id: true,
-        leagueId: true,
-        number: true,
-        status: true,
-        _count: {
-          select: {
-            lineups: true
-          }
-        }
-      }
-    });
+    const result = await lockMatchdayLineups(matchdayId);
 
-    if (!matchday) {
-      throw new Error("Giornata non trovata.");
-    }
-
-    if (matchday.status !== MatchdayStatus.LINEUPS_OPEN) {
-      throw new Error("Puoi chiudere le formazioni solo da stato LINEUPS_OPEN.");
-    }
-
-    if (matchday._count.lineups === 0) {
-      throw new Error("Non puoi chiudere le formazioni: nessuna formazione inserita.");
-    }
-
-    await prisma.matchday.update({
-      where: {
-        id: matchday.id
-      },
-      data: {
-        status: MatchdayStatus.LINEUPS_LOCKED
-      }
-    });
-
-    revalidateAdminPaths(matchday.id, matchday.leagueId);
-    redirectWithMessage(buildAdminMatchdayPath(matchday.id), {
-      notice: `Formazioni chiuse per la giornata ${matchday.number}.`
+    revalidateAdminPaths(result.matchdayId, result.leagueId);
+    redirectWithMessage(buildAdminMatchdayPath(result.matchdayId), {
+      notice: `Formazioni chiuse per la giornata ${result.matchdayNumber}.`
     });
   } catch (error) {
     redirectWithMessage(buildAdminMatchdayPath(matchdayId), {

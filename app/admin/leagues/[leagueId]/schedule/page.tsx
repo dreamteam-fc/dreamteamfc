@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import {
   generateLeagueScheduleAction,
+  lockLineupsAction,
   openLineupsAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -212,6 +213,17 @@ export default async function AdminLeagueSchedulePage({
                             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
                           >
                             Apri formazioni
+                          </button>
+                        </ActionForm>
+                      ) : null}
+
+                      {matchday.status === "LINEUPS_OPEN" ? (
+                        <ActionForm action={lockLineupsAction.bind(null, matchday.id)}>
+                          <button
+                            type="submit"
+                            className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-900 transition hover:border-rose-400 hover:bg-rose-100"
+                          >
+                            Chiudi formazioni
                           </button>
                         </ActionForm>
                       ) : null}
