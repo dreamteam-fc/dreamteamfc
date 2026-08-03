@@ -13,19 +13,11 @@ import {
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import { PlatformRolesPanel } from "@/components/admin/platform-roles-panel";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { requireStaffAccess } from "@/lib/auth/admin.ts";
-import {
-  canAssignAppRoles,
-  canManagePlatform,
-  isAppAdmin
-} from "@/lib/auth/app-roles.ts";
+import { canManagePlatform, isAppAdmin } from "@/lib/auth/app-roles.ts";
 import { getNextUsefulMatchday } from "@/lib/matchdays/next-useful-matchday";
-import {
-  getAdminDashboardData,
-  getAdminPlatformUsersData
-} from "@/lib/server/admin/read-admin-data";
+import { getAdminDashboardData } from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
 
@@ -64,11 +56,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const authContext = await requireStaffAccess();
   const role = authContext.appUser.role;
   const showPlatform = canManagePlatform(role);
-  const showRoles = canAssignAppRoles(role);
   const { leagues } = await getAdminDashboardData();
-  const platformUsers = showRoles
-    ? (await getAdminPlatformUsersData()).users
-    : [];
 
   return (
     <AdminShell
@@ -85,8 +73,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       }
     >
       <Feedback error={error} notice={notice} />
-
-      {showRoles ? <PlatformRolesPanel users={platformUsers} /> : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">

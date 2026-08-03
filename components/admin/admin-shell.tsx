@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { logoutAction } from "@/app/auth/actions";
 import { BrandMark } from "@/components/brand/brand-mark";
+import { getAuthenticatedAdminContext } from "@/lib/auth/admin.ts";
+import { canAssignAppRoles } from "@/lib/auth/app-roles.ts";
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -11,12 +13,17 @@ type AdminShellProps = {
   eyebrow?: string;
 };
 
-export function AdminShell({
+export async function AdminShell({
   children,
   title,
   subtitle,
   eyebrow = "Admin"
 }: AdminShellProps) {
+  const authContext = await getAuthenticatedAdminContext();
+  const showPermessi =
+    authContext?.appUser != null &&
+    canAssignAppRoles(authContext.appUser.role);
+
   return (
     <main className="min-h-screen bg-brand-fog px-6 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -45,6 +52,14 @@ export function AdminShell({
               >
                 Torna alla dashboard
               </Link>
+              {showPermessi ? (
+                <Link
+                  href="/admin/permessi"
+                  className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+                >
+                  Permessi
+                </Link>
+              ) : null}
               <form action={logoutAction}>
                 <button
                   type="submit"

@@ -2109,7 +2109,7 @@ export async function setUserAppRoleAction(formData: FormData) {
   let errorMessage: string | undefined;
 
   if (!role) {
-    redirectWithMessage("/admin", {
+    redirectWithMessage("/admin/permessi", {
       error: "Ruolo non valido. Usa Utente, Mister o Admin."
     });
   }
@@ -2156,6 +2156,7 @@ export async function setUserAppRoleAction(formData: FormData) {
     }
 
     revalidatePath("/admin");
+    revalidatePath("/admin/permessi");
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -2163,5 +2164,5 @@ export async function setUserAppRoleAction(formData: FormData) {
         : "Assegnazione ruolo non riuscita.";
   }
 
-  redirectWithMessage("/admin", { error: errorMessage, notice });
+  redirectWithMessage("/admin/permessi", { error: errorMessage, notice });
 }
