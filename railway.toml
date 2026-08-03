@@ -4,11 +4,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Temporarily disabled: old live app holds all Session pool slots → migrate via
-# DIRECT_URL hits EMAXCONNSESSION → deploy never replaces the old app (chicken-egg).
-# Re-enable after the pool is healthy; if needed run once locally:
-#   npx prisma migrate deploy
-# preDeployCommand = "node scripts/migrate-deploy.mjs"
+# Migrate needs DIRECT_URL on Session :5432; app DATABASE_URL should be
+# Transaction :6543 with pgbouncer=true.
+preDeployCommand = "node scripts/migrate-deploy.mjs"
 startCommand = "node server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
