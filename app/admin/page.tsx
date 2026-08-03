@@ -10,6 +10,7 @@ import {
   canManagePlatform,
   isAppAdmin
 } from "@/lib/auth/app-roles.ts";
+import { getNextUsefulMatchday } from "@/lib/matchdays/next-useful-matchday";
 import {
   getAdminDashboardData,
   getAdminPlatformUsersData
@@ -131,119 +132,116 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </section>
       ) : (
         <div className="space-y-6">
-          {leagues.map((league) => (
-            <section
-              key={league.id}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-semibold text-slate-900">
-                    {league.name}
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Membri: {league._count.members} | Squadre:{" "}
-                    {league._count.fantasyTeams}/{league.maxTeams} | Posti
-                    disponibili: {league.availableSpots}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    href={`/admin/leagues/${league.id}/schedule`}
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-                  >
-                    Genera calendario
-                  </Link>
-                  {showPlatform ? (
-                    <>
-                      <Link
-                        href={`/admin/leagues/${league.id}/teams`}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                      >
-                        Squadre / rose
-                      </Link>
-                      <Link
-                        href={`/admin/leagues/${league.id}/players`}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                      >
-                        Giocatori
-                      </Link>
-                    </>
-                  ) : null}
-                  <Link
-                    href={`/admin/leagues/${league.id}/matchdays/new`}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                  >
-                    Crea giornata
-                  </Link>
-                  <Link
-                    href={`/leagues/${league.id}`}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                  >
-                    Pagina pubblica
-                  </Link>
-                  <Link
-                    href={`/admin/leagues/${league.id}/standings`}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                  >
-                    Vedi classifica
-                  </Link>
-                  <StatusBadge status={league.status} />
-                </div>
-              </div>
+          {leagues.map((league) => {
+            const nextMatchday = getNextUsefulMatchday(league.matchdays);
 
-              <div className="mt-6 space-y-4">
-                {league.matchdays.length === 0 ? (
-                  <p className="text-sm text-slate-600">
-                    Nessuna giornata disponibile per questa lega.
-                  </p>
-                ) : (
-                  league.matchdays.map((matchday) => (
-                    <div
-                      key={matchday.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+            return (
+              <section
+                key={league.id}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-slate-900">
+                      {league.name}
+                    </h2>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Membri: {league._count.members} | Squadre:{" "}
+                      {league._count.fantasyTeams}/{league.maxTeams} | Posti
+                      disponibili: {league.availableSpots}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      href={`/admin/leagues/${league.id}/schedule`}
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
                     >
+                      Genera calendario
+                    </Link>
+                    {showPlatform ? (
+                      <>
+                        <Link
+                          href={`/admin/leagues/${league.id}/teams`}
+                          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                        >
+                          Squadre / rose
+                        </Link>
+                        <Link
+                          href={`/admin/leagues/${league.id}/players`}
+                          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                        >
+                          Giocatori
+                        </Link>
+                      </>
+                    ) : null}
+                    <Link
+                      href={`/leagues/${league.id}`}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                    >
+                      Vedi lega
+                    </Link>
+                    <Link
+                      href={`/admin/leagues/${league.id}/standings`}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                    >
+                      Vedi classifica
+                    </Link>
+                    <StatusBadge status={league.status} />
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {league.matchdays.length === 0 ? (
+                    <p className="text-sm text-slate-600">
+                      Nessuna giornata disponibile per questa lega.
+                    </p>
+                  ) : nextMatchday ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                       <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
                           <h3 className="text-lg font-semibold text-slate-900">
-                            Giornata {matchday.number}
+                            Giornata {nextMatchday.number}
                           </h3>
                           <p className="mt-2 text-sm text-slate-600">
-                            Lineup: {matchday._count.lineups} | Giocatori utili:{" "}
-                            {matchday._count.requiredVotes} | Voti salvati:{" "}
-                            {matchday._count.playerVotes} | Team score:{" "}
-                            {matchday._count.teamScores}
+                            Lineup: {nextMatchday._count.lineups} | Giocatori
+                            utili: {nextMatchday._count.requiredVotes} | Voti
+                            salvati: {nextMatchday._count.playerVotes} | Team
+                            score: {nextMatchday._count.teamScores}
                           </p>
                         </div>
-                        <StatusBadge status={matchday.status} />
+                        <StatusBadge status={nextMatchday.status} />
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-3">
                         <Link
-                          href={`/admin/matchdays/${matchday.id}`}
+                          href={`/admin/matchdays/${nextMatchday.id}`}
                           className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
                         >
                           Dettaglio giornata
                         </Link>
                         <Link
-                          href={`/admin/matchdays/${matchday.id}/votes`}
+                          href={`/admin/matchdays/${nextMatchday.id}/votes`}
                           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
                         >
                           Gestisci voti
                         </Link>
                         <Link
-                          href={`/admin/matchdays/${matchday.id}/scores`}
+                          href={`/admin/matchdays/${nextMatchday.id}/scores`}
                           className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
                         >
                           Vedi punteggi
                         </Link>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </section>
-          ))}
+                  ) : (
+                    <p className="text-sm text-slate-600">
+                      Tutte le giornate sono pubblicate
+                    </p>
+                  )}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
 
