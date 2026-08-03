@@ -207,22 +207,28 @@ export async function calculateMatchdayScores(
     existingByFantasyTeamId.has(item.fantasyTeamId)
   );
 
-  for (const item of updateRows) {
-    const teamScoreId = existingByFantasyTeamId.get(item.fantasyTeamId);
-    if (!teamScoreId) {
-      continue;
-    }
+  const UPDATE_CONCURRENCY = 10;
+  for (let index = 0; index < updateRows.length; index += UPDATE_CONCURRENCY) {
+    const chunk = updateRows.slice(index, index + UPDATE_CONCURRENCY);
+    await Promise.all(
+      chunk.map(async (item) => {
+        const teamScoreId = existingByFantasyTeamId.get(item.fantasyTeamId);
+        if (!teamScoreId) {
+          return;
+        }
 
-    await prisma.teamScore.update({
-      where: { id: teamScoreId },
-      data: {
-        autoSubsUsed: item.autoSubsUsed,
-        lineupId: item.lineupId,
-        publishedAt: null,
-        status: ScoreStatus.CALCULATED,
-        totalScore: toDecimal(item.totalScore)
-      }
-    });
+        await prisma.teamScore.update({
+          where: { id: teamScoreId },
+          data: {
+            autoSubsUsed: item.autoSubsUsed,
+            lineupId: item.lineupId,
+            publishedAt: null,
+            status: ScoreStatus.CALCULATED,
+            totalScore: toDecimal(item.totalScore)
+          }
+        });
+      })
+    );
   }
 
   if (createRows.length > 0) {

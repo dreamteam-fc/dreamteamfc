@@ -47,7 +47,11 @@ import {
 } from "@/lib/server/scores/calculate-all-scores-and-results.ts";
 import { calculateMatchdayScores } from "@/lib/server/scores/calculate-matchday-scores.ts";
 import { savePlayerVote } from "@/lib/server/votes/save-player-vote.ts";
-import { importFantacalcioVotesFromBuffer } from "@/lib/server/votes/import-fantacalcio-votes.ts";
+import {
+  formatImportFantacalcioVotesAcrossMatchdaysNotice,
+  importFantacalcioVotesAcrossMatchdays,
+  importFantacalcioVotesFromBuffer
+} from "@/lib/server/votes/import-fantacalcio-votes.ts";
 import {
   adminAddPlayerToRoster,
   adminRemovePlayerFromRoster,
@@ -203,7 +207,13 @@ async function loadMatchdaysForUnifiedNumber(matchdayNumber: number) {
     select: {
       id: true,
       leagueId: true,
-      number: true
+      number: true,
+      league: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
     },
     orderBy: { leagueId: "asc" }
   });
@@ -1255,13 +1265,20 @@ export async function calculateAllScoresAndResultsAction(formData: FormData) {
       matchdayNumber != null ? { matchdayNumber } : {}
     );
 
+    // Keep post-work cache work light so the action can still redirect before
+    // Railway/proxy ~60s kills the connection after a long batch.
     revalidatePath("/admin");
     revalidatePath("/admin/votes");
-
+    const touchedLeagueIds = new Set<string>();
     for (const item of summary.calculated) {
-      revalidateAdminPaths(item.matchdayId, item.leagueId);
-      revalidatePath(`/leagues/${item.leagueId}`);
-      revalidateLeaguePaths(item.leagueId);
+      revalidatePath(`/admin/matchdays/${item.matchdayId}`);
+      revalidatePath(`/admin/matchdays/${item.matchdayId}/scores`);
+      touchedLeagueIds.add(item.leagueId);
+    }
+    for (const leagueId of touchedLeagueIds) {
+      revalidatePath(`/leagues/${leagueId}`);
+      revalidatePath(`/leagues/${leagueId}/standings`);
+      revalidatePath(`/admin/leagues/${leagueId}/standings`);
     }
 
     notice = formatCalculateAllScoresAndResultsNotice(summary);
@@ -1715,35 +1732,35 @@ export async function importFantacalcioVotesAcrossLeaguesAction(
     }
 
     const buffer = await fileToOwnedBuffer(fileValue);
-    let savedCount = 0;
-    let matchedCount = 0;
-    let missingMarkedSvCount = 0;
-    let sheetName = sheetNameRaw || "Fantacalcio";
-    const unmatched = new Set<string>();
+    const summary = await importFantacalcioVotesAcrossMatchdays({
+      buffer,
+      matchdays: matchdays.map((matchday) => ({
+        id: matchday.id,
+        leagueId: matchday.leagueId,
+        leagueName: matchday.league.name
+      })),
+      prepareMatchday: async (matchdayId) => {
+        await generateRequiredVotePlayers(matchdayId);
+      },
+      sheetName: sheetNameRaw || undefined
+    });
 
-    for (const matchday of matchdays) {
-      await generateRequiredVotePlayers(matchday.id);
-      const result = await importFantacalcioVotesFromBuffer({
-        buffer,
-        matchdayId: matchday.id,
-        sheetName: sheetNameRaw || undefined
-      });
-      savedCount += result.savedCount;
-      matchedCount += result.matchedCount;
-      missingMarkedSvCount += result.missingMarkedSvCount;
-      sheetName = result.sheetName;
-      for (const code of result.skippedUnmatchedCodes) {
-        unmatched.add(code);
-      }
-      revalidateAdminPaths(matchday.id, matchday.leagueId);
+    revalidatePath("/admin");
+    revalidatePath("/admin/votes");
+    for (const item of summary.succeeded) {
+      revalidatePath(`/admin/matchdays/${item.matchdayId}/votes`);
     }
 
-    const unmatchedPreview =
-      unmatched.size > 0
-        ? ` Codici non in DB: ${Array.from(unmatched).slice(0, 8).join(", ")}${unmatched.size > 8 ? "…" : ""}.`
-        : "";
+    notice = formatImportFantacalcioVotesAcrossMatchdaysNotice(
+      summary,
+      matchdayNumber
+    );
 
-    notice = `Import multi-lega giornata ${matchdayNumber} (${sheetName}) su ${matchdays.length} leghe: ${savedCount} salvati, ${matchedCount} match file, ${missingMarkedSvCount} SV assenti.${unmatchedPreview}`;
+    if (summary.failed.length > 0) {
+      // Surface per-league failures clearly (Feedback shows error styling).
+      errorMessage = notice;
+      notice = undefined;
+    }
   } catch (error) {
     errorMessage =
       error instanceof Error

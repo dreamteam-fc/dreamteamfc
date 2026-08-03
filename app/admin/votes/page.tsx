@@ -183,12 +183,12 @@ export default async function AdminUnifiedVotesPage({
                       className="mt-1 block w-full max-w-xs text-sm text-slate-600"
                     />
                   </label>
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-800"
+                  <PendingSubmitButton
+                    pendingLabel="Import in corso…"
+                    className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Carica e propaga
-                  </button>
+                  </PendingSubmitButton>
                 </form>
                 {showPlatform ? (
                   <>
