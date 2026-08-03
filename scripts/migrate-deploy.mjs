@@ -2,6 +2,10 @@
 /**
  * Railway preDeploy helper: run `prisma migrate deploy` with clear diagnostics.
  * Prefers the image-local CLI (installed with full transitive deps in Dockerfile).
+ *
+ * Prisma schema uses `directUrl = env("DIRECT_URL")` for the migrate engine.
+ * Prefer a real Supabase direct connection (db.<project>.supabase.co:5432),
+ * not the session/transaction pooler (pooler.supabase.com).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -64,10 +68,24 @@ function redactDbUrl(value) {
   }
 }
 
+function urlHost(value) {
+  try {
+    return new URL(value).host;
+  } catch {
+    return "(unparseable)";
+  }
+}
+
+function isPoolerHost(value) {
+  const host = urlHost(value).toLowerCase();
+  return host.includes("pooler");
+}
+
 const localCli = path.join(root, "node_modules", "prisma", "build", "index.js");
 const schemaPath = path.join(root, "prisma", "schema.prisma");
 const localCliComplete = fs.existsSync(localCli) && canRequire("effect");
 const databaseUrl = process.env.DATABASE_URL || "";
+const directUrlFromEnv = process.env.DIRECT_URL || "";
 
 console.log("[migrate-deploy] cwd=", process.cwd());
 console.log("[migrate-deploy] schema=", exists("prisma/schema.prisma") ? "ok" : "MISSING");
@@ -80,6 +98,7 @@ console.log(
     : "MISSING"
 );
 console.log("[migrate-deploy] DATABASE_URL=", redactDbUrl(databaseUrl));
+console.log("[migrate-deploy] DIRECT_URL=", redactDbUrl(directUrlFromEnv));
 
 if (!fs.existsSync(schemaPath)) {
   console.error("[migrate-deploy] FATAL: prisma/schema.prisma not found in image.");
@@ -92,14 +111,48 @@ if (!fs.existsSync(schemaPath)) {
 if (!databaseUrl) {
   console.error("[migrate-deploy] FATAL: DATABASE_URL is not set.");
   console.error(
-    "[migrate-deploy] HINT: Set DATABASE_URL on Railway (Supabase session pooler :5432 recommended)."
+    "[migrate-deploy] HINT: Set DATABASE_URL on Railway (Supabase session pooler :5432 for the app)."
   );
   process.exit(1);
 }
 
-if (/:(6543)\b/.test(databaseUrl)) {
+// Prisma requires DIRECT_URL when schema has directUrl=. Prefer it for migrate;
+// fall back to DATABASE_URL so deploy still attempts when the var is missing.
+let migrateUrl = directUrlFromEnv;
+let migrateSource = "DIRECT_URL";
+if (!migrateUrl) {
+  migrateUrl = databaseUrl;
+  migrateSource = "DATABASE_URL (fallback)";
+  process.env.DIRECT_URL = migrateUrl;
   console.warn(
-    "[migrate-deploy] WARN: DATABASE_URL looks like Supabase transaction pooler (:6543). Migrations often fail there; prefer session pooler (:5432)."
+    "[migrate-deploy] WARN: DIRECT_URL is not set; using DATABASE_URL for Prisma directUrl / migrate."
+  );
+  console.warn(
+    "[migrate-deploy] HINT IT: Imposta DIRECT_URL su Railway con la connection string Direct di Supabase (non il pooler)."
+  );
+  console.warn(
+    "[migrate-deploy] HINT EN: Set DIRECT_URL on Railway to the Supabase Direct connection URI (db.<project>.supabase.co:5432), not pooler.supabase.com."
+  );
+}
+
+const migrateHost = urlHost(migrateUrl);
+console.log(`[migrate-deploy] migrate uses ${migrateSource}; host=${migrateHost}`);
+
+if (isPoolerHost(migrateUrl)) {
+  console.warn(
+    "[migrate-deploy] WARN: migrate host contains 'pooler' — session/transaction pooler can hit EMAXCONNSESSION (max clients / pool_size)."
+  );
+  console.warn(
+    "[migrate-deploy] HINT IT: Supabase → Project Settings → Database → Connection string → URI → Direct connection → host db.<project>.supabase.co:5432. Imposta quella stringa come DIRECT_URL su Railway, poi ridistribuisci."
+  );
+  console.warn(
+    "[migrate-deploy] HINT EN: Supabase → Project Settings → Database → Connection string → URI → Direct connection → host db.<project>.supabase.co:5432. Set that as DIRECT_URL on Railway, then redeploy. Session mode pooler is NOT enough for migrate under load."
+  );
+}
+
+if (/:(6543)\b/.test(migrateUrl) || /:(6543)\b/.test(databaseUrl)) {
+  console.warn(
+    "[migrate-deploy] WARN: URL looks like Supabase transaction pooler (:6543). Migrations often fail there; use DIRECT_URL on :5432 direct host."
   );
 }
 
@@ -146,7 +199,7 @@ const code = result.status ?? 1;
 if (code !== 0) {
   console.error(`[migrate-deploy] prisma migrate deploy exited with code ${code}`);
   console.error(
-    "[migrate-deploy] HINT: Open Railway Pre-deploy logs. Common: P1001 (DB unreachable), MODULE_NOT_FOUND (CLI deps), transaction pooler :6543."
+    "[migrate-deploy] HINT: Open Railway Pre-deploy logs. Common: P1001 (DB unreachable), EMAXCONNSESSION (pooler full — set DIRECT_URL to db.<project>.supabase.co), MODULE_NOT_FOUND (CLI deps), transaction pooler :6543."
   );
 }
 process.exit(code);
