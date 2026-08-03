@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  calculateAllScoresAndResultsAction,
   generateAllLeagueSchedulesAction,
   generateAllRandomLineupsAction,
   generateRandomLineupsForMatchdayAction,
@@ -148,6 +149,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-900 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Chiudi formazioni
+                  </PendingSubmitButton>
+                </form>
+                <form action={calculateAllScoresAndResultsAction}>
+                  <input type="hidden" name="redirectPath" value="/admin" />
+                  <PendingSubmitButton
+                    pendingLabel="Calcolo punteggi…"
+                    className="rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-900 transition hover:border-teal-400 hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Calcola punteggi e risultati
                   </PendingSubmitButton>
                 </form>
                 <Link

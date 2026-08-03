@@ -2,13 +2,17 @@ import type { PlayerRole } from "@prisma/client";
 import Link from "next/link";
 
 import {
+  calculateAllScoresAndResultsAction,
   generateRequiredVotesForUnifiedMatchdayNumberAction,
   importFantacalcioVotesAcrossLeaguesAction,
   saveBulkUnifiedPlayerVotesAction,
   saveSingleUnifiedPlayerVoteAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { requireStaffAccess } from "@/lib/auth/admin.ts";
+import { canManagePlatform } from "@/lib/auth/app-roles.ts";
 import { getPlayerRoleLabel } from "@/lib/players/player-role";
 import { getAdminUnifiedVotesData } from "@/lib/server/admin/read-admin-data";
 
@@ -94,6 +98,8 @@ export default async function AdminUnifiedVotesPage({
   searchParams
 }: UnifiedVotesPageProps) {
   const { error, n, notice, q } = await searchParams;
+  const authContext = await requireStaffAccess();
+  const showPlatform = canManagePlatform(authContext.appUser.role);
   const matchdayNumber = parseMatchdayNumber(n);
   const searchQuery = q?.trim() ?? "";
   const data = await getAdminUnifiedVotesData({
@@ -183,6 +189,22 @@ export default async function AdminUnifiedVotesPage({
                     Carica e propaga
                   </button>
                 </form>
+                {showPlatform ? (
+                  <form action={calculateAllScoresAndResultsAction}>
+                    <input
+                      type="hidden"
+                      name="matchdayNumber"
+                      value={data.selectedNumber}
+                    />
+                    <input type="hidden" name="redirectPath" value={redirectPath} />
+                    <PendingSubmitButton
+                      pendingLabel="Calcolo in corso…"
+                      className="rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-900 transition hover:border-teal-400 hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Calcola punteggi e risultati
+                    </PendingSubmitButton>
+                  </form>
+                ) : null}
               </>
             ) : null}
           </div>
