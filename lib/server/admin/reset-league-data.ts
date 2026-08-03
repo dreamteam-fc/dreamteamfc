@@ -8,11 +8,12 @@ export type ResetLeagueDataSummary = {
   matchdayCount: number;
   rosterCount: number;
   scoreCount: number;
+  tournamentCount: number;
   voteCount: number;
 };
 
 /**
- * Wipe all league / fantasy-team domain data.
+ * Wipe all league / fantasy-team / tournament domain data.
  *
  * Intentionally avoids a wrapping interactive `$transaction` over many
  * `deleteMany` calls. On Supabase PgBouncer, long Prisma interactive txs
@@ -21,6 +22,12 @@ export type ResetLeagueDataSummary = {
  * Deletes run as sequential plain queries in FK-safe order (children first).
  * Each `deleteMany` is its own short autocommit statement — durable under
  * PgBouncer the same way as calendar gen / score calc writes.
+ *
+ * Tournaments are wiped first: TournamentTeamEntry / TournamentFixture
+ * reference FantasyTeam and League with Restrict and would otherwise block
+ * the league wipe.
+ *
+ * Keeps User and Player catalogs intact. Does not touch Supabase Auth.
  */
 export async function resetLeagueData(): Promise<ResetLeagueDataSummary> {
   const [
@@ -31,7 +38,8 @@ export async function resetLeagueData(): Promise<ResetLeagueDataSummary> {
     fantasyFixtureCount,
     rosterCount,
     voteCount,
-    scoreCount
+    scoreCount,
+    tournamentCount
   ] = await Promise.all([
     prisma.league.count(),
     prisma.fantasyTeam.count(),
@@ -40,10 +48,15 @@ export async function resetLeagueData(): Promise<ResetLeagueDataSummary> {
     prisma.fantasyFixture.count(),
     prisma.fantasyRoster.count(),
     prisma.playerVote.count(),
-    prisma.teamScore.count()
+    prisma.teamScore.count(),
+    prisma.tournament.count()
   ]);
 
-  // FK-safe order: dependents before parents (same order as before).
+  // Tournaments first: Restrict FKs onto FantasyTeam / League.
+  // Deleting Tournament cascades rounds, fixtures, entries, lineups, votes.
+  await prisma.tournament.deleteMany();
+
+  // League / matchday domain: dependents before parents.
   await prisma.teamScorePlayer.deleteMany();
   await prisma.teamScore.deleteMany();
   await prisma.playerVote.deleteMany();
@@ -52,8 +65,11 @@ export async function resetLeagueData(): Promise<ResetLeagueDataSummary> {
   await prisma.lineup.deleteMany();
   await prisma.fantasyFixture.deleteMany();
   await prisma.fantasyRoster.deleteMany();
+  await prisma.teamCoach.deleteMany();
+  await prisma.teamCoachInvite.deleteMany();
   await prisma.fantasyTeam.deleteMany();
   await prisma.leagueMember.deleteMany();
+  await prisma.leagueBlockedPlayer.deleteMany();
   await prisma.matchday.deleteMany();
   await prisma.league.deleteMany();
 
@@ -65,6 +81,7 @@ export async function resetLeagueData(): Promise<ResetLeagueDataSummary> {
     matchdayCount,
     rosterCount,
     scoreCount,
+    tournamentCount,
     voteCount
   };
 }

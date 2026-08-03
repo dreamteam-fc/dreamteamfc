@@ -18,6 +18,7 @@ async function main() {
   const summary = await resetLeagueData();
 
   console.log("Reset dati leghe completato.");
+  console.log(`Tournament eliminati: ${summary.tournamentCount}`);
   console.log(`League eliminate: ${summary.leagueCount}`);
   console.log(`Fantasy team eliminate: ${summary.fantasyTeamCount}`);
   console.log(`Matchday eliminate: ${summary.matchdayCount}`);
