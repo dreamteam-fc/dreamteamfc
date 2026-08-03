@@ -107,6 +107,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             >
               Pagelle unificate
             </Link>
+            <Link
+              href="/admin/lineups"
+              className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-400 hover:bg-sky-100"
+            >
+              Apri formazioni
+            </Link>
             {showPlatform ? (
               <>
                 <Link
@@ -152,7 +158,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <p className="mt-2 text-sm text-slate-600">
                       Membri: {league._count.members} | Squadre:{" "}
                       {league._count.fantasyTeams}/{league.maxTeams} | Posti
-                      disponibili: {league.availableSpots}
+                      disponibili: {league.availableSpots} | Rose complete:{" "}
+                      {league.teamsWithCompleteRoster}/
+                      {league._count.fantasyTeams}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">

@@ -2,6 +2,14 @@ import { RequiredVoteStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
 import type { PlayerRoleFilter } from "@/lib/players/player-role";
+import { getNextUsefulMatchday } from "@/lib/matchdays/next-useful-matchday";
+import {
+  FULL_LEAGUE_TEAM_COUNT,
+  getRosterPresenceStatus,
+  isLeagueEligibleForLineupsHub,
+  isRosterInserted
+} from "@/lib/server/rosters/roster-presence";
+import { REQUIRED_ROSTER_SIZE } from "@/lib/server/rosters/validate-roster-composition";
 import { calculateLeagueStandings } from "../standings/calculate-league-standings.ts";
 import { prismaDecimalToNumber } from "../votes/shared.ts";
 
@@ -67,16 +75,130 @@ export async function getAdminDashboardData() {
 
   return {
     leagues: leagues.map((league) => {
-      const teamsWithRoster = league.fantasyTeams.filter(
-        (team) => team._count.roster > 0
+      const teamsWithRoster = league.fantasyTeams.filter((team) =>
+        isRosterInserted(team._count.roster)
       ).length;
+      const teamCount = league._count.fantasyTeams;
 
       return {
         ...league,
-        availableSpots: Math.max(league.maxTeams - league._count.fantasyTeams, 0),
-        teamsWithRoster
+        availableSpots: Math.max(league.maxTeams - teamCount, 0),
+        teamsWithCompleteRoster: teamsWithRoster,
+        /** @deprecated Prefer teamsWithCompleteRoster — complete (25) rose. */
+        teamsWithRoster,
+        isLineupsHubEligible: isLeagueEligibleForLineupsHub({
+          teamCount,
+          teamsWithCompleteRoster: teamsWithRoster
+        })
       };
     })
+  };
+}
+
+/**
+ * Admin hub: leagues with exactly 10 teams and all complete rose,
+ * plus the next useful matchday for formation workflow.
+ */
+export async function getAdminLineupsHubData() {
+  const leagues = await prisma.league.findMany({
+    orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      maxTeams: true,
+      fantasyTeams: {
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          user: {
+            select: {
+              displayName: true,
+              email: true
+            }
+          },
+          _count: {
+            select: {
+              roster: true
+            }
+          }
+        }
+      },
+      matchdays: {
+        orderBy: { number: "asc" },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          _count: {
+            select: {
+              lineups: true
+            }
+          }
+        }
+      },
+      _count: {
+        select: {
+          fantasyTeams: true
+        }
+      }
+    }
+  });
+
+  const eligibleLeagues = leagues
+    .map((league) => {
+      const teamsWithCompleteRoster = league.fantasyTeams.filter((team) =>
+        isRosterInserted(team._count.roster)
+      ).length;
+      const teamCount = league._count.fantasyTeams;
+      const eligible = isLeagueEligibleForLineupsHub({
+        teamCount,
+        teamsWithCompleteRoster
+      });
+
+      if (!eligible) {
+        return null;
+      }
+
+      const nextMatchday = getNextUsefulMatchday(league.matchdays);
+
+      return {
+        id: league.id,
+        name: league.name,
+        status: league.status,
+        maxTeams: league.maxTeams,
+        teamCount,
+        teamsWithCompleteRoster,
+        requiredRosterSize: REQUIRED_ROSTER_SIZE,
+        requiredTeamCount: FULL_LEAGUE_TEAM_COUNT,
+        nextMatchday: nextMatchday
+          ? {
+              id: nextMatchday.id,
+              number: nextMatchday.number,
+              status: nextMatchday.status,
+              lineupsCount: nextMatchday._count.lineups
+            }
+          : null,
+        teams: league.fantasyTeams.map((team) => {
+          const rosterCount = team._count.roster;
+          return {
+            id: team.id,
+            name: team.name,
+            ownerDisplayName: team.user.displayName,
+            ownerEmail: team.user.email,
+            rosterCount,
+            rosterStatus: getRosterPresenceStatus(rosterCount)
+          };
+        })
+      };
+    })
+    .filter((league): league is NonNullable<typeof league> => league != null);
+
+  return {
+    eligibleLeagues,
+    requiredRosterSize: REQUIRED_ROSTER_SIZE,
+    requiredTeamCount: FULL_LEAGUE_TEAM_COUNT
   };
 }
 
@@ -1236,5 +1358,24 @@ export async function getAdminLeagueTeamsData(leagueId: string) {
     return null;
   }
 
-  return { league };
+  const teams = league.fantasyTeams.map((team) => {
+    const rosterCount = team._count.roster;
+    return {
+      ...team,
+      rosterCount,
+      rosterStatus: getRosterPresenceStatus(rosterCount)
+    };
+  });
+  const teamsWithCompleteRoster = teams.filter(
+    (team) => team.rosterStatus === "COMPLETA"
+  ).length;
+
+  return {
+    league: {
+      ...league,
+      fantasyTeams: teams
+    },
+    requiredRosterSize: REQUIRED_ROSTER_SIZE,
+    teamsWithCompleteRoster
+  };
 }

@@ -1764,6 +1764,7 @@ export async function generateRandomLineupsForMatchdayAction(
     });
 
     revalidatePath("/admin");
+    revalidatePath("/admin/lineups");
     revalidatePath(`/admin/matchdays/${matchdayId}`);
     revalidatePath(`/leagues/${leagueId}`);
 

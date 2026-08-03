@@ -9,12 +9,15 @@ import {
   adminReplacePlayerInRosterAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { RosterPresenceBadge } from "@/components/admin/roster-presence-badge";
 import {
   getPlayerRoleFilterLabel,
   getPlayerRoleLabel,
   parsePlayerRoleFilter,
   PLAYER_ROLE_FILTERS
 } from "@/lib/players/player-role";
+import { getRosterPresenceStatus } from "@/lib/server/rosters/roster-presence";
+import { REQUIRED_ROSTER_SIZE } from "@/lib/server/rosters/validate-roster-composition";
 import { getAdminTeamRosterData } from "@/lib/server/rosters/admin-roster-mutations";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +114,7 @@ export default async function AdminTeamRosterPage({
     q: data.searchQuery,
     role: roleFilter
   });
+  const rosterPresence = getRosterPresenceStatus(data.rosterValidation.total);
 
   return (
     <AdminShell
@@ -122,13 +126,18 @@ export default async function AdminTeamRosterPage({
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2 text-sm text-slate-600">
-            <p>
-              Rosa: <strong>{data.rosterValidation.total}/25</strong> (P{" "}
-              {data.rosterValidation.goalkeeperCount}/3 · D{" "}
-              {data.rosterValidation.defenderCount}/8 · C{" "}
-              {data.rosterValidation.midfielderCount}/8 · A{" "}
-              {data.rosterValidation.attackerCount}/6)
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <RosterPresenceBadge
+                status={rosterPresence}
+                countLabel={`${data.rosterValidation.total}/${REQUIRED_ROSTER_SIZE}`}
+              />
+              <p>
+                P {data.rosterValidation.goalkeeperCount}/3 · D{" "}
+                {data.rosterValidation.defenderCount}/8 · C{" "}
+                {data.rosterValidation.midfielderCount}/8 · A{" "}
+                {data.rosterValidation.attackerCount}/6
+              </p>
+            </div>
             {data.rosterValidation.errors.length > 0 ? (
               <ul className="list-disc space-y-1 pl-5 text-amber-800">
                 {data.rosterValidation.errors.map((message) => (

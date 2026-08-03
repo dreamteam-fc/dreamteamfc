@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import { AdminShell } from "@/components/admin/admin-shell";
+import { RosterPresenceBadge } from "@/components/admin/roster-presence-badge";
 import { getAdminLeagueTeamsData } from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,10 @@ export default async function AdminLeagueTeamsPage({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-slate-600">
             Squadre: <strong>{data.league.fantasyTeams.length}</strong> /{" "}
-            <strong>{data.league.maxTeams}</strong>
+            <strong>{data.league.maxTeams}</strong> | Rose complete:{" "}
+            <strong>
+              {data.teamsWithCompleteRoster}/{data.league.fantasyTeams.length}
+            </strong>
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -95,7 +99,7 @@ export default async function AdminLeagueTeamsPage({
               <tr>
                 <th className="px-4 py-3 font-medium">Squadra</th>
                 <th className="px-4 py-3 font-medium">Utente</th>
-                <th className="px-4 py-3 font-medium">Rosa</th>
+                <th className="px-4 py-3 font-medium">Stato rosa</th>
                 <th className="px-4 py-3 font-medium">Azioni</th>
               </tr>
             </thead>
@@ -108,8 +112,11 @@ export default async function AdminLeagueTeamsPage({
                   <td className="px-4 py-3 text-slate-600">
                     {team.user.displayName ?? team.user.email}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {team._count.roster}/25
+                  <td className="px-4 py-3">
+                    <RosterPresenceBadge
+                      status={team.rosterStatus}
+                      countLabel={`${team.rosterCount}/${data.requiredRosterSize}`}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <Link
