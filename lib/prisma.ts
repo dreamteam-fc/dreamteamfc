@@ -9,6 +9,11 @@ const globalForPrisma = globalThis as typeof globalThis & {
 /**
  * Runtime URL: pgbouncer=true on :6543; connection_limit defaults to 5 on
  * long-running hosts (Railway) and 1 on serverless — see lib/database-url.ts.
+ *
+ * For interactive `$transaction` that must stay sticky across statements
+ * (calendar generation, multi-step writes), use withSessionPrisma from
+ * lib/prisma-session.ts (DIRECT_URL / Session :5432) — Transaction pooler
+ * drops those mid-flight with "Transaction not found".
  */
 const datasourceUrl = normalizeRuntimeDatabaseUrl(process.env.DATABASE_URL);
 

@@ -14,7 +14,9 @@
  *   raised to the default so overlapping requests do not starve.
  *
  * Preserves existing query params (sslmode, etc.).
- * Do NOT apply pgbouncer=true to DIRECT_URL / Session :5432 used for migrate.
+ * Do NOT apply pgbouncer=true to DIRECT_URL / Session :5432 used for migrate
+ * or for interactive `$transaction` work (see normalizeSessionDatabaseUrl /
+ * withSessionPrisma).
  */
 
 export type NormalizeDatabaseUrlOptions = {
@@ -142,4 +144,58 @@ export function normalizeRuntimeDatabaseUrl(
   } catch {
     return url;
   }
+}
+
+/**
+ * Normalize DIRECT_URL / Session pooler URLs for brief interactive-tx work.
+ * Never appends pgbouncer=true. Forces a small connection_limit so Session
+ * pool slots (~15 on Supabase Free) are not held by the app runtime.
+ */
+export function normalizeSessionDatabaseUrl(
+  url: string | undefined,
+  options: { connectionLimit?: number } = {}
+): string | undefined {
+  if (!url) return url;
+
+  const connectionLimit = options.connectionLimit ?? 1;
+
+  try {
+    const u = new URL(url);
+    u.searchParams.set("connection_limit", String(connectionLimit));
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * True when DATABASE_URL is Supabase transaction pooler (:6543), where
+ * Prisma interactive `$transaction` is unreliable (non-sticky connections →
+ * "Transaction not found").
+ */
+export function runtimeRequiresSessionPrisma(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  const databaseUrl = env.DATABASE_URL?.trim();
+  return Boolean(databaseUrl && isTransactionPoolerUrl(databaseUrl));
+}
+
+/**
+ * Resolve a Session-mode URL for interactive transactions.
+ * Prefers DIRECT_URL; falls back to DATABASE_URL only when it is not :6543.
+ */
+export function resolveSessionDatabaseUrl(
+  env: NodeJS.ProcessEnv = process.env
+): string | undefined {
+  const direct = env.DIRECT_URL?.trim();
+  if (direct) {
+    return normalizeSessionDatabaseUrl(direct);
+  }
+
+  const database = env.DATABASE_URL?.trim();
+  if (database && !isTransactionPoolerUrl(database)) {
+    return normalizeSessionDatabaseUrl(database);
+  }
+
+  return undefined;
 }
