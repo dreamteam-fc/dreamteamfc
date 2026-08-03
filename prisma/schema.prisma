@@ -4,8 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  // App runtime: Supabase session pooler (:5432) is fine.
-  // Migrations: Prisma schema engine uses `directUrl` when set (avoids pooler max clients).
+  // App runtime: Transaction pooler (:6543) + ?pgbouncer=true (see .env.example).
+  // Migrations: Prisma uses directUrl — Session pooler (:5432) on Railway (brief).
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }

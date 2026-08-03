@@ -8,7 +8,12 @@
  * Prefer DIRECT_URL when set. On Railway (IPv4-only), Supabase "Direct"
  * (db.<project>.supabase.co) is often IPv6-only → P1001. Use Supabase
  * Session mode pooler (*.pooler.supabase.com:5432) as DIRECT_URL instead.
- * Retries handle transient EMAXCONNSESSION when the session pool is full.
+ *
+ * Stable pairing (Supabase Free + Railway):
+ *   DATABASE_URL = Transaction pooler :6543 + ?pgbouncer=true (app runtime)
+ *   DIRECT_URL   = Session pooler :5432 (migrate only; brief connection)
+ * If both point at Session :5432, the live app can exhaust ~15 slots and
+ * preDeploy never gets a connection (EMAXCONNSESSION). Retries alone cannot fix that.
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -150,10 +155,10 @@ function printSessionPoolerHint(context) {
 
 function printPoolExhaustionHint() {
   console.error(
-    "[migrate-deploy] HINT IT: Pool session pieno (EMAXCONNSESSION). Lo script ritenta; se persiste, chiudi connessioni idle / attendi e ridistribuisci. Su Railway usa Session pooler come DIRECT_URL (non Transaction :6543)."
+    "[migrate-deploy] HINT IT: Pool session pieno (EMAXCONNSESSION). Se DATABASE_URL e DIRECT_URL sono entrambi Session :5432, l'app live consuma gli slot (~15 su Free) e preDeploy non entra. Imposta DATABASE_URL = Transaction pooler :6543 + ?pgbouncer=true (opz. &connection_limit=1); tieni DIRECT_URL = Session :5432 solo per migrate. Ferma npm run dev locale, ridistribuisci; se resta pieno, riavvia il progetto Supabase."
   );
   console.error(
-    "[migrate-deploy] HINT EN: Session pool exhausted (EMAXCONNSESSION). This script retries; if it persists, free idle sessions / wait and redeploy. On Railway use Session pooler as DIRECT_URL (not Transaction :6543)."
+    "[migrate-deploy] HINT EN: Session pool exhausted (EMAXCONNSESSION). If both DATABASE_URL and DIRECT_URL use Session :5432, the live app fills ~15 Free slots and preDeploy cannot connect. Set DATABASE_URL = Transaction pooler :6543 + ?pgbouncer=true (opt. &connection_limit=1); keep DIRECT_URL = Session :5432 for migrate only. Stop local npm run dev, redeploy; if still full, restart the Supabase project."
   );
 }
 
@@ -187,7 +192,7 @@ if (!fs.existsSync(schemaPath)) {
 if (!databaseUrl) {
   console.error("[migrate-deploy] FATAL: DATABASE_URL is not set.");
   console.error(
-    "[migrate-deploy] HINT: Set DATABASE_URL on Railway (Supabase session pooler :5432 for the app)."
+    "[migrate-deploy] HINT: Set DATABASE_URL on Railway (Supabase Transaction pooler :6543 + ?pgbouncer=true for the app)."
   );
   process.exit(1);
 }
