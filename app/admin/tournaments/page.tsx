@@ -63,7 +63,7 @@ export default async function TournamentsPage({
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Elenco</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Crea un torneo, seleziona 4/8/16 squadre, poi genera il tabellone.
+              Crea un torneo, seleziona 4/8/16/32/64 squadre, poi genera il tabellone.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

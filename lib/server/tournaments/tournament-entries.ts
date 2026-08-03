@@ -2,7 +2,10 @@ import { MatchdayStatus, TournamentStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
 import { calculateLeagueStandings } from "@/lib/server/standings/calculate-league-standings.ts";
-import { isPowerOfTwo } from "@/lib/tournaments/bracket-size.ts";
+import {
+  ALLOWED_BRACKET_SIZES_LABEL,
+  isAllowedBracketSize
+} from "@/lib/tournaments/bracket-size.ts";
 
 const EXPECTED_MATCHDAYS = 18;
 
@@ -194,9 +197,9 @@ export async function saveTournamentEntries(options: {
     throw new Error("Seleziona almeno una squadra.");
   }
 
-  if (!isPowerOfTwo(uniqueTeamIds.length)) {
+  if (!isAllowedBracketSize(uniqueTeamIds.length)) {
     throw new Error(
-      `Serve un numero di squadre potenza di 2 (4, 8 o 16). Ora ne hai selezionate ${uniqueTeamIds.length}.`
+      `Serve un numero di squadre tra ${ALLOWED_BRACKET_SIZES_LABEL}. Ora ne hai selezionate ${uniqueTeamIds.length}.`
     );
   }
 

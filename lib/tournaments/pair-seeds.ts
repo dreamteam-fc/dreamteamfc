@@ -1,4 +1,7 @@
-import { isPowerOfTwo } from "@/lib/tournaments/bracket-size.ts";
+import {
+  ALLOWED_BRACKET_SIZES_LABEL,
+  isAllowedBracketSize
+} from "@/lib/tournaments/bracket-size.ts";
 
 export type SeedCandidate = {
   entryId: string;
@@ -41,9 +44,30 @@ export function rankSeedCandidates(candidates: SeedCandidate[]): SeededTeam[] {
   }));
 }
 
+function roundNameForTeamsInRound(teamsInRound: number): string {
+  switch (teamsInRound) {
+    case 2:
+      return "Finale";
+    case 4:
+      return "Semifinali";
+    case 8:
+      return "Quarti di finale";
+    case 16:
+      return "Ottavi di finale";
+    case 32:
+      return "Sedicesimi di finale";
+    case 64:
+      return "Trentaduesimi di finale";
+    default:
+      return `Round of ${teamsInRound}`;
+  }
+}
+
 export function buildRoundPlans(teamCount: number): RoundPlan[] {
-  if (!isPowerOfTwo(teamCount)) {
-    throw new Error("Il tabellone richiede 4, 8 o 16 squadre.");
+  if (!isAllowedBracketSize(teamCount)) {
+    throw new Error(
+      `Il tabellone richiede ${ALLOWED_BRACKET_SIZES_LABEL} squadre.`
+    );
   }
 
   const roundCount = Math.log2(teamCount);
@@ -52,22 +76,11 @@ export function buildRoundPlans(teamCount: number): RoundPlan[] {
   for (let roundIndex = 0; roundIndex < roundCount; roundIndex += 1) {
     const teamsInRound = teamCount / 2 ** roundIndex;
     const isFinal = teamsInRound === 2;
-    let name = `Round of ${teamsInRound}`;
-
-    if (teamsInRound === 2) {
-      name = "Finale";
-    } else if (teamsInRound === 4) {
-      name = "Semifinali";
-    } else if (teamsInRound === 8) {
-      name = "Quarti di finale";
-    } else if (teamsInRound === 16) {
-      name = "Ottavi di finale";
-    }
 
     plans.push({
       bracketSlots: teamsInRound / 2,
       isFinal,
-      name,
+      name: roundNameForTeamsInRound(teamsInRound),
       roundIndex,
       twoLegs: !isFinal
     });
@@ -97,18 +110,21 @@ function countSameLeagueConflicts(pairs: BracketPair[]): number {
 
 /**
  * Alto vs basso, poi ripara conflitti stessa-lega in 1ª fase scambiando gli away
- * tra slot finché possibile (n ≤ 16).
+ * tra slot finché possibile (dimensioni ammesse: 4–64).
  */
 export function pairFirstRoundAvoidingSameLeague(
   seeded: SeededTeam[]
 ): BracketPair[] {
-  if (!isPowerOfTwo(seeded.length)) {
-    throw new Error("Seeding richiede 4, 8 o 16 squadre.");
+  if (!isAllowedBracketSize(seeded.length)) {
+    throw new Error(
+      `Seeding richiede ${ALLOWED_BRACKET_SIZES_LABEL} squadre.`
+    );
   }
 
   let pairs = classicHighLowPairs(seeded);
+  const maxAttempts = Math.max(64, seeded.length * 4);
 
-  for (let attempt = 0; attempt < 64; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const conflictIndex = pairs.findIndex(
       (pair) => pair.home.leagueId === pair.away.leagueId
     );

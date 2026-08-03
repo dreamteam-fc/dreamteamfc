@@ -81,6 +81,7 @@ goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 
 - Dopo 18ª giornata
 - Admin crea torneo e **sceglie a mano** le squadre + lega di provenienza
+- Dimensioni tabellone ammesse: **4, 8, 16, 32, 64** (fasi IT: Trentaduesimi / Sedicesimi / Ottavi / Quarti / Semi / Finale)
 - Seeding: alto vs basso; in 1ª fase **no** scontri stessa lega
 - Eliminazione diretta andata/ritorno; **finale solo andata**
 - Password iscrizione obbligatoria (come leghe)

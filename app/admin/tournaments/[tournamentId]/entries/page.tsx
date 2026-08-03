@@ -70,7 +70,7 @@ export default async function TournamentEntriesPage({
   return (
     <AdminShell
       title={`Squadre — ${data.tournament.name}`}
-      subtitle="Seleziona a mano le squadre (4, 8 o 16). I punti classifica vengono salvati come snapshot per il seeding."
+      subtitle="Seleziona a mano le squadre (4, 8, 16, 32 o 64). I punti classifica vengono salvati come snapshot per il seeding."
     >
       <Feedback error={error} notice={notice} />
 

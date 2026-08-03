@@ -63,7 +63,7 @@ export default async function NewTournamentPage({
           </label>
 
           <p className="text-sm text-slate-600">
-            Dopo la creazione selezionerai le squadre (4, 8 o 16) dalle leghe,
+            Dopo la creazione selezionerai le squadre (4, 8, 16, 32 o 64) dalle leghe,
             con punti classifica per il seeding. Il tabellone arriva nello step
             successivo.
           </p>

@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 
-import { isPowerOfTwo } from "@/lib/tournaments/bracket-size";
+import {
+  ALLOWED_BRACKET_SIZES_LABEL,
+  isAllowedBracketSize
+} from "@/lib/tournaments/bracket-size";
 
 type TeamOption = {
   fantasyTeamId: string;
@@ -44,7 +47,7 @@ export function TournamentEntriesForm({
   const [query, setQuery] = useState("");
 
   const selectedCount = selected.size;
-  const powerOk = isPowerOfTwo(selectedCount);
+  const powerOk = isAllowedBracketSize(selectedCount);
 
   const visibleGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -137,7 +140,9 @@ export function TournamentEntriesForm({
           }`}
         >
           Selezionate: {selectedCount}
-          {powerOk ? " (ok per tabellone)" : " — serve 4, 8 o 16"}
+          {powerOk
+            ? " (ok per tabellone)"
+            : ` — serve ${ALLOWED_BRACKET_SIZES_LABEL}`}
         </div>
       </div>
 

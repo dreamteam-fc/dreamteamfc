@@ -11,7 +11,10 @@ import {
   pairFirstRoundAvoidingSameLeague,
   rankSeedCandidates
 } from "@/lib/tournaments/pair-seeds.ts";
-import { isPowerOfTwo } from "@/lib/tournaments/bracket-size.ts";
+import {
+  ALLOWED_BRACKET_SIZES_LABEL,
+  isAllowedBracketSize
+} from "@/lib/tournaments/bracket-size.ts";
 
 /**
  * Bracket generation must NOT use a long interactive `$transaction`.
@@ -57,8 +60,10 @@ export async function generateTournamentBracket(tournamentId: string) {
     );
   }
 
-  if (!isPowerOfTwo(tournament.entries.length)) {
-    throw new Error("Il roster deve avere 4, 8 o 16 squadre.");
+  if (!isAllowedBracketSize(tournament.entries.length)) {
+    throw new Error(
+      `Il roster deve avere ${ALLOWED_BRACKET_SIZES_LABEL} squadre.`
+    );
   }
 
   const seeded = rankSeedCandidates(
