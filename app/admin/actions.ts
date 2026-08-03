@@ -27,6 +27,10 @@ import {
   blockPlayerInLeague,
   unblockPlayerInLeague
 } from "@/lib/server/players/league-blocked-players.ts";
+import {
+  formatGenerateAllLeagueSchedulesNotice,
+  generateAllLeagueSchedules
+} from "@/lib/server/schedules/generate-all-league-schedules.ts";
 import { generateLeagueSchedule } from "@/lib/server/schedules/generate-league-schedule.ts";
 import { calculateFantasyFixtureResults } from "@/lib/server/fixtures/calculate-fantasy-fixture-results.ts";
 import { generateFantasyFixtures } from "@/lib/server/fixtures/generate-fantasy-fixtures.ts";
@@ -1048,6 +1052,36 @@ export async function generateLeagueScheduleAction(formData: FormData) {
           : "Generazione calendario non riuscita."
     });
   }
+}
+
+export async function generateAllLeagueSchedulesAction(formData: FormData) {
+  await assertAdminAction();
+
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ?? "/admin";
+  const force = formData.get("force") === "true";
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const summary = await generateAllLeagueSchedules({ force });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/lineups");
+    for (const item of summary.generated) {
+      revalidateLeaguePaths(item.leagueId);
+      revalidatePath(buildAdminLeagueSchedulePath(item.leagueId));
+    }
+
+    notice = formatGenerateAllLeagueSchedulesNotice(summary);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Generazione calendari multi-lega non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
 export async function openLineupsAction(matchdayId: string, _formData: FormData) {

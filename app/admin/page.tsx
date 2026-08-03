@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  generateAllLeagueSchedulesAction,
   generateRandomLineupsForMatchdayAction,
   resetLeagueDataAction
 } from "@/app/admin/actions";
@@ -115,6 +116,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </Link>
             {showPlatform ? (
               <>
+                <form action={generateAllLeagueSchedulesAction}>
+                  <input type="hidden" name="redirectPath" value="/admin" />
+                  <PendingSubmitButton
+                    pendingLabel="Generazione calendari…"
+                    className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Genera calendari
+                  </PendingSubmitButton>
+                </form>
                 <Link
                   href="/admin/players"
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
