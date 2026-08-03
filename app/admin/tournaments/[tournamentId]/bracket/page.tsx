@@ -84,6 +84,12 @@ export default async function TournamentBracketPage({
   }
 
   const nextUsefulRound = getNextUsefulTournamentRound(tournament.rounds);
+  const openRound =
+    tournament.rounds.find(
+      (round) => round.lineupsStatus === TournamentRoundLineupsStatus.OPEN
+    ) ?? null;
+  // Prefer OPEN phase for admin Genera/Chiudi; fall back to next useful READY round.
+  const lineupActionRound = openRound ?? nextUsefulRound;
 
   return (
     <AdminShell
@@ -114,16 +120,33 @@ export default async function TournamentBracketPage({
         <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
           Stato: <strong>{tournament.status}</strong>
         </span>
-        {nextUsefulRound ? (
+        <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          Formazioni:{" "}
+          <strong>{openRound ? "aperte" : "chiuse"}</strong>
+          {openRound ? ` (${openRound.name})` : null}
+        </span>
+        {lineupActionRound ? (
           <form action={generateRandomTournamentLineupsForRoundAction}>
             <input type="hidden" name="tournamentId" value={tournament.id} />
-            <input type="hidden" name="roundId" value={nextUsefulRound.id} />
+            <input type="hidden" name="roundId" value={lineupActionRound.id} />
             <PendingSubmitButton
               pendingLabel="Generazione formazioni…"
               className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Genera formazioni ({nextUsefulRound.name})
+              Genera formazioni ({lineupActionRound.name})
             </PendingSubmitButton>
+          </form>
+        ) : null}
+        {openRound ? (
+          <form action={lockTournamentRoundLineupsAction}>
+            <input type="hidden" name="tournamentId" value={tournament.id} />
+            <input type="hidden" name="roundId" value={openRound.id} />
+            <button
+              type="submit"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            >
+              Chiudi formazioni
+            </button>
           </form>
         ) : null}
       </div>

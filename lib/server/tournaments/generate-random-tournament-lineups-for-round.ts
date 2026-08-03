@@ -223,6 +223,17 @@ export async function generateRandomTournamentLineupsForRound(
   });
   const teamById = new Map(teams.map((team) => [team.id, team]));
 
+  // Admin force-schiera does not require user activation; mark entries active
+  // so roster/seeding UI and user lineup pages stay consistent after generate.
+  await db.tournamentTeamEntry.updateMany({
+    where: {
+      tournamentId: tournament.id,
+      fantasyTeamId: { in: teamIds },
+      activatedAt: null
+    },
+    data: { activatedAt: new Date() }
+  });
+
   let written = 0;
   let skipped = 0;
   const failures: GenerateRandomTournamentLineupsResult["failures"] = [];

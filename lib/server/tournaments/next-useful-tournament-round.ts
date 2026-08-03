@@ -10,9 +10,10 @@ type UsefulRoundFixture = {
 };
 
 /**
- * Next useful tournament round: prefer OPEN with READY fixtures, else the first
- * DRAFT/OPEN round (by roundIndex) that already has READY home+away fixtures.
- * LOCKED / completed phases are skipped — same spirit as getNextUsefulMatchday.
+ * Next useful tournament round for admin lineup actions.
+ * Prefer OPEN with READY fixtures, then any OPEN phase (so Genera stays visible
+ * while Formazioni are aperte), else the first DRAFT round with READY fixtures.
+ * LOCKED phases are skipped — same spirit as getNextUsefulMatchday.
  */
 export function getNextUsefulTournamentRound<
   T extends {
@@ -22,18 +23,25 @@ export function getNextUsefulTournamentRound<
   }
 >(rounds: readonly T[]): T | null {
   const ordered = [...rounds].sort((a, b) => a.roundIndex - b.roundIndex);
-  const withReady = ordered.filter(
-    (round) =>
-      round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED &&
-      countReadyPlayableFixtures(round.fixtures) > 0
+  const openRounds = ordered.filter(
+    (round) => round.lineupsStatus === TournamentRoundLineupsStatus.OPEN
   );
+  const openWithReady = openRounds.find(
+    (round) => countReadyPlayableFixtures(round.fixtures) > 0
+  );
+  if (openWithReady) {
+    return openWithReady;
+  }
+  if (openRounds[0]) {
+    return openRounds[0];
+  }
 
   return (
-    withReady.find(
-      (round) => round.lineupsStatus === TournamentRoundLineupsStatus.OPEN
-    ) ??
-    withReady[0] ??
-    null
+    ordered.find(
+      (round) =>
+        round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED &&
+        countReadyPlayableFixtures(round.fixtures) > 0
+    ) ?? null
   );
 }
 
