@@ -10,15 +10,17 @@ import { prisma } from "./prisma.ts";
 /**
  * Run work on a Prisma client that supports sticky interactive `$transaction`.
  *
+ * Prefer redesigning long multi-step writes to avoid interactive transactions
+ * (see generateLeagueSchedule). Use this helper only for short sticky txs.
+ *
  * When DATABASE_URL is Supabase Transaction pooler (:6543 + pgbouncer),
  * interactive transactions often fail with:
  *   "Transaction not found. Transaction ID is invalid..."
  * because PgBouncer transaction mode does not pin the connection across
  * statements inside `prisma.$transaction(async (tx) => ...)`.
  *
- * In that case we open a short-lived client on DIRECT_URL (Session :5432),
- * run the callback, then disconnect so Session pool slots stay free for
- * migrate / other brief session work.
+ * Session pooler (:5432) can still drop long interactive txs under load —
+ * switching URL alone is not a durable fix for 18-matchday writes.
  *
  * When DATABASE_URL is already session-compatible, reuses the shared runtime
  * client (no extra connections).
