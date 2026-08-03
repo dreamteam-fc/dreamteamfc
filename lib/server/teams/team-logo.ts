@@ -1,6 +1,9 @@
 import sharp from "sharp";
 
-import { toOwnedBuffer, toOwnedUint8Array } from "@/lib/server/http/owned-buffer.ts";
+import {
+  toOwnedBlob,
+  toOwnedBuffer
+} from "@/lib/server/http/owned-buffer.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin.ts";
 import {
@@ -18,6 +21,7 @@ export {
 
 export const TEAM_LOGO_OUTPUT_SIZE = 512;
 export const TEAM_LOGO_WEBP_QUALITY = 80;
+export const TEAM_LOGO_OUTPUT_MIME = "image/webp";
 
 const ALLOWED_INPUT_MIME_TYPES = new Set([
   "image/jpeg",
@@ -25,6 +29,21 @@ const ALLOWED_INPUT_MIME_TYPES = new Set([
   "image/webp",
   "image/gif"
 ]);
+
+function formatErrorDetails(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const parts = [error.message];
+  if (error.cause instanceof Error && error.cause.message) {
+    parts.push(`cause=${error.cause.message}`);
+  } else if (error.cause != null) {
+    parts.push(`cause=${String(error.cause)}`);
+  }
+
+  return parts.filter(Boolean).join(" | ");
+}
 
 export function assertAllowedLogoMimeType(mimeType: string) {
   const normalized = mimeType.trim().toLowerCase();
@@ -60,24 +79,48 @@ export async function processTeamLogoImage(buffer: Buffer): Promise<Buffer> {
       .webp({ quality: TEAM_LOGO_WEBP_QUALITY })
       .toBuffer();
 
+    // Sharp → fresh owned Buffer again before any network I/O.
     return toOwnedBuffer(processed);
-  } catch {
-    throw new Error("Impossibile elaborare l'immagine caricata.");
+  } catch (error) {
+    console.error("[team-logo] sharp failed:", formatErrorDetails(error));
+    throw new Error(
+      `Impossibile elaborare l'immagine caricata. (${formatErrorDetails(error)})`
+    );
   }
 }
 
 async function uploadProcessedLogo(path: string, webpBuffer: Buffer) {
   const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.storage
-    .from(TEAM_LOGOS_BUCKET)
-    .upload(path, toOwnedUint8Array(webpBuffer), {
-      cacheControl: "3600",
-      contentType: "image/webp",
-      upsert: true
-    });
+  // Blob forces supabase-js onto the FormData upload path and keeps undici
+  // away from SharedArrayBuffer-backed TypedArray/Buffer bodies.
+  const body = toOwnedBlob(webpBuffer, TEAM_LOGO_OUTPUT_MIME);
 
-  if (error) {
-    throw new Error(`Upload logo fallito: ${error.message}`);
+  try {
+    const { error } = await supabase.storage
+      .from(TEAM_LOGOS_BUCKET)
+      .upload(path, body, {
+        cacheControl: "3600",
+        contentType: TEAM_LOGO_OUTPUT_MIME,
+        upsert: true
+      });
+
+    if (error) {
+      console.error("[team-logo] storage upload failed:", error.message, error);
+      throw new Error(`Upload logo fallito: ${error.message}`);
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Upload logo fallito:")
+    ) {
+      throw error;
+    }
+
+    console.error(
+      "[team-logo] storage upload threw:",
+      formatErrorDetails(error)
+    );
+    throw new Error(`Upload logo fallito: ${formatErrorDetails(error)}`);
   }
 }
 

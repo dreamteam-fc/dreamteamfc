@@ -5,24 +5,47 @@
  * Undici (Node 22+ fetch, used by @supabase/supabase-js) rejects those bodies with:
  * "ArrayBuffer: SharedArrayBuffer is not allowed."
  *
- * `Buffer.from(arrayBuffer)` shares memory and keeps the problem; copy via Uint8Array.
+ * Important:
+ * - `Buffer.from(arrayBuffer)` shares memory when given an ArrayBuffer/SAB.
+ * - `new Uint8Array(sab)` is only a view over the SAB.
+ * - Always allocate a fresh Uint8Array and `.set()` into it before fetch/upload.
  */
 
+function asUint8View(
+  source: ArrayBuffer | ArrayBufferView | Buffer
+): Uint8Array {
+  if (Buffer.isBuffer(source) || ArrayBuffer.isView(source)) {
+    return new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
+  }
+
+  return new Uint8Array(source);
+}
+
+/** Fresh Uint8Array backed by a normal ArrayBuffer (never SharedArrayBuffer). */
+export function toOwnedUint8Array(
+  source: ArrayBuffer | ArrayBufferView | Buffer
+): Uint8Array {
+  const view = asUint8View(source);
+  const copy = new Uint8Array(view.byteLength);
+  copy.set(view);
+  return copy;
+}
+
+/** Fresh Buffer whose underlying ArrayBuffer is never SharedArrayBuffer. */
 export function toOwnedBuffer(
   source: ArrayBuffer | ArrayBufferView | Buffer
 ): Buffer {
-  if (Buffer.isBuffer(source) || ArrayBuffer.isView(source)) {
-    return Buffer.from(source);
-  }
-
-  return Buffer.from(new Uint8Array(source));
+  return Buffer.from(toOwnedUint8Array(source));
 }
 
 export async function fileToOwnedBuffer(file: File): Promise<Buffer> {
   return toOwnedBuffer(await file.arrayBuffer());
 }
 
-/** Fresh Uint8Array for fetch / storage upload bodies. */
-export function toOwnedUint8Array(source: Buffer | Uint8Array): Uint8Array {
-  return new Uint8Array(source);
+/** Blob body for storage upload — avoids passing TypedArray/Buffer to undici. */
+export function toOwnedBlob(
+  source: ArrayBuffer | ArrayBufferView | Buffer,
+  contentType: string
+): Blob {
+  return new Blob([toOwnedUint8Array(source)], { type: contentType });
 }
