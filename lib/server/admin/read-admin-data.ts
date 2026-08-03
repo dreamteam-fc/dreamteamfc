@@ -31,6 +31,16 @@ export async function getAdminDashboardData() {
   const leagues = await prisma.league.findMany({
     orderBy: [{ createdAt: "asc" }, { name: "asc" }],
     include: {
+      fantasyTeams: {
+        select: {
+          id: true,
+          _count: {
+            select: {
+              roster: true
+            }
+          }
+        }
+      },
       matchdays: {
         orderBy: {
           number: "asc"
@@ -56,10 +66,17 @@ export async function getAdminDashboardData() {
   });
 
   return {
-    leagues: leagues.map((league) => ({
-      ...league,
-      availableSpots: Math.max(league.maxTeams - league._count.fantasyTeams, 0)
-    }))
+    leagues: leagues.map((league) => {
+      const teamsWithRoster = league.fantasyTeams.filter(
+        (team) => team._count.roster > 0
+      ).length;
+
+      return {
+        ...league,
+        availableSpots: Math.max(league.maxTeams - league._count.fantasyTeams, 0),
+        teamsWithRoster
+      };
+    })
   };
 }
 

@@ -41,6 +41,7 @@ import {
   adminRemovePlayerFromRoster,
   adminReplacePlayerInRoster
 } from "@/lib/server/rosters/admin-roster-mutations.ts";
+import { generateRandomLineupsForMatchday } from "@/lib/server/lineups/generate-random-lineups-for-matchday.ts";
 
 const VOTE_FIELD_NAMES = [
   "assists",
@@ -1742,6 +1743,66 @@ export async function resetLeagueDataAction(formData: FormData) {
           : "Reset dati leghe non riuscito."
     });
   }
+}
+
+export async function generateRandomLineupsForMatchdayAction(
+  formData: FormData
+) {
+  await assertAdminAction();
+
+  const leagueId = readRequiredString(formData, "leagueId");
+  const matchdayId = readRequiredString(formData, "matchdayId");
+  const redirectPath = readOptionalString(formData, "redirectPath") ?? "/admin";
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const result = await generateRandomLineupsForMatchday({
+      force: true,
+      leagueId,
+      matchdayId
+    });
+
+    revalidatePath("/admin");
+    revalidatePath(`/admin/matchdays/${matchdayId}`);
+    revalidatePath(`/leagues/${leagueId}`);
+
+    const teams = await prisma.fantasyTeam.findMany({
+      where: { leagueId },
+      select: { id: true }
+    });
+    for (const team of teams) {
+      revalidatePath(`/me/teams/${team.id}`);
+      revalidatePath(`/me/teams/${team.id}/matchdays/${matchdayId}/lineup`);
+    }
+
+    if (result.written === 0 && result.failures.length > 0) {
+      const preview = result.failures
+        .slice(0, 3)
+        .map((failure) => `${failure.teamName}: ${failure.error}`)
+        .join(" | ");
+      throw new Error(
+        `Nessuna formazione generata. ${preview}${result.failures.length > 3 ? "…" : ""}`
+      );
+    }
+
+    const failureSuffix =
+      result.failures.length > 0
+        ? ` Fallite: ${result.failures.length} (${result.failures
+            .slice(0, 2)
+            .map((failure) => failure.teamName)
+            .join(", ")}${result.failures.length > 2 ? "…" : ""}).`
+        : "";
+
+    notice = `Formazioni casuali generate per la giornata ${result.matchdayNumber}: ${result.written} scritte.${failureSuffix}`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Generazione formazioni casuali non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
 function revalidateAdminRosterPaths(options: {

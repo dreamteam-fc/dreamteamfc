@@ -1,7 +1,11 @@
 import Link from "next/link";
 
-import { resetLeagueDataAction } from "@/app/admin/actions";
+import {
+  generateRandomLineupsForMatchdayAction,
+  resetLeagueDataAction
+} from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { PlatformRolesPanel } from "@/components/admin/platform-roles-panel";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { requireStaffAccess } from "@/lib/auth/admin.ts";
@@ -231,6 +235,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         >
                           Vedi punteggi
                         </Link>
+                        {showPlatform && league.teamsWithRoster > 0 ? (
+                          <form action={generateRandomLineupsForMatchdayAction}>
+                            <input type="hidden" name="leagueId" value={league.id} />
+                            <input
+                              type="hidden"
+                              name="matchdayId"
+                              value={nextMatchday.id}
+                            />
+                            <input type="hidden" name="redirectPath" value="/admin" />
+                            <PendingSubmitButton
+                              pendingLabel="Generazione in corso…"
+                              className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Genera formazioni casuali
+                            </PendingSubmitButton>
+                          </form>
+                        ) : null}
                       </div>
                     </div>
                   ) : (
