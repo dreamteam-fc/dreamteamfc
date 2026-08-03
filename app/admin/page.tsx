@@ -8,6 +8,7 @@ import {
   lockAllLineupsAction,
   lockLineupsAction,
   openAllLineupsAction,
+  publishAllMatchdaysAction,
   resetLeagueDataAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -158,6 +159,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     className="rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-900 transition hover:border-teal-400 hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Calcola punteggi e risultati
+                  </PendingSubmitButton>
+                </form>
+                <form action={publishAllMatchdaysAction}>
+                  <input type="hidden" name="redirectPath" value="/admin" />
+                  <PendingSubmitButton
+                    pendingLabel="Pubblicazione giornate…"
+                    className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-900 transition hover:border-indigo-400 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Pubblica giornate
                   </PendingSubmitButton>
                 </form>
                 <Link

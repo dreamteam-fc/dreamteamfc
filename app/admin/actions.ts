@@ -36,6 +36,10 @@ import { calculateFantasyFixtureResults } from "@/lib/server/fixtures/calculate-
 import { generateFantasyFixtures } from "@/lib/server/fixtures/generate-fantasy-fixtures.ts";
 import { checkVotesCompletion } from "@/lib/server/matchdays/check-votes-completion.ts";
 import { generateRequiredVotePlayers } from "@/lib/server/matchdays/generate-required-vote-players.ts";
+import {
+  formatPublishAllMatchdaysNotice,
+  publishAllMatchdays
+} from "@/lib/server/matchdays/publish-all-matchdays.ts";
 import { publishMatchday } from "@/lib/server/matchdays/publish-matchday.ts";
 import {
   calculateAllScoresAndResults,
@@ -1266,6 +1270,49 @@ export async function calculateAllScoresAndResultsAction(formData: FormData) {
       error instanceof Error
         ? error.message
         : "Calcolo punteggi/risultati multi-lega non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function publishAllMatchdaysAction(formData: FormData) {
+  await assertAdminAction();
+
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ?? "/admin";
+  const matchdayNumberRaw = readOptionalString(formData, "matchdayNumber");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    let matchdayNumber: number | undefined;
+    if (matchdayNumberRaw != null) {
+      const parsed = Number(matchdayNumberRaw);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new Error("Numero giornata non valido.");
+      }
+      matchdayNumber = parsed;
+    }
+
+    const summary = await publishAllMatchdays(
+      matchdayNumber != null ? { matchdayNumber } : {}
+    );
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/votes");
+
+    for (const item of summary.published) {
+      revalidateAdminPaths(item.matchdayId, item.leagueId);
+      revalidatePath(`/leagues/${item.leagueId}`);
+      revalidateLeaguePaths(item.leagueId);
+    }
+
+    notice = formatPublishAllMatchdaysNotice(summary);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Pubblicazione giornate multi-lega non riuscita.";
   }
 
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
