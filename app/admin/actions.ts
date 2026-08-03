@@ -13,6 +13,7 @@ import {
 import { parseAppRole } from "@/lib/auth/app-roles.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { calculateFantavote } from "@/lib/scoring/calculate-fantavote.ts";
+import { fileToOwnedBuffer } from "@/lib/server/http/owned-buffer.ts";
 import { createLeague } from "@/lib/server/admin/create-league.ts";
 import { resetLeagueData } from "@/lib/server/admin/reset-league-data.ts";
 import { createTournament } from "@/lib/server/tournaments/create-tournament.ts";
@@ -779,7 +780,7 @@ export async function importTournamentRoundVotesAction(formData: FormData) {
       throw new Error("Formato non supportato. Carica un file .xls o .xlsx.");
     }
 
-    const buffer = Buffer.from(await fileValue.arrayBuffer());
+    const buffer = await fileToOwnedBuffer(fileValue);
     const result = await importFantacalcioVotesForTournamentRound({
       buffer,
       roundId,
@@ -1250,7 +1251,7 @@ export async function importFantacalcioVotesFileAction(formData: FormData) {
       throw new Error("Formato non supportato. Carica un file .xls o .xlsx.");
     }
 
-    const buffer = Buffer.from(await fileValue.arrayBuffer());
+    const buffer = await fileToOwnedBuffer(fileValue);
     const result = await importFantacalcioVotesFromBuffer({
       buffer,
       matchdayId,
@@ -1507,7 +1508,7 @@ export async function importFantacalcioVotesAcrossLeaguesAction(
       throw new Error("Nessuna giornata trovata per questo numero.");
     }
 
-    const buffer = Buffer.from(await fileValue.arrayBuffer());
+    const buffer = await fileToOwnedBuffer(fileValue);
     let savedCount = 0;
     let matchedCount = 0;
     let missingMarkedSvCount = 0;

@@ -26,6 +26,7 @@ import {
 } from "@/lib/server/teams/team-access";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type TeamPageProps = {
   params: Promise<{

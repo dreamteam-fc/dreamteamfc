@@ -25,6 +25,7 @@ import type { PlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { parsePlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { getActionErrorMessage } from "@/lib/server/http/action-errors.ts";
+import { fileToOwnedBuffer } from "@/lib/server/http/owned-buffer.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
 import {
   assertPlayerFreeInLeague,
@@ -476,7 +477,7 @@ export async function uploadTeamLogoAction(formData: FormData) {
       typeof fileValue.type === "string" && fileValue.type.length > 0
         ? fileValue.type
         : "application/octet-stream";
-    const rawBuffer = Buffer.from(await fileValue.arrayBuffer());
+    const rawBuffer = await fileToOwnedBuffer(fileValue);
 
     await uploadTeamLogo({
       leagueId: access.team.leagueId,

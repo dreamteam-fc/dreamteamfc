@@ -1,5 +1,6 @@
 import sharp from "sharp";
 
+import { toOwnedBuffer, toOwnedUint8Array } from "@/lib/server/http/owned-buffer.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin.ts";
 import {
@@ -46,8 +47,11 @@ export function assertLogoInputSize(byteLength: number) {
 }
 
 export async function processTeamLogoImage(buffer: Buffer): Promise<Buffer> {
+  // Own the input bytes before sharp; own the output before fetch/storage upload.
+  const input = toOwnedBuffer(buffer);
+
   try {
-    return await sharp(buffer, { failOn: "error" })
+    const processed = await sharp(input, { failOn: "error" })
       .rotate()
       .resize(TEAM_LOGO_OUTPUT_SIZE, TEAM_LOGO_OUTPUT_SIZE, {
         fit: "cover",
@@ -55,6 +59,8 @@ export async function processTeamLogoImage(buffer: Buffer): Promise<Buffer> {
       })
       .webp({ quality: TEAM_LOGO_WEBP_QUALITY })
       .toBuffer();
+
+    return toOwnedBuffer(processed);
   } catch {
     throw new Error("Impossibile elaborare l'immagine caricata.");
   }
@@ -64,7 +70,7 @@ async function uploadProcessedLogo(path: string, webpBuffer: Buffer) {
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.storage
     .from(TEAM_LOGOS_BUCKET)
-    .upload(path, webpBuffer, {
+    .upload(path, toOwnedUint8Array(webpBuffer), {
       cacheControl: "3600",
       contentType: "image/webp",
       upsert: true
