@@ -447,7 +447,7 @@ async function main() {
           where: { id: existingLeague.id },
           data: {
             createdById: creator.id,
-            maxAutoSubs: 1,
+            maxAutoSubs: 4,
             maxTeams: ACCOUNT_COUNT,
             name: LEAGUE_NAME,
             passwordHash: hashSecret(LEAGUE_JOIN_PASSWORD),
@@ -459,7 +459,7 @@ async function main() {
       : await prisma.league.create({
           data: {
             createdById: creator.id,
-            maxAutoSubs: 1,
+            maxAutoSubs: 4,
             maxTeams: ACCOUNT_COUNT,
             name: LEAGUE_NAME,
             passwordHash: hashSecret(LEAGUE_JOIN_PASSWORD),

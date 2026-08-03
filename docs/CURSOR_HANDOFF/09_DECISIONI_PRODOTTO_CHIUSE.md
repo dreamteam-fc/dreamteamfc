@@ -19,7 +19,7 @@ Fonte primaria: `docs/Dream Team FC.txt` + risposte utente + file esempio
 | Panchina | **4**: 1 per ruolo (P, D, C, A) |
 | Ordine panchina | **rimosso** (UI/validazione); `positionOrder` DB auto P=1…A=4 |
 | Sostituzione auto | solo stesso ruolo |
-| Max sub auto | **1 sola** a partita (anche se piu titolari SV) |
+| Max sub auto | **1 per ruolo** (panchina 1P/1D/1C/1A → max **4** a partita); 2° SV stesso ruolo resta 0 |
 | Se manca panchina stesso ruolo | il titolare SV resta **0** |
 
 ## 2. Campionato e leghe
@@ -132,7 +132,7 @@ Epic prodotti coach + torneo V1 (con voti XLS) **chiusi**. Nessun altro epic pro
 ### Ordine in corso (proposta, attiva)
 
 1. ~~Admin: stato formazioni~~ **FATTO**
-2. ~~Rosa 25 + lineup 5+4 + max 1 sub stesso ruolo~~ **FATTO**
+2. ~~Rosa 25 + lineup 5+4 + max 1 sub per ruolo (max 4)~~ **FATTO**
 3. ~~Scoring (`gs` solo P, `rs` sbagliato −3, clean sheet auto, fasce gol)~~ **FATTO**
 4. ~~Parser/upload XLS voti + matching `Cod.`~~ **FATTO** (`Rp`/`Rs`/`Rf` allineati)
 5. ~~Pannello voti unificato (solo chi ha giocato)~~ **FATTO** (`/admin/votes`, fan-out save/import)

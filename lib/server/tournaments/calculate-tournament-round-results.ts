@@ -8,7 +8,10 @@ import {
   isRequiredVoteCompletedStatus,
   prismaDecimalToNumber
 } from "@/lib/server/votes/shared.ts";
-import { calculateTeamScore } from "@/lib/scoring/calculate-team-score.ts";
+import {
+  calculateTeamScore,
+  DEFAULT_MAX_SUBSTITUTIONS
+} from "@/lib/scoring/calculate-team-score.ts";
 import { convertScoreToGoals } from "@/lib/scoring/convert-score-to-goals.ts";
 import { getFixtureForfeitOutcome } from "@/lib/server/fixtures/fixture-forfeit.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
@@ -71,7 +74,7 @@ function buildTeamScoreInput(options: {
           : null
       };
     }),
-    maxSubstitutions: 1,
+    maxSubstitutions: DEFAULT_MAX_SUBSTITUTIONS,
     startersCount: 5
   };
 }

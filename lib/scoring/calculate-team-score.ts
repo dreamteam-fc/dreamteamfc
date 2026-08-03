@@ -1,4 +1,4 @@
-import { ScorePlayerFinalType, SlotType } from "@prisma/client";
+import { PlayerRole, ScorePlayerFinalType, SlotType } from "@prisma/client";
 
 import { BENCH_POSITION_ORDER_BY_ROLE } from "../lineups/bench-position-order.ts";
 import { calculateFantavote } from "./calculate-fantavote.ts";
@@ -15,8 +15,11 @@ type ResolvedVote = FantavoteCalculation & {
   playerVoteId?: string;
 };
 
-/** Product default: at most one automatic substitution per match. */
-const DEFAULT_MAX_SUBSTITUTIONS = 1;
+/**
+ * Product default: at most one automatic substitution per role.
+ * Bench is exactly 1P / 1D / 1C / 1A → ceiling of 4 substitutions per team.
+ */
+export const DEFAULT_MAX_SUBSTITUTIONS = 4;
 const DEFAULT_STARTERS_COUNT = 5;
 
 function compareBenchPlayers(
@@ -37,6 +40,7 @@ function findSameRoleBenchReplacement(
   starter: TeamScoreLineupPlayerInput,
   bench: TeamScoreLineupPlayerInput[],
   usedBenchKeys: Set<string>,
+  usedSubstitutionRoles: Set<PlayerRole>,
   resolveBenchVote: (player: TeamScoreLineupPlayerInput) => ResolvedVote
 ):
   | {
@@ -44,6 +48,10 @@ function findSameRoleBenchReplacement(
       resolvedVote: ResolvedVote;
     }
   | undefined {
+  if (usedSubstitutionRoles.has(starter.role)) {
+    return undefined;
+  }
+
   for (const benchPlayer of bench) {
     if (benchPlayer.role !== starter.role) {
       continue;
@@ -198,6 +206,7 @@ export function calculateTeamScore(
   const detailLines: TeamScoreDetailLine[] = [];
   const usedBenchKeys = new Set<string>();
   const usedBenchPlayerIds = new Set<string>();
+  const usedSubstitutionRoles = new Set<PlayerRole>();
   let substitutionsCount = 0;
   let totalScore = 0;
 
@@ -219,7 +228,7 @@ export function calculateTeamScore(
     }
 
     // SV / missing / invalid vote: try same-role bench with a valid fantavote.
-    // If none (or max subs already used), starter stays in XI with score 0.
+    // One sub per role (bench has one slot each); a second SV of that role stays 0.
     let replacement:
       | {
           player: TeamScoreLineupPlayerInput;
@@ -232,6 +241,7 @@ export function calculateTeamScore(
         starter,
         bench,
         usedBenchKeys,
+        usedSubstitutionRoles,
         resolveVote
       );
 
@@ -239,6 +249,7 @@ export function calculateTeamScore(
         const benchKey = getLineupPlayerKey(replacement.player);
         usedBenchKeys.add(benchKey);
         usedBenchPlayerIds.add(replacement.player.playerId);
+        usedSubstitutionRoles.add(starter.role);
         substitutionsCount += 1;
       }
     }

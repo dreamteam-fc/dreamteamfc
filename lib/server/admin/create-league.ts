@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { DEFAULT_MAX_SUBSTITUTIONS } from "@/lib/scoring/calculate-team-score.ts";
 import { hashSecret } from "@/lib/server/security/secret-hash.ts";
 
 /** Dream Team: leghe fisse a 10 squadre (andata/ritorno = 18 giornate). */
@@ -58,7 +59,7 @@ export async function createLeague(
     const league = await prisma.league.create({
       data: {
         createdById: input.createdById,
-        maxAutoSubs: 1,
+        maxAutoSubs: DEFAULT_MAX_SUBSTITUTIONS,
         maxTeams: REQUIRED_LEAGUE_MAX_TEAMS,
         name,
         passwordHash,

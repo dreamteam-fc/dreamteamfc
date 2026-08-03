@@ -64,7 +64,6 @@ function runChecks() {
   assert.equal(fantavote.finalFantavote, 6.5, "Fantavote with bonus and malus");
 
   const allStartersValid = calculateTeamScore({
-    maxSubstitutions: 1,
     lineupPlayers: [
       player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
       player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, validVote(6.5)),
@@ -81,7 +80,6 @@ function runChecks() {
   assert.equal(allStartersValid.substitutionsCount, 0);
 
   const sameRoleSub = calculateTeamScore({
-    maxSubstitutions: 1,
     lineupPlayers: [
       player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
       player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, svVote()),
@@ -104,7 +102,6 @@ function runChecks() {
   );
 
   const wrongRoleBenchSkipped = calculateTeamScore({
-    maxSubstitutions: 1,
     lineupPlayers: [
       player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, svVote()),
       player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, validVote(6)),
@@ -120,8 +117,40 @@ function runChecks() {
   assert.equal(wrongRoleBenchSkipped.totalScore, 24);
   assert.equal(wrongRoleBenchSkipped.substitutionsCount, 0);
 
-  const maxOneSubstitution = calculateTeamScore({
-    maxSubstitutions: 1,
+  // 2 SV of the same role → only 1 sub (one bench slot per role).
+  const twoSameRoleSvOnlyOneSub = calculateTeamScore({
+    lineupPlayers: [
+      player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
+      player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, validVote(6)),
+      player("s3", PlayerRole.MIDFIELDER, SlotType.STARTER, 3, svVote()),
+      player("s4", PlayerRole.ATTACKER, SlotType.STARTER, 4, validVote(6)),
+      player("s5", PlayerRole.MIDFIELDER, SlotType.STARTER, 5, svVote()),
+      player("b1", PlayerRole.GOALKEEPER, SlotType.BENCH, 1, validVote(7)),
+      player("b2", PlayerRole.DEFENDER, SlotType.BENCH, 2, validVote(6.5)),
+      player("b3", PlayerRole.MIDFIELDER, SlotType.BENCH, 3, validVote(5.5)),
+      player("b4", PlayerRole.ATTACKER, SlotType.BENCH, 4, validVote(6))
+    ]
+  });
+  assert.equal(twoSameRoleSvOnlyOneSub.substitutionsCount, 1);
+  assert.equal(twoSameRoleSvOnlyOneSub.totalScore, 23.5);
+  assert.equal(
+    twoSameRoleSvOnlyOneSub.detailLines.filter(
+      (line) => line.finalType === ScorePlayerFinalType.SV_NOT_REPLACED
+    ).length,
+    1
+  );
+  assert.equal(
+    twoSameRoleSvOnlyOneSub.detailLines.some(
+      (line) =>
+        line.playerId === "s5" &&
+        line.finalType === ScorePlayerFinalType.SV_NOT_REPLACED &&
+        line.scoreUsed === 0
+    ),
+    true
+  );
+
+  // 2 SV of different roles → 2 independent subs.
+  const twoDifferentRoleSvTwoSubs = calculateTeamScore({
     lineupPlayers: [
       player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, svVote()),
       player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, svVote()),
@@ -134,18 +163,23 @@ function runChecks() {
       player("b4", PlayerRole.ATTACKER, SlotType.BENCH, 4, validVote(6))
     ]
   });
-  assert.equal(maxOneSubstitution.substitutionsCount, 1);
-  assert.equal(maxOneSubstitution.totalScore, 25);
+  assert.equal(twoDifferentRoleSvTwoSubs.substitutionsCount, 2);
+  assert.equal(twoDifferentRoleSvTwoSubs.totalScore, 31.5);
   assert.equal(
-    maxOneSubstitution.detailLines.filter(
+    twoDifferentRoleSvTwoSubs.detailLines.filter(
+      (line) => line.finalType === ScorePlayerFinalType.AUTO_SUB_IN
+    ).length,
+    2
+  );
+  assert.equal(
+    twoDifferentRoleSvTwoSubs.detailLines.filter(
       (line) => line.finalType === ScorePlayerFinalType.SV_NOT_REPLACED
     ).length,
-    1
+    0
   );
 
   // Scrambled bench positionOrder must not change same-role substitution.
   const orderIndependentSub = calculateTeamScore({
-    maxSubstitutions: 1,
     lineupPlayers: [
       player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
       player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, svVote()),
@@ -171,7 +205,6 @@ function runChecks() {
 
   // Same-role bench present but also SV → starter stays with score 0.
   const sameRoleBenchAlsoSv = calculateTeamScore({
-    maxSubstitutions: 1,
     lineupPlayers: [
       player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
       player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, svVote()),

@@ -311,7 +311,7 @@ export default async function TournamentFixtureLineupPage({
         <p className="mt-2 text-sm text-slate-600">
           Seleziona 5 titolari (1P, 1D, 1C, 1A + 1 libero tra D/C/A) e 4 panchinari
           (1 per ruolo). In caso di SV, entra il panchinaro dello stesso ruolo (max 1
-          sostituzione per partita).
+          sostituzione per ruolo, fino a 4 per partita).
         </p>
 
         <form action={saveTournamentLineupAction} className="mt-5 space-y-5">

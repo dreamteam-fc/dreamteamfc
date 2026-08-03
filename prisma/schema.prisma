@@ -126,7 +126,7 @@ model League {
   name           String
   status         LeagueStatus          @default(DRAFT)
   startersCount  Int                   @default(5)
-  maxAutoSubs    Int                   @default(1)
+  maxAutoSubs    Int                   @default(4)
   maxTeams       Int                   @default(10)
   /// Hash password iscrizione lega (mai in chiaro). Formato salt:hash scrypt.
   passwordHash   String?

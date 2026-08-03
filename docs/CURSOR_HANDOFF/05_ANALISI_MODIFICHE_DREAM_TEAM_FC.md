@@ -173,8 +173,8 @@ Richiesta:
 
 Impatto sul progetto attuale:
 
-- motore: sub solo stesso ruolo; max 1; senza ordine panchina utente
-- se manca panchina stesso ruolo (o sub gia usata): titolare resta in XI con `0`
+- motore: sub solo stesso ruolo; max 1 per ruolo (max 4); senza ordine panchina utente
+- se manca panchina stesso ruolo (o sub di quel ruolo gia usata): titolare resta in XI con `0`
 
 Come applicarla al progetto:
 
@@ -414,7 +414,7 @@ Dal file emergono tre gruppi di lavoro molto diversi:
 - porta inviolata automatica se portiere con `gs = 0`
 - `rs` = sbagliato (−3), `rf` = realizzato (0 pt); vedi `09`
 - leghe da **10** squadre, solo andata/ritorno → **18** giornate
-- max **1** sostituzione automatica
+- max **1** sostituzione automatica **per ruolo** (max **4** a partita)
 - `LeagueRole.ADMIN` rimosso
 
 ## Raccomandazione

@@ -284,7 +284,7 @@ npm run check:all
 | 4 | Non giocato in voti | **FATTO** | = SV; assente / `*` |
 | 5 | Rosa 25 (3/8/8/6) | **FATTO** | |
 | 6 | Formazione 5+4 con vincoli ruolo | **FATTO** | |
-| 7 | Sub automatiche stesso ruolo | **FATTO** | max 1 |
+| 7 | Sub automatiche stesso ruolo | **FATTO** | max 1/ruolo (max 4) |
 | 8 | Fasce gol ≤25 / +1 ogni 2 | **FATTO** | `convertScoreToGoals` |
 | 9 | Bonus/malus + clean sheet auto | **FATTO** | `rs`/`rf` chiusi in `09` |
 | 10 | Solo super admin crea leghe | **FATTO** | `LeagueRole.ADMIN` rimosso |
@@ -311,7 +311,7 @@ Contesto:
 - Super admin = User.role ADMIN globale
 
 Decisioni gia chiuse (non riaprire):
-- rosa 25 = 3P+8D+8C+6A; titolari 5; panchina 4 (1/ruolo); max 1 sub stesso ruolo
+- rosa 25 = 3P+8D+8C+6A; titolari 5; panchina 4 (1/ruolo); max 1 sub per ruolo (max 4)
 - non giocato = SV (assente da file voti, oppure voto con *)
 - gol squadra = score<=25 ? 0 : floor((score-25)/2)
 - upload XLS voti; Cod.=externalId Fantacalcio; foglio default Fantacalcio
