@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { TeamLogo } from "@/components/teams/team-logo";
 import { getPublicLeagueHomeData } from "@/lib/server/public/read-public-league-data";
 
 export const dynamic = "force-dynamic";
@@ -119,7 +120,17 @@ export default async function PublicLeaguePage({
                 {standingsPreview.map((row, index) => (
                   <tr key={row.teamId}>
                     <td className="px-3 py-2 text-slate-900">{index + 1}</td>
-                    <td className="px-3 py-2 text-slate-900">{row.teamName}</td>
+                    <td className="px-3 py-2 text-slate-900">
+                      <span className="inline-flex items-center gap-2">
+                        <TeamLogo
+                          alt={`Logo ${row.teamName}`}
+                          cacheBust={row.logoUpdatedAt}
+                          logoPath={row.logoPath}
+                          size="sm"
+                        />
+                        {row.teamName}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-slate-900">{row.leaguePoints}</td>
                     <td className="px-3 py-2 text-slate-600">{row.played}</td>
                     <td className="px-3 py-2 text-slate-600">{row.goalsFor}</td>

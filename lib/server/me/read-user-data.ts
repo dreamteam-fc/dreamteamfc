@@ -27,8 +27,10 @@ export async function getUserDashboardData(appUserId: string) {
         orderBy: [{ createdAt: "asc" }, { name: "asc" }],
         select: {
           id: true,
+          logoPath: true,
           name: true,
           leagueId: true,
+          updatedAt: true,
           league: {
             select: {
               id: true,
@@ -85,8 +87,10 @@ export async function getUserDashboardData(appUserId: string) {
           fantasyTeam: {
             select: {
               id: true,
+              logoPath: true,
               name: true,
               leagueId: true,
+              updatedAt: true,
               league: {
                 select: {
                   id: true,
@@ -168,11 +172,13 @@ export async function getUserDashboardData(appUserId: string) {
     id: team.id,
     league: team.league,
     leagueId: team.leagueId,
+    logoPath: team.logoPath,
     name: team.name,
     openMatchdays: team.league.matchdays.map((matchday) => ({
       ...matchday,
       hasLineup: team.lineups.some((lineup) => lineup.matchdayId === matchday.id)
-    }))
+    })),
+    updatedAt: team.updatedAt
   }));
 
   const coachedTeams = user.teamCoaching.map((entry) => {
@@ -181,12 +187,14 @@ export async function getUserDashboardData(appUserId: string) {
       id: team.id,
       league: team.league,
       leagueId: team.leagueId,
+      logoPath: team.logoPath,
       name: team.name,
       owner: team.user,
       openMatchdays: team.league.matchdays.map((matchday) => ({
         ...matchday,
         hasLineup: team.lineups.some((lineup) => lineup.matchdayId === matchday.id)
-      }))
+      })),
+      updatedAt: team.updatedAt
     };
   });
 
@@ -318,7 +326,9 @@ export async function getUserTeamPageData(teamId: string) {
           submittedAt: true
         }
       },
+      logoPath: true,
       name: true,
+      updatedAt: true,
       roster: {
         orderBy: [{ player: { role: "asc" } }, { player: { name: "asc" } }],
         select: {

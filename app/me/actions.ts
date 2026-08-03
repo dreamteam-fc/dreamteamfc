@@ -41,6 +41,11 @@ import {
   canManageLineup,
   resolveTeamAccessRole
 } from "@/lib/server/teams/team-access.ts";
+import {
+  deleteTeamLogoObject,
+  removeTeamLogo,
+  uploadTeamLogo
+} from "@/lib/server/teams/team-logo.ts";
 
 function buildJoinLeagueRedirectPath(leagueId: string, error?: string) {
   const searchParams = new URLSearchParams();
@@ -368,6 +373,7 @@ export async function leaveLeagueAction(teamId: string, formData: FormData) {
           },
           id: true,
           leagueId: true,
+          logoPath: true,
           userId: true
         }
       });
@@ -420,9 +426,18 @@ export async function leaveLeagueAction(teamId: string, formData: FormData) {
       });
 
       return {
-        leagueId: team.leagueId
+        leagueId: team.leagueId,
+        logoPath: team.logoPath
       };
     });
+
+    if (result.logoPath) {
+      try {
+        await deleteTeamLogoObject(result.logoPath);
+      } catch {
+        // Best-effort: team row is already gone.
+      }
+    }
 
     revalidatePath("/me");
     revalidatePath(`/leagues/${result.leagueId}`);
@@ -436,6 +451,85 @@ export async function leaveLeagueAction(teamId: string, formData: FormData) {
           error,
           "Impossibile abbandonare la lega."
         )
+      })
+    );
+  }
+}
+
+export async function uploadTeamLogoAction(formData: FormData) {
+  const teamIdValue = formData.get("teamId");
+  const teamId = typeof teamIdValue === "string" ? teamIdValue.trim() : "";
+
+  if (!teamId) {
+    redirect("/me?notice=Squadra%20non%20valida.");
+  }
+
+  try {
+    const access = await requireOwnedFantasyTeam(teamId);
+    const fileValue = formData.get("logo");
+
+    if (!(fileValue instanceof File) || fileValue.size === 0) {
+      throw new Error("Seleziona un'immagine valida da caricare.");
+    }
+
+    const mimeType =
+      typeof fileValue.type === "string" && fileValue.type.length > 0
+        ? fileValue.type
+        : "application/octet-stream";
+    const rawBuffer = Buffer.from(await fileValue.arrayBuffer());
+
+    await uploadTeamLogo({
+      leagueId: access.team.leagueId,
+      mimeType,
+      rawBuffer,
+      teamId: access.team.id
+    });
+
+    revalidatePath("/me");
+    revalidatePath(`/me/teams/${access.team.id}`);
+    revalidatePath(`/leagues/${access.team.leagueId}`);
+    revalidatePath(`/leagues/${access.team.leagueId}/standings`);
+
+    redirect(
+      buildTeamRedirectPath(access.team.id, {
+        notice: "Logo aggiornato."
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        error: getActionErrorMessage(error, "Impossibile caricare il logo.")
+      })
+    );
+  }
+}
+
+export async function removeTeamLogoAction(formData: FormData) {
+  const teamIdValue = formData.get("teamId");
+  const teamId = typeof teamIdValue === "string" ? teamIdValue.trim() : "";
+
+  if (!teamId) {
+    redirect("/me?notice=Squadra%20non%20valida.");
+  }
+
+  try {
+    const access = await requireOwnedFantasyTeam(teamId);
+    await removeTeamLogo(access.team.id);
+
+    revalidatePath("/me");
+    revalidatePath(`/me/teams/${access.team.id}`);
+    revalidatePath(`/leagues/${access.team.leagueId}`);
+    revalidatePath(`/leagues/${access.team.leagueId}/standings`);
+
+    redirect(
+      buildTeamRedirectPath(access.team.id, {
+        notice: "Logo rimosso."
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        error: getActionErrorMessage(error, "Impossibile rimuovere il logo.")
       })
     );
   }

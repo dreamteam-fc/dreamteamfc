@@ -22,6 +22,8 @@ function createEmptyStanding(teamId: string, teamName: string): LeagueStandingRo
     goalsAgainst: 0,
     goalsFor: 0,
     leaguePoints: 0,
+    logoPath: null,
+    logoUpdatedAt: null,
     losses: 0,
     played: 0,
     teamId,

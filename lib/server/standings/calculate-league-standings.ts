@@ -11,6 +11,8 @@ export type LeagueStandingRow = {
   goalsAgainst: number;
   goalsFor: number;
   leaguePoints: number;
+  logoPath: string | null;
+  logoUpdatedAt: Date | null;
   losses: number;
   played: number;
   teamId: string;
@@ -33,7 +35,12 @@ export type PublishedFixtureStandingInput = {
   homeTotalScore: number;
 };
 
-function createEmptyStanding(team: { id: string; name: string }): LeagueStandingRow {
+function createEmptyStanding(team: {
+  id: string;
+  logoPath: string | null;
+  name: string;
+  updatedAt: Date;
+}): LeagueStandingRow {
   return {
     bestFantasyScore: 0,
     draws: 0,
@@ -42,6 +49,8 @@ function createEmptyStanding(team: { id: string; name: string }): LeagueStanding
     goalsAgainst: 0,
     goalsFor: 0,
     leaguePoints: 0,
+    logoPath: team.logoPath,
+    logoUpdatedAt: team.logoPath ? team.updatedAt : null,
     losses: 0,
     played: 0,
     teamId: team.id,
@@ -123,7 +132,9 @@ export async function calculateLeagueStandings(
       orderBy: [{ name: "asc" }, { id: "asc" }],
       select: {
         id: true,
-        name: true
+        logoPath: true,
+        name: true,
+        updatedAt: true
       }
     }),
     prisma.fantasyFixture.findMany({

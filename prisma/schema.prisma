@@ -198,6 +198,7 @@ model FantasyTeam {
   leagueId     String
   userId       String
   name         String
+  logoPath     String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   league       League           @relation(fields: [leagueId], references: [id], onDelete: Cascade)

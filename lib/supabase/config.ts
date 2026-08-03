@@ -1,6 +1,7 @@
 const SUPABASE_URL_ENV = "NEXT_PUBLIC_SUPABASE_URL";
 const SUPABASE_PUBLISHABLE_KEY_ENV = "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY";
 const SUPABASE_ANON_KEY_ENV = "NEXT_PUBLIC_SUPABASE_ANON_KEY";
+const SUPABASE_SERVICE_ROLE_KEY_ENV = "SUPABASE_SERVICE_ROLE_KEY";
 
 export function getSupabaseUrl() {
   const value = process.env[SUPABASE_URL_ENV];
@@ -21,6 +22,17 @@ export function getSupabasePublishableKey() {
     throw new Error(
       `${SUPABASE_PUBLISHABLE_KEY_ENV} or ${SUPABASE_ANON_KEY_ENV} must be configured.`
     );
+  }
+
+  return value;
+}
+
+/** Server-only. Used for Storage uploads after app-level auth checks. */
+export function getSupabaseServiceRoleKey() {
+  const value = process.env[SUPABASE_SERVICE_ROLE_KEY_ENV];
+
+  if (!value) {
+    throw new Error(`${SUPABASE_SERVICE_ROLE_KEY_ENV} is not configured.`);
   }
 
   return value;

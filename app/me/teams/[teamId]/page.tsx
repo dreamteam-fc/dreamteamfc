@@ -9,6 +9,8 @@ import {
   revokeTeamCoachInviteAction
 } from "@/app/me/actions";
 import { CopyableInviteLink } from "@/components/me/copyable-invite-link";
+import { TeamLogoManager } from "@/components/me/team-logo-manager";
+import { TeamLogo } from "@/components/teams/team-logo";
 import { getPlayerRoleLabel } from "@/lib/players/player-role";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 import { listTeamCoachManagement } from "@/lib/server/coaches/team-coach-invites";
@@ -18,6 +20,7 @@ import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-
 import {
   canManageCoachInvites,
   canManageRoster,
+  canManageTeamLogo,
   canViewTeamAsCoachOrOwner,
   resolveTeamAccessRole
 } from "@/lib/server/teams/team-access";
@@ -118,6 +121,7 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
   const isOwner = accessRole === "owner";
   const isCoach = accessRole === "coach";
   const showRosterManage = canManageRoster(accessRole);
+  const showLogoManage = canManageTeamLogo(accessRole);
   const showCoachManage = canManageCoachInvites(accessRole);
   const coachManagement = showCoachManage
     ? await listTeamCoachManagement(team.id)
@@ -170,11 +174,21 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900">{team.name}</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Lega: <strong>{team.league.name}</strong>
-            </p>
+          <div className="flex min-w-0 items-center gap-4">
+            <TeamLogo
+              alt={`Logo ${team.name}`}
+              cacheBust={team.updatedAt}
+              logoPath={team.logoPath}
+              size="md"
+            />
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {team.name}
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Lega: <strong>{team.league.name}</strong>
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -201,6 +215,14 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
           </div>
         </div>
       </section>
+
+      <TeamLogoManager
+        canManage={showLogoManage}
+        logoPath={team.logoPath}
+        teamId={team.id}
+        teamName={team.name}
+        updatedAt={team.updatedAt}
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">Stato rosa</h2>

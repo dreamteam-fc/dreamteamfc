@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { TeamLogo } from "@/components/teams/team-logo";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 import { getUserDashboardData } from "@/lib/server/me/read-user-data";
 import { getUserTournamentFixtures } from "@/lib/server/tournaments/read-user-tournament-data";
@@ -150,13 +151,21 @@ export default async function MePage({ searchParams }: MePageProps) {
                 className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      {team.name}
-                    </h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Lega: <strong>{team.league.name}</strong>
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <TeamLogo
+                      alt={`Logo ${team.name}`}
+                      cacheBust={team.updatedAt}
+                      logoPath={team.logoPath}
+                      size="sm"
+                    />
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {team.name}
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Lega: <strong>{team.league.name}</strong>
+                      </p>
+                    </div>
                   </div>
 
                   <Link
@@ -208,17 +217,27 @@ export default async function MePage({ searchParams }: MePageProps) {
                 className="space-y-4 rounded-2xl border border-cyan-200 bg-cyan-50/60 p-5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      {team.name}
-                    </h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Lega: <strong>{team.league.name}</strong> | Proprietario:{" "}
-                      <strong>{team.owner.displayName ?? team.owner.email}</strong>
-                    </p>
-                    <p className="mt-1 text-xs font-medium uppercase tracking-wide text-cyan-800">
-                      Solo formazioni
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <TeamLogo
+                      alt={`Logo ${team.name}`}
+                      cacheBust={team.updatedAt}
+                      logoPath={team.logoPath}
+                      size="sm"
+                    />
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {team.name}
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Lega: <strong>{team.league.name}</strong> | Proprietario:{" "}
+                        <strong>
+                          {team.owner.displayName ?? team.owner.email}
+                        </strong>
+                      </p>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-cyan-800">
+                        Solo formazioni
+                      </p>
+                    </div>
                   </div>
 
                   <Link

@@ -50,6 +50,11 @@ export function canManageRoster(role: TeamAccessRole | null): boolean {
   return role === "owner" || role === "admin";
 }
 
+/** Logo: owner or platform Admin only. Coach/Mister never manage logos. */
+export function canManageTeamLogo(role: TeamAccessRole | null): boolean {
+  return role === "owner" || role === "admin";
+}
+
 export function canManageLineup(role: TeamAccessRole | null): boolean {
   return role === "owner" || role === "coach" || role === "admin";
 }
