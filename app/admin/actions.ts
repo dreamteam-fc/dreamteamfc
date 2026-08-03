@@ -45,6 +45,10 @@ import {
   adminRemovePlayerFromRoster,
   adminReplacePlayerInRoster
 } from "@/lib/server/rosters/admin-roster-mutations.ts";
+import {
+  formatGenerateAllRandomLineupsNotice,
+  generateAllRandomLineups
+} from "@/lib/server/lineups/generate-all-random-lineups.ts";
 import { generateRandomLineupsForMatchday } from "@/lib/server/lineups/generate-random-lineups-for-matchday.ts";
 
 const VOTE_FIELD_NAMES = [
@@ -1079,6 +1083,48 @@ export async function generateAllLeagueSchedulesAction(formData: FormData) {
       error instanceof Error
         ? error.message
         : "Generazione calendari multi-lega non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function generateAllRandomLineupsAction(formData: FormData) {
+  await assertAdminAction();
+
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ?? "/admin";
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const summary = await generateAllRandomLineups();
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/lineups");
+
+    for (const item of summary.generated) {
+      revalidatePath(`/admin/matchdays/${item.result.matchdayId}`);
+      revalidatePath(`/leagues/${item.leagueId}`);
+      revalidateLeaguePaths(item.leagueId);
+
+      const teams = await prisma.fantasyTeam.findMany({
+        where: { leagueId: item.leagueId },
+        select: { id: true }
+      });
+      for (const team of teams) {
+        revalidatePath(`/me/teams/${team.id}`);
+        revalidatePath(
+          `/me/teams/${team.id}/matchdays/${item.result.matchdayId}/lineup`
+        );
+      }
+    }
+
+    notice = formatGenerateAllRandomLineupsNotice(summary);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Generazione formazioni multi-lega non riuscita.";
   }
 
   redirectWithMessage(redirectPath, { error: errorMessage, notice });

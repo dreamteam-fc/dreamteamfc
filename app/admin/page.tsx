@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import {
   generateAllLeagueSchedulesAction,
+  generateAllRandomLineupsAction,
   generateRandomLineupsForMatchdayAction,
   resetLeagueDataAction
 } from "@/app/admin/actions";
@@ -123,6 +124,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Genera calendari
+                  </PendingSubmitButton>
+                </form>
+                <form action={generateAllRandomLineupsAction}>
+                  <input type="hidden" name="redirectPath" value="/admin" />
+                  <PendingSubmitButton
+                    pendingLabel="Generazione formazioni…"
+                    className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Genera formazioni
                   </PendingSubmitButton>
                 </form>
                 <Link
