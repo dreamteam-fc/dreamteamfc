@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import {
@@ -11,6 +10,7 @@ import {
   ensureAppUserForAuthUser,
   getSafeNextPath
 } from "@/lib/auth/app-user";
+import { buildAbsoluteAppUrl } from "@/lib/server/http/app-origin.ts";
 import { createSupabaseServerClient } from "@/lib/supabase/server.ts";
 
 function redirectToLogin(
@@ -148,24 +148,6 @@ function validatePasswordOrRedirect(
   }
 }
 
-async function getRequestOrigin() {
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const protocol =
-    headerStore.get("x-forwarded-proto") ??
-    (process.env.NODE_ENV === "development" ? "http" : "https");
-
-  if (!host) {
-    throw new Error("Host della richiesta non disponibile.");
-  }
-
-  return `${protocol}://${host}`;
-}
-
-async function buildAbsoluteUrl(pathname: string) {
-  return new URL(pathname, await getRequestOrigin()).toString();
-}
-
 export async function signupAction(formData: FormData) {
   const rawDisplayName = formData.get("displayName");
   const rawEmail = formData.get("email");
@@ -197,7 +179,7 @@ export async function signupAction(formData: FormData) {
   );
 
   const supabase = await createSupabaseServerClient();
-  const emailRedirectTo = await buildAbsoluteUrl(
+  const emailRedirectTo = await buildAbsoluteAppUrl(
     `/auth/confirm?next=${encodeURIComponent(nextPath)}`
   );
   const metadata =
@@ -292,7 +274,7 @@ export async function forgotPasswordAction(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
   const resetNextPath = buildResetPasswordPath({ next: nextPath });
-  const redirectTo = await buildAbsoluteUrl(
+  const redirectTo = await buildAbsoluteAppUrl(
     `/auth/confirm?next=${encodeURIComponent(resetNextPath)}`
   );
 

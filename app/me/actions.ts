@@ -14,6 +14,7 @@ import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 import {
   acceptTeamCoachInvite,
   createTeamCoachInvite,
+  regenerateTeamCoachInvite,
   revokeActiveTeamCoach,
   revokeTeamCoachInvite
 } from "@/lib/server/coaches/team-coach-invites.ts";
@@ -981,6 +982,43 @@ export async function revokeTeamCoachInviteAction(formData: FormData) {
           error instanceof Error
             ? error.message
             : "Impossibile revocare l'invito."
+      })
+    );
+  }
+}
+
+export async function regenerateTeamCoachInviteAction(formData: FormData) {
+  const rawTeamId = formData.get("teamId");
+  const rawInviteId = formData.get("inviteId");
+  const teamId = typeof rawTeamId === "string" ? rawTeamId : "";
+  const inviteId = typeof rawInviteId === "string" ? rawInviteId : "";
+
+  if (teamId.length === 0 || inviteId.length === 0) {
+    redirect("/me");
+  }
+
+  const access = await requireOwnedFantasyTeam(teamId, { allowAdmin: false });
+
+  try {
+    const invite = await regenerateTeamCoachInvite({
+      inviteId,
+      ownerUserId: access.appUserId
+    });
+
+    revalidatePath(`/me/teams/${teamId}`);
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        coachInviteToken: invite.token,
+        notice: `Nuovo link creato per ${invite.inviteeEmail}. Il link precedente non e piu valido. Copia il link qui sotto e invialo all'allenatore.`
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildTeamRedirectPath(teamId, {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossibile rigenerare il link invito."
       })
     );
   }

@@ -4,12 +4,15 @@ import { notFound } from "next/navigation";
 import {
   inviteTeamCoachAction,
   leaveLeagueAction,
+  regenerateTeamCoachInviteAction,
   revokeTeamCoachAction,
   revokeTeamCoachInviteAction
 } from "@/app/me/actions";
+import { CopyableInviteLink } from "@/components/me/copyable-invite-link";
 import { getPlayerRoleLabel } from "@/lib/players/player-role";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 import { listTeamCoachManagement } from "@/lib/server/coaches/team-coach-invites";
+import { buildTeamCoachInviteUrl } from "@/lib/server/http/app-origin";
 import { getUserTeamPageData } from "@/lib/server/me/read-user-data";
 import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-composition";
 import {
@@ -135,19 +138,25 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
   const nextMatchdaySummary = team.nextMatchday
     ? getFixtureSummary(team.id, team.nextMatchday.fixtures[0])
     : null;
+  const coachInviteUrl = coachInviteToken
+    ? await buildTeamCoachInviteUrl(coachInviteToken)
+    : null;
 
   return (
     <div className="space-y-6">
       <Feedback error={error} notice={notice} />
 
-      {coachInviteToken ? (
+      {coachInviteUrl ? (
         <section className="rounded-2xl border border-brand-blue/30 bg-blue-50 p-5 text-sm text-slate-800">
           <p className="font-semibold text-brand-ink">Link invito allenatore</p>
-          <p className="mt-2 break-all font-mono text-xs sm:text-sm">
-            {`/me/coach-invites/${coachInviteToken}`}
-          </p>
           <p className="mt-2 text-slate-600">
-            Condividi questo link con l&apos;allenatore. Scade tra 14 giorni.
+            Copia e invia questo link all&apos;allenatore. Viene mostrato solo
+            ora: se lo perdi, usa &quot;Nuovo link&quot; sull&apos;invito
+            pendente.
+          </p>
+          <CopyableInviteLink url={coachInviteUrl} />
+          <p className="mt-2 text-slate-600">
+            Scade tra 14 giorni. Non viene inviata alcuna email automatica.
           </p>
         </section>
       ) : null}
@@ -382,7 +391,9 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
           <h2 className="text-xl font-semibold text-slate-900">Allenatore</h2>
           <p className="mt-2 text-sm text-slate-600">
             Invita un account che potra solo schierare la formazione di questa
-            squadra.
+            squadra. Dopo &quot;Crea invito&quot; (o &quot;Nuovo link&quot;)
+            compare il link assoluto da copiare e condividere manualmente: non
+            viene inviata alcuna email.
           </p>
 
           {coachManagement.activeCoaches.length > 0 ? (
@@ -431,17 +442,33 @@ export default async function TeamPage({ params, searchParams }: TeamPageProps) 
                         dateStyle: "medium"
                       }).format(invite.expiresAt)}
                     </span>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Il token non e recuperabile: usa &quot;Nuovo link&quot; per
+                      generarne uno fresco da copiare.
+                    </p>
                   </div>
-                  <form action={revokeTeamCoachInviteAction}>
-                    <input type="hidden" name="teamId" value={team.id} />
-                    <input type="hidden" name="inviteId" value={invite.id} />
-                    <button
-                      type="submit"
-                      className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-medium text-amber-800 transition hover:border-amber-400"
-                    >
-                      Annulla invito
-                    </button>
-                  </form>
+                  <div className="flex flex-wrap gap-2">
+                    <form action={regenerateTeamCoachInviteAction}>
+                      <input type="hidden" name="teamId" value={team.id} />
+                      <input type="hidden" name="inviteId" value={invite.id} />
+                      <button
+                        type="submit"
+                        className="rounded-xl border border-brand-blue/40 bg-white px-3 py-2 font-medium text-brand-ink transition hover:border-brand-blue"
+                      >
+                        Nuovo link
+                      </button>
+                    </form>
+                    <form action={revokeTeamCoachInviteAction}>
+                      <input type="hidden" name="teamId" value={team.id} />
+                      <input type="hidden" name="inviteId" value={invite.id} />
+                      <button
+                        type="submit"
+                        className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-medium text-amber-800 transition hover:border-amber-400"
+                      >
+                        Annulla invito
+                      </button>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>

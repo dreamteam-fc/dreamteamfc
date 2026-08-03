@@ -130,6 +130,53 @@ export async function revokeTeamCoachInvite(options: {
   });
 }
 
+/**
+ * Replaces a pending invite with a fresh token (old link stops working).
+ * Needed because tokens are stored hashed and cannot be reconstructed.
+ */
+export async function regenerateTeamCoachInvite(options: {
+  inviteId: string;
+  ownerUserId: string;
+}) {
+  const invite = await prisma.teamCoachInvite.findUnique({
+    where: { id: options.inviteId },
+    select: {
+      id: true,
+      status: true,
+      expiresAt: true,
+      inviteeEmail: true,
+      fantasyTeamId: true,
+      fantasyTeam: {
+        select: {
+          userId: true
+        }
+      }
+    }
+  });
+
+  if (!invite || invite.fantasyTeam.userId !== options.ownerUserId) {
+    throw new Error("Invito non trovato.");
+  }
+
+  if (invite.status !== TeamCoachInviteStatus.PENDING) {
+    throw new Error("L'invito non e piu pendente.");
+  }
+
+  if (invite.expiresAt.getTime() < Date.now()) {
+    await prisma.teamCoachInvite.update({
+      where: { id: invite.id },
+      data: { status: TeamCoachInviteStatus.EXPIRED }
+    });
+    throw new Error("Invito scaduto. Crea un nuovo invito.");
+  }
+
+  return createTeamCoachInvite({
+    fantasyTeamId: invite.fantasyTeamId,
+    invitedById: options.ownerUserId,
+    inviteeEmail: invite.inviteeEmail
+  });
+}
+
 export async function revokeActiveTeamCoach(options: {
   fantasyTeamId: string;
   ownerUserId: string;
