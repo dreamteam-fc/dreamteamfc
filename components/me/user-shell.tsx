@@ -5,11 +5,18 @@ import { BrandMark } from "@/components/brand/brand-mark";
 
 type UserShellProps = {
   children: React.ReactNode;
+  /** Platform Admin only — link to /admin. Mister/USER must not see this. */
+  showAdminLink?: boolean;
   subtitle?: string;
   title: string;
 };
 
-export function UserShell({ children, subtitle, title }: UserShellProps) {
+export function UserShell({
+  children,
+  showAdminLink = false,
+  subtitle,
+  title
+}: UserShellProps) {
   return (
     <main className="min-h-screen bg-brand-fog px-6 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -44,6 +51,14 @@ export function UserShell({ children, subtitle, title }: UserShellProps) {
               >
                 Tornei
               </Link>
+              {showAdminLink ? (
+                <Link
+                  href="/admin"
+                  className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+                >
+                  Admin
+                </Link>
+              ) : null}
               <form action={logoutAction}>
                 <button
                   type="submit"
