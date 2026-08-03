@@ -19,7 +19,7 @@ import {
   PrismaClient,
   UserRole
 } from "@prisma/client";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { hashSecret } from "../lib/server/security/secret-hash.ts";
 import {
@@ -47,6 +47,20 @@ const ROLE_QUOTAS: Array<{ role: PlayerRole; count: number }> = [
 type AuthUserRef = { id: string; email: string };
 type AppUserRef = { id: string; email: string; authUserId: string | null };
 type PlayerRef = { id: string; role: PlayerRole };
+/** Loose client type: bare `ReturnType<typeof createClient>` is too narrow vs runtime clients. */
+type ServiceRoleSupabase = SupabaseClient<any, "public", any>;
+
+function createServiceRoleClient(
+  url: string,
+  serviceRoleKey: string
+): ServiceRoleSupabase {
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
 
 function loadLocalEnvFile() {
   const envPath = path.resolve(process.cwd(), ".env");
@@ -163,7 +177,7 @@ function buildRandomRoster(pools: Map<PlayerRole, PlayerRef[]>): PlayerRef[] {
 }
 
 async function findAuthUserByEmail(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ServiceRoleSupabase,
   email: string
 ): Promise<AuthUserRef | null> {
   const normalized = email.toLowerCase();
@@ -200,7 +214,7 @@ async function findAuthUserByEmail(
 }
 
 async function ensureAuthUser(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ServiceRoleSupabase,
   email: string,
   displayName: string
 ): Promise<AuthUserRef> {
@@ -341,12 +355,7 @@ async function main() {
   }
 
   const prisma = new PrismaClient();
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
+  const supabase = createServiceRoleClient(supabaseUrl, serviceRoleKey);
 
   try {
     const activePlayers = await prisma.player.findMany({
