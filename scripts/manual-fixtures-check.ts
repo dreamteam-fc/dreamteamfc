@@ -2,7 +2,11 @@ import { MatchdayStatus } from "@prisma/client";
 
 import { prisma } from "../lib/prisma.ts";
 import { calculateFantasyFixtureResults } from "../lib/server/fixtures/calculate-fantasy-fixture-results.ts";
-import { getFixtureForfeitOutcome } from "../lib/server/fixtures/fixture-forfeit.ts";
+import {
+  getFixtureForfeitOutcome,
+  resolveFixtureSideScore,
+  shouldShowFixtureForfeitNote
+} from "../lib/server/fixtures/fixture-forfeit.ts";
 import { generateFantasyFixtures } from "../lib/server/fixtures/generate-fantasy-fixtures.ts";
 import { calculateLeagueStandings } from "../lib/server/standings/calculate-league-standings.ts";
 import {
@@ -135,6 +139,33 @@ function runFixtureForfeitScenarioChecks() {
       homeTeamScoreId: null
     }) === "DOUBLE_FORFEIT",
     "Expected double forfeit when neither team score exists."
+  );
+
+  const scoresByTeam = new Map([
+    ["home", { id: "home-score", totalScore: 40 }],
+    ["away", { id: "away-score", totalScore: 35 }]
+  ]);
+  assert(
+    resolveFixtureSideScore({
+      linkedScore: null,
+      teamId: "home",
+      teamScoresByTeamId: scoresByTeam
+    })?.id === "home-score",
+    "Expected resolveFixtureSideScore to fall back to matchday TeamScores."
+  );
+  assert(
+    shouldShowFixtureForfeitNote({
+      fixtureStatus: "SCHEDULED",
+      matchdayHasTeamScores: false
+    }) === false,
+    "Expected no forfeit note on SCHEDULED fixtures before TeamScores exist."
+  );
+  assert(
+    shouldShowFixtureForfeitNote({
+      fixtureStatus: "SCHEDULED",
+      matchdayHasTeamScores: true
+    }) === true,
+    "Expected forfeit notes once matchday TeamScores exist."
   );
 
   console.log("Fixture forfeit scenario checks passed.");

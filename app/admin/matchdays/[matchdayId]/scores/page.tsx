@@ -9,7 +9,12 @@ import {
   generateFantasyFixturesAction,
   publishMatchdayAction
 } from "@/app/admin/actions";
-import { getFixtureAdminNote, getFixtureForfeitOutcome } from "@/lib/server/fixtures/fixture-forfeit";
+import {
+  getFixtureAdminNote,
+  getFixtureForfeitOutcome,
+  resolveFixtureSideScore,
+  shouldShowFixtureForfeitNote
+} from "@/lib/server/fixtures/fixture-forfeit";
 import { getAdminMatchdayScoresData } from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +87,16 @@ export default async function AdminMatchdayScoresPage({
   const canPublish =
     data.matchday.status === "SCORES_CALCULATED" ||
     (data.matchday.status === "PUBLISHED" && hasCalculatedFixtures);
+  const teamScoresByTeamId = new Map(
+    data.matchday.teamScores.map((teamScore) => [
+      teamScore.fantasyTeam.id,
+      {
+        id: teamScore.id,
+        totalScore: teamScore.totalScore
+      }
+    ])
+  );
+  const matchdayHasTeamScores = data.matchday.teamScores.length > 0;
 
   return (
     <AdminShell
@@ -229,11 +244,26 @@ export default async function AdminMatchdayScoresPage({
 
             {data.matchday.fixtures.map((fixture) => (
               (() => {
-                const forfeitOutcome = getFixtureForfeitOutcome({
-                  awayTeamScoreId: fixture.awayTeamScore?.id ?? null,
-                  homeTeamScoreId: fixture.homeTeamScore?.id ?? null
+                const homeTeamScore = resolveFixtureSideScore({
+                  linkedScore: fixture.homeTeamScore,
+                  teamId: fixture.homeTeam.id,
+                  teamScoresByTeamId
                 });
-                const fixtureNote = getFixtureAdminNote(forfeitOutcome);
+                const awayTeamScore = resolveFixtureSideScore({
+                  linkedScore: fixture.awayTeamScore,
+                  teamId: fixture.awayTeam.id,
+                  teamScoresByTeamId
+                });
+                const forfeitOutcome = getFixtureForfeitOutcome({
+                  awayTeamScoreId: awayTeamScore?.id ?? null,
+                  homeTeamScoreId: homeTeamScore?.id ?? null
+                });
+                const fixtureNote = shouldShowFixtureForfeitNote({
+                  fixtureStatus: fixture.status,
+                  matchdayHasTeamScores
+                })
+                  ? getFixtureAdminNote(forfeitOutcome)
+                  : null;
 
                 return (
                   <div
@@ -248,9 +278,13 @@ export default async function AdminMatchdayScoresPage({
                         </p>
                         <p className="mt-2 text-sm text-slate-600">
                           Fantapunti: {fixture.homeTeam.name}{" "}
-                          <strong>{formatScore(fixture.homeTeamScore?.totalScore ?? null)}</strong>{" "}
+                          <strong>
+                            {formatScore(homeTeamScore?.totalScore ?? null)}
+                          </strong>{" "}
                           | {fixture.awayTeam.name}{" "}
-                          <strong>{formatScore(fixture.awayTeamScore?.totalScore ?? null)}</strong>
+                          <strong>
+                            {formatScore(awayTeamScore?.totalScore ?? null)}
+                          </strong>
                         </p>
                         {fixtureNote ? (
                           <p className="mt-2 text-sm text-amber-700">{fixtureNote}</p>

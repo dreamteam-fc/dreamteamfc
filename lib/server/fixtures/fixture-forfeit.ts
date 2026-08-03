@@ -4,6 +4,14 @@ export type FixtureForfeitOutcome =
   | "NONE"
   | "AWAY_WIN_BY_FORFEIT";
 
+/**
+ * Forfeit is derived from TeamScore presence for each side.
+ *
+ * Important: FantasyFixture.homeTeamScoreId / awayTeamScoreId are only written
+ * when fixture results are calculated. Before that step, callers must resolve
+ * score ids from Matchday.teamScores by fantasyTeamId — otherwise every
+ * SCHEDULED fixture looks like a double forfeit even when lineups/scores exist.
+ */
 export function getFixtureForfeitOutcome(input: {
   awayTeamScoreId: string | null;
   homeTeamScoreId: string | null;
@@ -37,4 +45,34 @@ export function getFixtureAdminNote(outcome: FixtureForfeitOutcome) {
     default:
       return null;
   }
+}
+
+/**
+ * Resolve the TeamScore to show / use for forfeit before fixture results link
+ * scores onto FantasyFixture rows.
+ */
+export function resolveFixtureSideScore<T extends { id: string }>(input: {
+  linkedScore: T | null | undefined;
+  teamId: string;
+  teamScoresByTeamId: Map<string, T>;
+}): T | null {
+  return input.linkedScore ?? input.teamScoresByTeamId.get(input.teamId) ?? null;
+}
+
+/**
+ * Forfeit notes are only meaningful once TeamScores for the matchday exist
+ * (or the fixture already has calculated/published results with linked scores).
+ */
+export function shouldShowFixtureForfeitNote(input: {
+  fixtureStatus: string;
+  matchdayHasTeamScores: boolean;
+}): boolean {
+  if (
+    input.fixtureStatus === "CALCULATED" ||
+    input.fixtureStatus === "PUBLISHED"
+  ) {
+    return true;
+  }
+
+  return input.matchdayHasTeamScores;
 }
