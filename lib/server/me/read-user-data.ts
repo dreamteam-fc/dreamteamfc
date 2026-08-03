@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma.ts";
 import type { PlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition.ts";
 import { getBlockedPlayerIdsForLeague } from "@/lib/server/players/league-blocked-players.ts";
+import { getRosteredPlayerIdsForLeague } from "@/lib/server/rosters/league-player-exclusivity.ts";
 import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-composition.ts";
 
 type AppUserAccessContext = {
@@ -386,9 +387,14 @@ export async function getUserTeamRosterPageData(
     return null;
   }
 
-  const blockedPlayerIds = new Set(
-    await getBlockedPlayerIdsForLeague(team.leagueId)
-  );
+  const [blockedPlayerIds, leagueRosteredPlayerIds] = await Promise.all([
+    getBlockedPlayerIdsForLeague(team.leagueId),
+    getRosteredPlayerIdsForLeague(team.leagueId)
+  ]);
+  const excludedPlayerIds = new Set([
+    ...blockedPlayerIds,
+    ...leagueRosteredPlayerIds
+  ]);
   const [activePlayersCount, availablePlayers] = await Promise.all([
     prisma.player.count({
       where: {
@@ -398,7 +404,7 @@ export async function getUserTeamRosterPageData(
     prisma.player.findMany({
       where: {
         id: {
-          notIn: [...blockedPlayerIds]
+          notIn: [...excludedPlayerIds]
         },
         isActive: true,
         ...(normalizedSearchQuery.length > 0
@@ -422,13 +428,11 @@ export async function getUserTeamRosterPageData(
     })
   ]);
 
-  const rosterPlayerIds = new Set(team.roster.map((entry) => entry.player.id));
-
   return {
     activePlayersCount,
     availablePlayers: availablePlayers.map((player) => ({
       ...player,
-      isSelected: rosterPlayerIds.has(player.id)
+      isSelected: false
     })),
     searchQuery: normalizedSearchQuery,
     rosterValidation: validateRosterComposition(

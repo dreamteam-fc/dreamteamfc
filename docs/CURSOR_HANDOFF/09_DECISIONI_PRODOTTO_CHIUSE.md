@@ -13,6 +13,7 @@ Fonte primaria: `docs/Dream Team FC.txt` + risposte utente + file esempio
 | Regola | Valore |
 |--------|--------|
 | Rosa | **25** = 3P + 8D + 8C + 6A |
+| Esclusività giocatore | stesso `Player` **non** può stare in più `FantasyTeam` della stessa lega; DB `FantasyRoster @@unique([leagueId, playerId])` + assert in `lib/server/rosters/league-player-exclusivity.ts` |
 | Lock rosa owner | owner può add/remove **solo se count < 25**; a **count >= 25** rosa congelata (solo Admin); policy in `lib/server/rosters/roster-edit-policy.ts` |
 | Titolari | **5**: 1P + 1D + 1C + 1A + 1 libero tra D/C/A |
 | Panchina | **4**: 1 per ruolo (P, D, C, A) |

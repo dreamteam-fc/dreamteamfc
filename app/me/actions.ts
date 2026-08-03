@@ -26,6 +26,11 @@ import { parsePlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { getActionErrorMessage } from "@/lib/server/http/action-errors.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
+import {
+  assertPlayerFreeInLeague,
+  isLeaguePlayerExclusivityConflict,
+  PLAYER_ALREADY_IN_LEAGUE_ROSTER_ERROR
+} from "@/lib/server/rosters/league-player-exclusivity.ts";
 import { assertCanEditTeamRoster } from "@/lib/server/rosters/roster-edit-policy";
 import {
   REQUIRED_ROSTER_SIZE,
@@ -506,6 +511,15 @@ export async function addPlayerToRosterAction(
         throw new Error("Questo giocatore e gia presente nella rosa.");
       }
 
+      await assertPlayerFreeInLeague(
+        {
+          leagueId: fullTeam.leagueId,
+          playerId: player.id,
+          exceptFantasyTeamId: fullTeam.id
+        },
+        tx
+      );
+
       assertCanEditTeamRoster({
         mode: access.isAdmin ? "admin" : "owner",
         rosterPlayerCount: fullTeam.roster.length
@@ -520,6 +534,7 @@ export async function addPlayerToRosterAction(
       await tx.fantasyRoster.create({
         data: {
           fantasyTeamId: fullTeam.id,
+          leagueId: fullTeam.leagueId,
           playerId: player.id
         }
       });
@@ -532,9 +547,10 @@ export async function addPlayerToRosterAction(
       })
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
+    const errorMessage = isLeaguePlayerExclusivityConflict(error)
+      ? PLAYER_ALREADY_IN_LEAGUE_ROSTER_ERROR
+      : error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
         ? "Questo giocatore e gia presente nella rosa."
         : getActionErrorMessage(
             error,

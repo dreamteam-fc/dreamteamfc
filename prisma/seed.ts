@@ -327,6 +327,7 @@ async function main() {
     await prisma.fantasyRoster.createMany({
       data: rosterPlayerIds.map((playerId) => ({
         fantasyTeamId: fantasyTeam.id,
+        leagueId: fantasyTeam.leagueId,
         playerId
       })),
       skipDuplicates: true

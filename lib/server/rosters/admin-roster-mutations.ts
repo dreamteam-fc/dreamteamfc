@@ -2,6 +2,12 @@ import { Prisma, type PlayerRole, type PrismaClient } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
 import {
+  assertPlayerFreeInLeague,
+  getRosteredPlayerIdsForLeague,
+  isLeaguePlayerExclusivityConflict,
+  PLAYER_ALREADY_IN_LEAGUE_ROSTER_ERROR
+} from "./league-player-exclusivity.ts";
+import {
   REQUIRED_ROSTER_SIZE,
   validateRosterComposition
 } from "./validate-roster-composition.ts";
@@ -84,6 +90,15 @@ export async function adminAddPlayerToRoster(options: {
         throw new Error("Questo giocatore e gia presente nella rosa.");
       }
 
+      await assertPlayerFreeInLeague(
+        {
+          leagueId: team.leagueId,
+          playerId: player.id,
+          exceptFantasyTeamId: team.id
+        },
+        tx
+      );
+
       if (team.roster.length >= REQUIRED_ROSTER_SIZE) {
         throw new Error(
           `La rosa ha gia raggiunto il limite di ${REQUIRED_ROSTER_SIZE} giocatori.`
@@ -93,6 +108,7 @@ export async function adminAddPlayerToRoster(options: {
       await tx.fantasyRoster.create({
         data: {
           fantasyTeamId: team.id,
+          leagueId: team.leagueId,
           playerId: player.id
         }
       });
@@ -104,6 +120,10 @@ export async function adminAddPlayerToRoster(options: {
       };
     });
   } catch (error) {
+    if (isLeaguePlayerExclusivityConflict(error)) {
+      throw new Error(PLAYER_ALREADY_IN_LEAGUE_ROSTER_ERROR);
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -218,6 +238,15 @@ export async function adminReplacePlayerInRoster(options: {
         );
       }
 
+      await assertPlayerFreeInLeague(
+        {
+          leagueId: team.leagueId,
+          playerId: incoming.id,
+          exceptFantasyTeamId: team.id
+        },
+        tx
+      );
+
       await tx.fantasyRoster.delete({
         where: { id: outgoing.id }
       });
@@ -225,6 +254,7 @@ export async function adminReplacePlayerInRoster(options: {
       await tx.fantasyRoster.create({
         data: {
           fantasyTeamId: team.id,
+          leagueId: team.leagueId,
           playerId: incoming.id
         }
       });
@@ -236,6 +266,10 @@ export async function adminReplacePlayerInRoster(options: {
       };
     });
   } catch (error) {
+    if (isLeaguePlayerExclusivityConflict(error)) {
+      throw new Error(PLAYER_ALREADY_IN_LEAGUE_ROSTER_ERROR);
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -286,7 +320,7 @@ export async function getAdminTeamRosterData(
     return null;
   }
 
-  const [blockedRosterPlayers, blockedLeaguePlayers, league] =
+  const [blockedRosterPlayers, blockedLeaguePlayers, league, leagueRosteredIds] =
     await Promise.all([
       prisma.leagueBlockedPlayer.findMany({
         where: {
@@ -307,7 +341,8 @@ export async function getAdminTeamRosterData(
           id: true,
           name: true
         }
-      })
+      }),
+      getRosteredPlayerIdsForLeague(team.leagueId)
     ]);
 
   const blockedRosterIds = new Set(
@@ -316,7 +351,7 @@ export async function getAdminTeamRosterData(
   const blockedLeagueIds = new Set(
     blockedLeaguePlayers.map((entry) => entry.playerId)
   );
-  const rosterPlayerIds = new Set(team.roster.map((entry) => entry.playerId));
+  const leagueRosteredPlayerIds = new Set(leagueRosteredIds);
 
   const rosterWithFlags = team.roster.map((entry) => ({
     ...entry,
@@ -332,7 +367,7 @@ export async function getAdminTeamRosterData(
     where: {
       isActive: true,
       id: {
-        notIn: [...rosterPlayerIds, ...blockedLeagueIds]
+        notIn: [...leagueRosteredPlayerIds, ...blockedLeagueIds]
       },
       ...(roleFilter === "ALL" ? {} : { role: roleFilter }),
       ...(normalizedSearchQuery.length > 0

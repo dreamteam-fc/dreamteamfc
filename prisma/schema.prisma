@@ -135,6 +135,7 @@ model League {
   fantasyTeams   FantasyTeam[]
   matchdays      Matchday[]
   blockedPlayers LeagueBlockedPlayer[]
+  rosterEntries  FantasyRoster[]
   tournamentEntries TournamentTeamEntry[]
 
   @@index([createdById])
@@ -261,13 +262,19 @@ model TeamCoach {
 model FantasyRoster {
   id            String      @id @default(cuid())
   fantasyTeamId String
+  /// Denormalized from FantasyTeam.leagueId for league-wide player exclusivity.
+  leagueId      String
   playerId      String
   createdAt     DateTime    @default(now())
   fantasyTeam   FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  league        League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   player        Player      @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
   @@unique([fantasyTeamId, playerId])
+  /// Same player cannot sit on multiple fantasy teams in the same league.
+  @@unique([leagueId, playerId])
   @@index([playerId])
+  @@index([leagueId])
 }
 
 model Matchday {
