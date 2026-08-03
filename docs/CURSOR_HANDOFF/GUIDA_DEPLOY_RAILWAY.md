@@ -404,7 +404,7 @@ per il runtime dell'applicazione.
 Schema indicativo:
 
 ```env
-DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5"
 ```
 
 Cursor non deve inventare host, regione o project reference.
@@ -412,13 +412,18 @@ Cursor non deve inventare host, regione o project reference.
 Query string richiesta (o equivalente con `sslmode=require&…`):
 
 ```text
-?pgbouncer=true&connection_limit=1
+?pgbouncer=true
 ```
+
+Opzionale su Railway (singolo processo always-on): `&connection_limit=5`.
+**Non** usare `connection_limit=1` sul runtime Railway: con un solo socket Prisma
+le server action concorrenti (es. due “aggiungi giocatore” di fila) falliscono con
+`Unable to start a transaction in the given time`. Su serverless il default resta 1.
 
 Senza `pgbouncer=true` su `:6543`, Prisma + Supavisor transaction mode può fallire con
 `42P05 prepared statement "sN" already exists`. L'app in `lib/database-url.ts`
-aggiunge automaticamente `pgbouncer=true` e `connection_limit=1` se mancano, ma la
-variabile Railway deve comunque essere corretta.
+aggiunge automaticamente `pgbouncer=true` e un `connection_limit` sensato se mancano,
+ma la variabile Railway deve comunque essere corretta.
 
 ### `DIRECT_URL`
 
@@ -984,7 +989,7 @@ Errore tipico: `42P05 prepared statement "s3" already exists`.
 
 Controllare:
 
-- `DATABASE_URL` = transaction pooler porta **6543** con `pgbouncer=true` (e di solito `connection_limit=1`);
+- `DATABASE_URL` = transaction pooler porta **6543** con `pgbouncer=true` (su Railway: `connection_limit` assente o `~5`, mai `1`);
 - non usare Session `:5432` come `DATABASE_URL` runtime su Railway Free;
 - `DIRECT_URL` = Session `:5432` solo per migrate (senza `pgbouncer=true`);
 - l'app normalizza `:6543` in `lib/database-url.ts` / `lib/prisma.ts` se il flag manca.

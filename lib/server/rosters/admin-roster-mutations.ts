@@ -63,62 +63,76 @@ export async function adminAddPlayerToRoster(options: {
   playerId: string;
 }): Promise<AdminRosterMutationResult> {
   try {
-    return await prisma.$transaction(async (tx) => {
-      const team = await tx.fantasyTeam.findUnique({
-        where: { id: options.fantasyTeamId },
-        select: {
-          id: true,
-          leagueId: true,
-          roster: {
-            select: {
-              playerId: true
+    // Resolve league + assignability before opening an interactive transaction
+    // so concurrent adds only hold a connection for exclusivity + create.
+    const teamProbe = await prisma.fantasyTeam.findUnique({
+      where: { id: options.fantasyTeamId },
+      select: { id: true, leagueId: true }
+    });
+
+    if (!teamProbe) {
+      throw new Error("Squadra non trovata.");
+    }
+
+    const player = await assertPlayerAssignable(prisma, {
+      leagueId: teamProbe.leagueId,
+      playerId: options.playerId
+    });
+
+    return await prisma.$transaction(
+      async (tx) => {
+        const team = await tx.fantasyTeam.findUnique({
+          where: { id: options.fantasyTeamId },
+          select: {
+            id: true,
+            leagueId: true,
+            roster: {
+              select: {
+                playerId: true
+              }
             }
           }
+        });
+
+        if (!team) {
+          throw new Error("Squadra non trovata.");
         }
-      });
 
-      if (!team) {
-        throw new Error("Squadra non trovata.");
-      }
+        if (team.roster.some((entry) => entry.playerId === player.id)) {
+          throw new Error("Questo giocatore e gia presente nella rosa.");
+        }
 
-      const player = await assertPlayerAssignable(tx, {
-        leagueId: team.leagueId,
-        playerId: options.playerId
-      });
-
-      if (team.roster.some((entry) => entry.playerId === player.id)) {
-        throw new Error("Questo giocatore e gia presente nella rosa.");
-      }
-
-      await assertPlayerFreeInLeague(
-        {
-          leagueId: team.leagueId,
-          playerId: player.id,
-          exceptFantasyTeamId: team.id
-        },
-        tx
-      );
-
-      if (team.roster.length >= REQUIRED_ROSTER_SIZE) {
-        throw new Error(
-          `La rosa ha gia raggiunto il limite di ${REQUIRED_ROSTER_SIZE} giocatori.`
+        await assertPlayerFreeInLeague(
+          {
+            leagueId: team.leagueId,
+            playerId: player.id,
+            exceptFantasyTeamId: team.id
+          },
+          tx
         );
-      }
 
-      await tx.fantasyRoster.create({
-        data: {
+        if (team.roster.length >= REQUIRED_ROSTER_SIZE) {
+          throw new Error(
+            `La rosa ha gia raggiunto il limite di ${REQUIRED_ROSTER_SIZE} giocatori.`
+          );
+        }
+
+        await tx.fantasyRoster.create({
+          data: {
+            fantasyTeamId: team.id,
+            leagueId: team.leagueId,
+            playerId: player.id
+          }
+        });
+
+        return {
           fantasyTeamId: team.id,
           leagueId: team.leagueId,
-          playerId: player.id
-        }
-      });
-
-      return {
-        fantasyTeamId: team.id,
-        leagueId: team.leagueId,
-        rosterCount: team.roster.length + 1
-      };
-    });
+          rosterCount: team.roster.length + 1
+        };
+      },
+      { maxWait: 8_000, timeout: 12_000 }
+    );
   } catch (error) {
     if (isLeaguePlayerExclusivityConflict(error)) {
       throw new Error(PLAYER_ALREADY_IN_LEAGUE_ROSTER_ERROR);

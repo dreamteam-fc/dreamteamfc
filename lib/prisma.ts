@@ -6,7 +6,10 @@ const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
 };
 
-/** Runtime URL: pgbouncer=true on :6543 + connection_limit when missing. */
+/**
+ * Runtime URL: pgbouncer=true on :6543; connection_limit defaults to 5 on
+ * long-running hosts (Railway) and 1 on serverless — see lib/database-url.ts.
+ */
 const datasourceUrl = normalizeRuntimeDatabaseUrl(process.env.DATABASE_URL);
 
 export const prisma =

@@ -552,94 +552,106 @@ export async function addPlayerToRosterAction(
   const access = await assertTeamOwnerOrAdmin(teamId);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const fullTeam = await tx.fantasyTeam.findUnique({
+    // Preflight outside the interactive transaction so concurrent adds only
+    // contend on the short critical section (exclusivity + create).
+    if (!access.isAdmin) {
+      const membership = await prisma.leagueMember.findUnique({
         where: {
-          id: access.team.id
+          leagueId_userId: {
+            leagueId: access.team.leagueId,
+            userId: access.appUserId
+          }
         },
-        select: {
-          id: true,
-          leagueId: true,
-          roster: {
-            select: {
-              id: true,
-              playerId: true
+        select: { id: true }
+      });
+
+      if (!membership) {
+        throw new Error("Non autorizzato.");
+      }
+    }
+
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: {
+        id: true,
+        isActive: true
+      }
+    });
+
+    if (!player || !player.isActive) {
+      throw new Error("Giocatore non disponibile.");
+    }
+
+    const blockedPlayer = await prisma.leagueBlockedPlayer.findUnique({
+      where: {
+        leagueId_playerId: {
+          leagueId: access.team.leagueId,
+          playerId: player.id
+        }
+      },
+      select: { id: true }
+    });
+
+    if (blockedPlayer) {
+      throw new Error("Questo giocatore non e disponibile in questa lega.");
+    }
+
+    await prisma.$transaction(
+      async (tx) => {
+        const fullTeam = await tx.fantasyTeam.findUnique({
+          where: {
+            id: access.team.id
+          },
+          select: {
+            id: true,
+            leagueId: true,
+            roster: {
+              select: {
+                id: true,
+                playerId: true
+              }
             }
           }
+        });
+
+        if (!fullTeam) {
+          throw new Error("Squadra non trovata.");
         }
-      });
 
-      if (!fullTeam) {
-        throw new Error("Squadra non trovata.");
-      }
-
-      if (!access.isAdmin) {
-        await assertLeagueMemberInTransaction(tx, fullTeam.leagueId, access.appUserId);
-      }
-
-      const player = await tx.player.findUnique({
-        where: {
-          id: playerId
-        },
-        select: {
-          id: true,
-          isActive: true,
-          name: true
+        if (fullTeam.roster.some((entry) => entry.playerId === player.id)) {
+          throw new Error("Questo giocatore e gia presente nella rosa.");
         }
-      });
 
-      if (!player || !player.isActive) {
-        throw new Error("Giocatore non disponibile.");
-      }
+        await assertPlayerFreeInLeague(
+          {
+            leagueId: fullTeam.leagueId,
+            playerId: player.id,
+            exceptFantasyTeamId: fullTeam.id
+          },
+          tx
+        );
 
-      const blockedPlayer = await tx.leagueBlockedPlayer.findUnique({
-        where: {
-          leagueId_playerId: {
+        assertCanEditTeamRoster({
+          mode: access.isAdmin ? "admin" : "owner",
+          rosterPlayerCount: fullTeam.roster.length
+        });
+
+        if (fullTeam.roster.length >= REQUIRED_ROSTER_SIZE) {
+          throw new Error(
+            `La rosa ha gia raggiunto il limite di ${REQUIRED_ROSTER_SIZE} giocatori.`
+          );
+        }
+
+        await tx.fantasyRoster.create({
+          data: {
+            fantasyTeamId: fullTeam.id,
             leagueId: fullTeam.leagueId,
             playerId: player.id
           }
-        },
-        select: {
-          id: true
-        }
-      });
-
-      if (blockedPlayer) {
-        throw new Error("Questo giocatore non e disponibile in questa lega.");
-      }
-
-      if (fullTeam.roster.some((entry) => entry.playerId === player.id)) {
-        throw new Error("Questo giocatore e gia presente nella rosa.");
-      }
-
-      await assertPlayerFreeInLeague(
-        {
-          leagueId: fullTeam.leagueId,
-          playerId: player.id,
-          exceptFantasyTeamId: fullTeam.id
-        },
-        tx
-      );
-
-      assertCanEditTeamRoster({
-        mode: access.isAdmin ? "admin" : "owner",
-        rosterPlayerCount: fullTeam.roster.length
-      });
-
-      if (fullTeam.roster.length >= REQUIRED_ROSTER_SIZE) {
-        throw new Error(
-          `La rosa ha gia raggiunto il limite di ${REQUIRED_ROSTER_SIZE} giocatori.`
-        );
-      }
-
-      await tx.fantasyRoster.create({
-        data: {
-          fantasyTeamId: fullTeam.id,
-          leagueId: fullTeam.leagueId,
-          playerId: player.id
-        }
-      });
-    });
+        });
+      },
+      { maxWait: 8_000, timeout: 12_000 }
+    );
 
     revalidateRosterPaths(teamId);
     redirect(
