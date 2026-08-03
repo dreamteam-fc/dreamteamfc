@@ -22,6 +22,10 @@ import { calculateTournamentRoundResultsFromVotes } from "@/lib/server/tournamen
 import { importFantacalcioVotesForTournamentRound } from "@/lib/server/tournaments/import-tournament-votes.ts";
 import { lockTournamentRoundLineups } from "@/lib/server/tournaments/lock-tournament-round-lineups.ts";
 import { openTournamentRoundLineups } from "@/lib/server/tournaments/open-tournament-round-lineups.ts";
+import {
+  formatGenerateRandomTournamentLineupsNotice,
+  generateRandomTournamentLineupsForRound
+} from "@/lib/server/tournaments/generate-random-tournament-lineups-for-round.ts";
 import { generateTournamentRequiredVotes } from "@/lib/server/tournaments/tournament-votes.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
 import { saveTournamentEntries } from "@/lib/server/tournaments/tournament-entries.ts";
@@ -805,6 +809,63 @@ export async function lockTournamentRoundLineupsAction(formData: FormData) {
           : "Impossibile chiudere le formazioni della fase."
     });
   }
+}
+
+export async function generateRandomTournamentLineupsForRoundAction(
+  formData: FormData
+) {
+  await assertAdminAction();
+  const tournamentId = readRequiredString(formData, "tournamentId");
+  const roundId = readOptionalString(formData, "roundId");
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ??
+    `/admin/tournaments/${tournamentId}/bracket`;
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const result = await generateRandomTournamentLineupsForRound({
+      force: true,
+      tournamentId,
+      ...(roundId ? { roundId } : {})
+    });
+
+    revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+    revalidatePath("/me");
+
+    const teamIds = await prisma.tournamentLineup.findMany({
+      where: {
+        tournamentFixture: {
+          roundId: result.roundId
+        }
+      },
+      select: { fantasyTeamId: true },
+      distinct: ["fantasyTeamId"]
+    });
+    for (const row of teamIds) {
+      revalidatePath(`/me/teams/${row.fantasyTeamId}`);
+    }
+
+    if (result.written === 0 && result.failures.length > 0) {
+      const preview = result.failures
+        .slice(0, 3)
+        .map((failure) => `${failure.teamName}: ${failure.error}`)
+        .join(" | ");
+      throw new Error(
+        `Nessuna formazione generata. ${preview}${result.failures.length > 3 ? "…" : ""}`
+      );
+    }
+
+    notice = formatGenerateRandomTournamentLineupsNotice(result);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Generazione formazioni torneo non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
 export async function importTournamentRoundVotesAction(formData: FormData) {

@@ -5,6 +5,7 @@ import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import {
   calculateTournamentRoundFromVotesAction,
+  generateRandomTournamentLineupsForRoundAction,
   generateTournamentRoundRequiredVotesAction,
   importTournamentRoundVotesAction,
   lockTournamentRoundLineupsAction,
@@ -12,8 +13,10 @@ import {
   recordTournamentFixtureResultAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { isRequiredVoteCompletedStatus } from "@/lib/server/votes/shared";
 import { getTournamentBracketPageData } from "@/lib/server/tournaments/generate-tournament-bracket";
+import { getNextUsefulTournamentRound } from "@/lib/server/tournaments/next-useful-tournament-round";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +83,8 @@ export default async function TournamentBracketPage({
     notFound();
   }
 
+  const nextUsefulRound = getNextUsefulTournamentRound(tournament.rounds);
+
   return (
     <AdminShell
       title={`Tabellone — ${tournament.name}`}
@@ -109,6 +114,18 @@ export default async function TournamentBracketPage({
         <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
           Stato: <strong>{tournament.status}</strong>
         </span>
+        {nextUsefulRound ? (
+          <form action={generateRandomTournamentLineupsForRoundAction}>
+            <input type="hidden" name="tournamentId" value={tournament.id} />
+            <input type="hidden" name="roundId" value={nextUsefulRound.id} />
+            <PendingSubmitButton
+              pendingLabel="Generazione formazioni…"
+              className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Genera formazioni ({nextUsefulRound.name})
+            </PendingSubmitButton>
+          </form>
+        ) : null}
       </div>
 
       {tournament.entries.some((entry) => entry.seedRank != null) ? (
@@ -217,20 +234,38 @@ export default async function TournamentBracketPage({
 
                   {round.lineupsStatus ===
                   TournamentRoundLineupsStatus.OPEN ? (
-                    <form action={lockTournamentRoundLineupsAction}>
-                      <input
-                        type="hidden"
-                        name="tournamentId"
-                        value={tournament.id}
-                      />
-                      <input type="hidden" name="roundId" value={round.id} />
-                      <button
-                        type="submit"
-                        className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition hover:border-amber-400 hover:bg-amber-100"
+                    <>
+                      <form
+                        action={generateRandomTournamentLineupsForRoundAction}
                       >
-                        Chiudi formazioni
-                      </button>
-                    </form>
+                        <input
+                          type="hidden"
+                          name="tournamentId"
+                          value={tournament.id}
+                        />
+                        <input type="hidden" name="roundId" value={round.id} />
+                        <PendingSubmitButton
+                          pendingLabel="Generazione formazioni…"
+                          className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Schiera formazioni (tutte le squadre)
+                        </PendingSubmitButton>
+                      </form>
+                      <form action={lockTournamentRoundLineupsAction}>
+                        <input
+                          type="hidden"
+                          name="tournamentId"
+                          value={tournament.id}
+                        />
+                        <input type="hidden" name="roundId" value={round.id} />
+                        <button
+                          type="submit"
+                          className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition hover:border-amber-400 hover:bg-amber-100"
+                        >
+                          Chiudi formazioni
+                        </button>
+                      </form>
+                    </>
                   ) : null}
 
                   {round.lineupsStatus ===
