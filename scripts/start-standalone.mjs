@@ -1,40 +1,67 @@
 #!/usr/bin/env node
 /**
- * Railway/Docker-friendly start for Next.js standalone output.
- * Binds 0.0.0.0 and uses process.env.PORT (default 3000).
+ * Production start for Next.js standalone (Docker/Railway + local).
+ *
+ * CRITICAL: Always force HOSTNAME=0.0.0.0.
+ * Railway (and many orchestrators) inject HOSTNAME as the container name.
+ * Next standalone does `process.env.HOSTNAME || "0.0.0.0"`, so a container
+ * hostname makes the server bind to an unreachable interface → Railway
+ * Network healthcheck fails with "service unavailable" even though logs show Ready.
+ *
+ * Layouts:
+ * - Docker runner: /app/server.js (standalone copied to WORKDIR)
+ * - Local after `next build`: .next/standalone/server.js
  */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.dirname(fileURLToPath(import.meta.url));
-const appRoot = path.join(root, "..");
-const standaloneDir = path.join(appRoot, ".next", "standalone");
-const serverJs = path.join(standaloneDir, "server.js");
-const staticSrc = path.join(appRoot, ".next", "static");
-const staticDest = path.join(standaloneDir, ".next", "static");
-const publicSrc = path.join(appRoot, "public");
-const publicDest = path.join(standaloneDir, "public");
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-if (!fs.existsSync(serverJs)) {
-  console.error(`Standalone server missing at ${serverJs}. Did next build run with output: "standalone"?`);
+const candidates = [
+  path.join(appRoot, "server.js"),
+  path.join(appRoot, ".next", "standalone", "server.js")
+];
+
+const serverJs = candidates.find((p) => fs.existsSync(p));
+if (!serverJs) {
+  console.error(
+    "[start] Standalone server.js not found. Did next build run with output: \"standalone\"?"
+  );
   process.exit(1);
 }
 
-fs.mkdirSync(path.dirname(staticDest), { recursive: true });
-if (fs.existsSync(staticSrc)) {
-  fs.cpSync(staticSrc, staticDest, { recursive: true });
-}
-if (fs.existsSync(publicSrc)) {
-  fs.cpSync(publicSrc, publicDest, { recursive: true });
+const serverDir = path.dirname(serverJs);
+const isLocalStandalone = serverJs.includes(
+  `${path.sep}.next${path.sep}standalone`
+);
+
+if (isLocalStandalone) {
+  const staticSrc = path.join(appRoot, ".next", "static");
+  const staticDest = path.join(serverDir, ".next", "static");
+  const publicSrc = path.join(appRoot, "public");
+  const publicDest = path.join(serverDir, "public");
+
+  fs.mkdirSync(path.dirname(staticDest), { recursive: true });
+  if (fs.existsSync(staticSrc)) {
+    fs.cpSync(staticSrc, staticDest, { recursive: true });
+  }
+  if (fs.existsSync(publicSrc)) {
+    fs.cpSync(publicSrc, publicDest, { recursive: true });
+  }
 }
 
-process.env.HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
+// Force bind-all — do not keep Railway/container HOSTNAME.
+process.env.HOSTNAME = "0.0.0.0";
 process.env.PORT = process.env.PORT || "3000";
 
+console.log(
+  `[start] hostname=${process.env.HOSTNAME} port=${process.env.PORT} server=${serverJs}`
+);
+
 const child = spawn(process.execPath, [serverJs], {
-  cwd: standaloneDir,
+  cwd: serverDir,
   env: process.env,
   stdio: "inherit"
 });

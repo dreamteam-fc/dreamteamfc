@@ -7,7 +7,10 @@ dockerfilePath = "Dockerfile"
 # Migrate needs DIRECT_URL on Session :5432; app DATABASE_URL should be
 # Transaction :6543 with pgbouncer=true.
 preDeployCommand = "node scripts/migrate-deploy.mjs"
-startCommand = "node server.js"
+# Use start-standalone.mjs so HOSTNAME is forced to 0.0.0.0 (Railway injects
+# container hostname into HOSTNAME; Next standalone would bind only there and
+# Network healthchecks fail). Timeout 120s: Next cold start can exceed 30s.
+startCommand = "node scripts/start-standalone.mjs"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"

@@ -21,7 +21,9 @@ WORKDIR /app
 RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV HOSTNAME=0.0.0.0
+# PORT is overridden by Railway at runtime. Do NOT rely on ENV HOSTNAME here:
+# Railway injects HOSTNAME as the container name, which would override this and
+# break healthchecks. scripts/start-standalone.mjs forces 0.0.0.0 at start.
 ENV PORT=3000
 
 # Run as root: Railway terminates TLS at the edge, and preDeploy migrate needs a
@@ -53,4 +55,4 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "scripts/start-standalone.mjs"]
