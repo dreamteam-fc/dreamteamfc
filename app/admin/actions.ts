@@ -55,6 +55,11 @@ import {
   lockAllLineups
 } from "@/lib/server/lineups/lock-all-lineups.ts";
 import { lockMatchdayLineups } from "@/lib/server/lineups/lock-matchday-lineups.ts";
+import {
+  formatOpenAllLineupsNotice,
+  openAllLineups
+} from "@/lib/server/lineups/open-all-lineups.ts";
+import { openMatchdayLineups } from "@/lib/server/lineups/open-matchday-lineups.ts";
 
 const VOTE_FIELD_NAMES = [
   "assists",
@@ -1135,6 +1140,48 @@ export async function generateAllRandomLineupsAction(formData: FormData) {
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
+export async function openAllLineupsAction(formData: FormData) {
+  await assertAdminAction();
+
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ?? "/admin";
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const summary = await openAllLineups();
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/lineups");
+
+    for (const item of summary.opened) {
+      revalidateAdminPaths(item.result.matchdayId, item.leagueId);
+      revalidatePath(`/leagues/${item.leagueId}`);
+      revalidateLeaguePaths(item.leagueId);
+
+      const teams = await prisma.fantasyTeam.findMany({
+        where: { leagueId: item.leagueId },
+        select: { id: true }
+      });
+      for (const team of teams) {
+        revalidatePath(`/me/teams/${team.id}`);
+        revalidatePath(
+          `/me/teams/${team.id}/matchdays/${item.result.matchdayId}/lineup`
+        );
+      }
+    }
+
+    notice = formatOpenAllLineupsNotice(summary);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Apertura formazioni multi-lega non riuscita.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
 export async function lockAllLineupsAction(formData: FormData) {
   await assertAdminAction();
 
@@ -1181,38 +1228,11 @@ export async function openLineupsAction(matchdayId: string, _formData: FormData)
   await assertLeagueOpsAction();
 
   try {
-    const matchday = await prisma.matchday.findUnique({
-      where: {
-        id: matchdayId
-      },
-      select: {
-        id: true,
-        leagueId: true,
-        number: true,
-        status: true
-      }
-    });
+    const result = await openMatchdayLineups(matchdayId);
 
-    if (!matchday) {
-      throw new Error("Giornata non trovata.");
-    }
-
-    if (matchday.status !== MatchdayStatus.DRAFT) {
-      throw new Error("Puoi aprire le formazioni solo da stato DRAFT.");
-    }
-
-    await prisma.matchday.update({
-      where: {
-        id: matchday.id
-      },
-      data: {
-        status: MatchdayStatus.LINEUPS_OPEN
-      }
-    });
-
-    revalidateAdminPaths(matchday.id, matchday.leagueId);
-    redirectWithMessage(buildAdminMatchdayPath(matchday.id), {
-      notice: `Inserimento formazioni aperto per la giornata ${matchday.number}.`
+    revalidateAdminPaths(result.matchdayId, result.leagueId);
+    redirectWithMessage(buildAdminMatchdayPath(result.matchdayId), {
+      notice: `Inserimento formazioni aperto per la giornata ${result.matchdayNumber}.`
     });
   } catch (error) {
     redirectWithMessage(buildAdminMatchdayPath(matchdayId), {
