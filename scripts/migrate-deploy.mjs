@@ -26,7 +26,6 @@ console.log("[migrate-deploy] start");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
-const requireFromRoot = createRequire(path.join(root, "package.json"));
 
 const MAX_ATTEMPTS = 8;
 const RETRY_DELAY_MS_MIN = 8000;
@@ -58,15 +57,6 @@ loadEnvFile(path.join(root, ".env"));
 
 function exists(rel) {
   return fs.existsSync(path.join(root, rel));
-}
-
-function canRequire(id) {
-  try {
-    requireFromRoot.resolve(id);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function redactDbUrl(value) {
@@ -178,9 +168,23 @@ function printPoolExhaustionHint() {
   );
 }
 
+// Docker runner installs Prisma CLI in isolation (/opt/prisma-cli) so npm install
+// never mutates the Next standalone tree. Prefer that path; fall back to /app.
+const isolatedCli = "/opt/prisma-cli/node_modules/prisma/build/index.js";
 const localCli = path.join(root, "node_modules", "prisma", "build", "index.js");
 const schemaPath = path.join(root, "prisma", "schema.prisma");
-const localCliComplete = fs.existsSync(localCli) && canRequire("effect");
+
+function prismaCliComplete(cliPath) {
+  if (!fs.existsSync(cliPath)) return false;
+  try {
+    createRequire(cliPath).resolve("effect");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const resolvedCli = [isolatedCli, localCli].find(prismaCliComplete) || null;
 const databaseUrl = process.env.DATABASE_URL || "";
 const directUrlFromEnv = process.env.DIRECT_URL || "";
 
@@ -188,11 +192,11 @@ console.log("[migrate-deploy] cwd=", process.cwd());
 console.log("[migrate-deploy] schema=", exists("prisma/schema.prisma") ? "ok" : "MISSING");
 console.log(
   "[migrate-deploy] local CLI=",
-  fs.existsSync(localCli)
-    ? localCliComplete
-      ? `${localCli} (deps ok)`
-      : `${localCli} (INCOMPLETE: missing effect)`
-    : "MISSING"
+  resolvedCli
+    ? `${resolvedCli} (deps ok)`
+    : fs.existsSync(localCli) || fs.existsSync(isolatedCli)
+      ? "FOUND but INCOMPLETE (missing effect)"
+      : "MISSING"
 );
 console.log("[migrate-deploy] DATABASE_URL=", redactDbUrl(databaseUrl));
 console.log("[migrate-deploy] DIRECT_URL=", redactDbUrl(directUrlFromEnv));
@@ -283,10 +287,10 @@ if (/:(6543)\b/.test(migrateUrl) || /:(6543)\b/.test(databaseUrl)) {
 
 /** @type {{ command: string, args: string[], shell?: boolean }} */
 let invocation;
-if (localCliComplete) {
+if (resolvedCli) {
   invocation = {
     command: process.execPath,
-    args: [localCli, "migrate", "deploy", "--schema", schemaPath]
+    args: [resolvedCli, "migrate", "deploy", "--schema", schemaPath]
   };
 } else {
   // Fallback: global `prisma` on PATH (if image installed it that way).

@@ -36,21 +36,28 @@ COPY --from=builder /app/public ./public
 
 # Schema + migrate helper for Railway preDeploy (standalone omits these).
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder /app/scripts ./scripts
+# Keep app package.json for require resolution in migrate-deploy.mjs.
+COPY --from=builder /app/package.json ./package.json
+# Lockfile only needed to pin Prisma CLI version (not installed into /app).
+COPY --from=builder /app/package-lock.json /tmp/package-lock.json
 
-# Install a complete Prisma CLI tree (effect, c12, engines, …) into /app.
-# Selective COPY of node_modules/prisma + @prisma is NOT enough: @prisma/config
-# requires transitive deps that are easy to miss and break `migrate deploy`.
-# Prefer local install (matches migrate-deploy.mjs) over global-only.
-RUN PRISMA_VERSION="$(node -e "console.log(require('./package-lock.json').packages['node_modules/prisma'].version)")" \
-  && npm install "prisma@${PRISMA_VERSION}" --omit=dev --no-save --package-lock=false \
+# Install a complete Prisma CLI tree in isolation under /opt/prisma-cli.
+# CRITICAL: never `npm install` against /app/package.json here.
+# With caret ranges (historically next@^16.2.9) and --package-lock=false,
+# npm upgrades Next past the version baked into standalone (e.g. 16.2.9 → 16.3.0)
+# and the process crash-loops after Ready on:
+#   TypeError: Cannot read properties of undefined (reading 'validationLevel')
+RUN PRISMA_VERSION="$(node -e "console.log(require('/tmp/package-lock.json').packages['node_modules/prisma'].version)")" \
+  && mkdir -p /opt/prisma-cli \
+  && cd /opt/prisma-cli \
+  && printf '{"name":"prisma-cli","private":true}\n' > package.json \
+  && npm install "prisma@${PRISMA_VERSION}" --omit=dev --no-fund --no-audit \
   && node -e "require('effect'); require('@prisma/config'); console.log('prisma ok', require('prisma/package.json').version)" \
-  && test -f scripts/migrate-deploy.mjs \
-  && rm -f package-lock.json
+  && test -f /app/scripts/migrate-deploy.mjs \
+  && rm -f /tmp/package-lock.json /opt/prisma-cli/package.json /opt/prisma-cli/package-lock.json
 
-# Generated client from build-time `prisma generate` (keep after npm install so engines stay intact).
+# Generated client from build-time `prisma generate` (app runtime, not migrate CLI).
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
