@@ -73,8 +73,8 @@ Stato implementazione:
 
 - dominio separato: `Tournament` / `TournamentTeamEntry` / `TournamentRound` / `TournamentFixture` / lineups
 - voti per fase: `TournamentRequiredVotePlayer` + `TournamentPlayerVote` (non Matchday fake)
-- flusso: formazioni READY → genera lista → import XLS Fantacalcio → calcola gol (`convertScoreToGoals`) → avanzamento serie; manuale = override
-- UI admin: `/admin/tournaments/.../bracket`
+- flusso per fase: Apri formazioni (`lineupsStatus`) → Chiudi → genera lista → import XLS Fantacalcio → calcola gol (`convertScoreToGoals`) → avanzamento serie; manuale = override
+- UI admin: `/admin/tournaments/.../bracket` (bottoni ordinati come giornata lega)
 
 ### 3. Account allenatore invitato — **FATTO**
 

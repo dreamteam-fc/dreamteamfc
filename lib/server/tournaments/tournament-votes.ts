@@ -1,6 +1,7 @@
 import {
   RequiredVoteStatus,
   TournamentFixtureStatus,
+  TournamentRoundLineupsStatus,
   VoteStatus
 } from "@prisma/client";
 
@@ -22,6 +23,7 @@ export async function generateTournamentRequiredVotes(roundId: string) {
     select: {
       id: true,
       name: true,
+      lineupsStatus: true,
       fixtures: {
         where: { status: TournamentFixtureStatus.READY },
         select: {
@@ -40,6 +42,12 @@ export async function generateTournamentRequiredVotes(roundId: string) {
 
   if (!round) {
     throw new Error("Fase torneo non trovata.");
+  }
+
+  if (round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED) {
+    throw new Error(
+      "Genera la lista voti solo dopo aver chiuso le formazioni (LOCKED)."
+    );
   }
 
   const usage = new Map<string, number>();

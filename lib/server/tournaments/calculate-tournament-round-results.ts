@@ -1,6 +1,7 @@
 import {
   SlotType,
-  TournamentFixtureStatus
+  TournamentFixtureStatus,
+  TournamentRoundLineupsStatus
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
@@ -88,6 +89,7 @@ export async function calculateTournamentRoundResultsFromVotes(
       id: true,
       name: true,
       tournamentId: true,
+      lineupsStatus: true,
       requiredVotes: {
         select: { status: true }
       },
@@ -131,6 +133,12 @@ export async function calculateTournamentRoundResultsFromVotes(
 
   if (!round) {
     throw new Error("Fase torneo non trovata.");
+  }
+
+  if (round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED) {
+    throw new Error(
+      "Calcola i risultati solo dopo aver chiuso le formazioni (LOCKED)."
+    );
   }
 
   if (round.requiredVotes.length === 0) {

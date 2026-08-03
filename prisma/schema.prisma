@@ -466,8 +466,8 @@ model Tournament {
   status       TournamentStatus         @default(DRAFT)
   /// Hash password iscrizione torneo (mai in chiaro).
   passwordHash String
-  /// Se true, le squadre attivate possono schierare formazioni sulle partite READY.
-  lineupsOpen  Boolean                  @default(true)
+  /// Denormalizzato: true se almeno una fase ha lineupsStatus=OPEN (sync da open/lock fase).
+  lineupsOpen  Boolean                  @default(false)
   createdById  String
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
@@ -507,6 +507,13 @@ enum TournamentFixtureStatus {
   COMPLETED
 }
 
+/// Ciclo formazioni per fase torneo (allineato a Matchday LINEUPS_*).
+enum TournamentRoundLineupsStatus {
+  DRAFT
+  OPEN
+  LOCKED
+}
+
 model TournamentRound {
   id           String              @id @default(cuid())
   tournamentId String
@@ -514,6 +521,8 @@ model TournamentRound {
   roundIndex   Int
   name         String
   isFinal      Boolean             @default(false)
+  /// DRAFT → OPEN (Apri) → LOCKED (Chiudi) per fase; gating formazioni utenti.
+  lineupsStatus TournamentRoundLineupsStatus @default(DRAFT)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   tournament   Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
@@ -523,6 +532,7 @@ model TournamentRound {
 
   @@unique([tournamentId, roundIndex])
   @@index([tournamentId])
+  @@index([lineupsStatus])
 }
 
 /// Partita (o gamba) di un torneo. Serie A/R condividono seriesKey.

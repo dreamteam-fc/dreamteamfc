@@ -20,6 +20,8 @@ import { createTournament } from "@/lib/server/tournaments/create-tournament.ts"
 import { generateTournamentBracket } from "@/lib/server/tournaments/generate-tournament-bracket.ts";
 import { calculateTournamentRoundResultsFromVotes } from "@/lib/server/tournaments/calculate-tournament-round-results.ts";
 import { importFantacalcioVotesForTournamentRound } from "@/lib/server/tournaments/import-tournament-votes.ts";
+import { lockTournamentRoundLineups } from "@/lib/server/tournaments/lock-tournament-round-lineups.ts";
+import { openTournamentRoundLineups } from "@/lib/server/tournaments/open-tournament-round-lineups.ts";
 import { generateTournamentRequiredVotes } from "@/lib/server/tournaments/tournament-votes.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
 import { saveTournamentEntries } from "@/lib/server/tournaments/tournament-entries.ts";
@@ -759,39 +761,48 @@ export async function recordTournamentFixtureResultAction(formData: FormData) {
   }
 }
 
-export async function setTournamentLineupsOpenAction(formData: FormData) {
+export async function openTournamentRoundLineupsAction(formData: FormData) {
   await assertAdminAction();
-  const rawTournamentId = formData.get("tournamentId");
-  const rawOpen = formData.get("lineupsOpen");
-  const tournamentId =
-    typeof rawTournamentId === "string" ? rawTournamentId : "";
-  const lineupsOpen = rawOpen === "true";
-
-  if (tournamentId.length === 0) {
-    redirectWithMessage("/admin/tournaments", {
-      error: "Torneo non valido."
-    });
-  }
+  const tournamentId = readRequiredString(formData, "tournamentId");
+  const roundId = readRequiredString(formData, "roundId");
 
   try {
-    await prisma.tournament.update({
-      where: { id: tournamentId },
-      data: { lineupsOpen }
-    });
+    const result = await openTournamentRoundLineups(roundId);
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
     revalidatePath(`/tournaments/${tournamentId}`);
     revalidatePath("/me");
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: lineupsOpen
-        ? "Formazioni torneo aperte."
-        : "Formazioni torneo chiuse."
+      notice: `Formazioni aperte per ${result.roundName}.`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
       error:
         error instanceof Error
           ? error.message
-          : "Impossibile aggiornare lo stato formazioni."
+          : "Impossibile aprire le formazioni della fase."
+    });
+  }
+}
+
+export async function lockTournamentRoundLineupsAction(formData: FormData) {
+  await assertAdminAction();
+  const tournamentId = readRequiredString(formData, "tournamentId");
+  const roundId = readRequiredString(formData, "roundId");
+
+  try {
+    const result = await lockTournamentRoundLineups(roundId);
+    revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+    revalidatePath("/me");
+    redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
+      notice: `Formazioni chiuse per ${result.roundName}. Puoi generare la lista voti.`
+    });
+  } catch (error) {
+    redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Impossibile chiudere le formazioni della fase."
     });
   }
 }

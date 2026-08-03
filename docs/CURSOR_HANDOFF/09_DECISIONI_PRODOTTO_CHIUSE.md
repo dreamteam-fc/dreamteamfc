@@ -85,18 +85,21 @@ goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 - Seeding: alto vs basso; in 1ª fase **no** scontri stessa lega
 - Eliminazione diretta andata/ritorno; **finale solo andata**
 - Password iscrizione obbligatoria (come leghe)
-- Formazioni torneo su `TournamentFixture` READY (apri/chiudi con `Tournament.lineupsOpen`)
+- Formazioni torneo su `TournamentFixture` READY; ciclo **per fase** con `TournamentRound.lineupsStatus` (`DRAFT` → `OPEN` → `LOCKED`, come giornata lega)
+- `Tournament.lineupsOpen` resta denormalizzato (true se almeno una fase è `OPEN`)
 - Avanzamento serie via `recordTournamentFixtureResult` (pareggio aggregato → seed migliore)
 
 ### Voti Fantacalcio XLS sul torneo (scoped a `TournamentRound`)
 
-Flusso admin su `/admin/tournaments/[id]/bracket` per ogni fase:
+Flusso admin su `/admin/tournaments/[id]/bracket` per ogni fase (allineato alle giornate):
 
-1. Formazioni READY schierate
-2. **Genera lista voti** → `TournamentRequiredVotePlayer` (unione giocatori in lineup READY)
-3. **Importa XLS** → stesso parser lega (`parseFantacalcioVotesBuffer`); matching `Cod.` = `externalId`; assenti → SV
-4. **Calcola partite da voti** → fantavoto + `convertScoreToGoals` (stesse fasce campionato) → `recordTournamentFixtureResult` sulle fixture READY
-5. **Risultato manuale** resta override alternativo sulle partite READY (non forza Matchday fake)
+1. **Apri formazioni** (`DRAFT` → `OPEN`) sulle partite READY della fase
+2. Utenti schierano (solo se fase `OPEN` + fixture READY)
+3. **Chiudi formazioni** (`OPEN` → `LOCKED`)
+4. **Genera lista voti** → `TournamentRequiredVotePlayer` (unione giocatori in lineup READY)
+5. **Carica XLS** → stesso parser lega (`parseFantacalcioVotesBuffer`); matching `Cod.` = `externalId`; assenti → SV
+6. **Calcola partite da voti** → fantavoto + `convertScoreToGoals` → `recordTournamentFixtureResult` + avanzamento tabellone
+7. **Risultato manuale** resta override alternativo sulle partite READY (non forza Matchday fake)
 
 Modelli: `TournamentRequiredVotePlayer`, `TournamentPlayerVote` su `TournamentRound`.
 Libs: `lib/server/tournaments/tournament-votes.ts`, `import-tournament-votes.ts`, `calculate-tournament-round-results.ts`.

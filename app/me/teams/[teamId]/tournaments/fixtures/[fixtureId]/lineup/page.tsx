@@ -164,12 +164,17 @@ export default async function TournamentFixtureLineupPage({
       ? "Andata"
       : "Ritorno";
 
+  const roundLineupsOpen = data.fixture.round.lineupsStatus === "OPEN";
+
   let lockMessage: string | null = null;
   if (!data.activated) {
     lockMessage =
       "Sblocca prima l'accesso al torneo con la password (solo proprietario).";
-  } else if (!data.tournament.lineupsOpen) {
-    lockMessage = "Formazioni torneo chiuse.";
+  } else if (!roundLineupsOpen) {
+    lockMessage =
+      data.fixture.round.lineupsStatus === "LOCKED"
+        ? "Formazioni di questa fase chiuse."
+        : "Formazioni di questa fase non ancora aperte.";
   } else if (data.fixture.status !== "READY") {
     lockMessage = "Formazione modificabile solo su partite READY.";
   }
@@ -212,9 +217,13 @@ export default async function TournamentFixtureLineupPage({
         <h3 className="text-xl font-semibold text-slate-900">Stato partita</h3>
         <p className="mt-2 text-sm text-slate-600">
           Stato fixture: <strong>{data.fixture.status}</strong> | Formazioni
-          torneo:{" "}
+          fase:{" "}
           <strong>
-            {data.tournament.lineupsOpen ? "aperte" : "chiuse"}
+            {roundLineupsOpen
+              ? "aperte"
+              : data.fixture.round.lineupsStatus === "LOCKED"
+                ? "chiuse"
+                : "non aperte"}
           </strong>{" "}
           | Accesso:{" "}
           <strong>{data.activated ? "sbloccato" : "non sbloccato"}</strong>

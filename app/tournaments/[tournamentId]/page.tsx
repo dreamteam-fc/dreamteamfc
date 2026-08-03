@@ -40,9 +40,11 @@ export default async function TournamentPublicPage({
             </h1>
             <p className="mt-3 text-sm text-brand-mute">
               Stato: {tournament.status}
-              {tournament.lineupsOpen
-                ? " · Formazioni aperte"
-                : " · Formazioni chiuse"}
+              {tournament.rounds.some(
+                (round) => round.lineupsStatus === "OPEN"
+              )
+                ? " · Formazioni aperte (fase attiva)"
+                : " · Nessuna fase con formazioni aperte"}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link

@@ -2,6 +2,7 @@ import {
   LineupStatus,
   SlotType,
   TournamentFixtureStatus,
+  TournamentRoundLineupsStatus,
   TournamentStatus,
   type UserRole
 } from "@prisma/client";
@@ -41,10 +42,10 @@ export async function saveTournamentLineup(options: {
       round: {
         select: {
           name: true,
+          lineupsStatus: true,
           tournament: {
             select: {
               id: true,
-              lineupsOpen: true,
               name: true,
               status: true,
               entries: {
@@ -77,8 +78,10 @@ export async function saveTournamentLineup(options: {
     throw new Error("Formazione modificabile solo su partite READY.");
   }
 
-  if (!tournament.lineupsOpen) {
-    throw new Error("Le formazioni del torneo sono chiuse.");
+  if (fixture.round.lineupsStatus !== TournamentRoundLineupsStatus.OPEN) {
+    throw new Error(
+      "Le formazioni di questa fase sono chiuse (o non ancora aperte)."
+    );
   }
 
   if (

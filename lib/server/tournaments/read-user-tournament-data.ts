@@ -1,5 +1,6 @@
 import {
   TournamentFixtureStatus,
+  TournamentRoundLineupsStatus,
   TournamentStatus
 } from "@prisma/client";
 
@@ -109,8 +110,8 @@ export async function getUserTournamentFixtures(appUserId: string) {
         { awayTeamId: { in: teamIds } }
       ],
       round: {
+        lineupsStatus: TournamentRoundLineupsStatus.OPEN,
         tournament: {
-          lineupsOpen: true,
           status: {
             in: [
               TournamentStatus.BRACKET_GENERATED,
@@ -260,10 +261,10 @@ export async function getTournamentLineupPageData(
         select: {
           name: true,
           isFinal: true,
+          lineupsStatus: true,
           tournament: {
             select: {
               id: true,
-              lineupsOpen: true,
               name: true,
               status: true,
               entries: {
@@ -355,7 +356,7 @@ export async function getTournamentLineupPageData(
     canEdit:
       canManageLineup(accessRole) &&
       activated &&
-      tournament.lineupsOpen &&
+      fixture.round.lineupsStatus === TournamentRoundLineupsStatus.OPEN &&
       fixture.status === TournamentFixtureStatus.READY &&
       (tournament.status === TournamentStatus.BRACKET_GENERATED ||
         tournament.status === TournamentStatus.IN_PROGRESS) &&
