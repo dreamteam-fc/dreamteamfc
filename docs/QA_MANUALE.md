@@ -148,7 +148,7 @@ npm run players:import-api-football
 
 ### Edge case
 - Duplicato nella stessa formazione.
-- Ordine panchina non 1/2/3 o duplicato.
+- Panchina senza 1 giocatore per ruolo (P/D/C/A).
 - Player non appartenente alla rosa.
 - Player bloccato in lega o inattivo globale.
 - Tentativo di modifica fuori da `LINEUPS_OPEN`.

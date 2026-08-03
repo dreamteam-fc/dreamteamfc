@@ -26,7 +26,11 @@ export const REQUIRED_BENCH = 4;
 export const REQUIRED_TOTAL_LINEUP_PLAYERS = 9;
 export const REQUIRED_STARTER_GOALKEEPERS = 1;
 export const MIN_STARTER_OUTFIELD_PER_ROLE = 1;
-export const MAX_BENCH_ORDER = 4;
+
+export {
+  BENCH_POSITION_ORDER_BY_ROLE,
+  getBenchPositionOrderByRole
+} from "@/lib/lineups/bench-position-order.ts";
 
 function countByRole(
   players: LineupCompositionPlayer[],

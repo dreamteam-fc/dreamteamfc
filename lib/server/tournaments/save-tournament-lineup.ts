@@ -7,7 +7,10 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
-import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition.ts";
+import {
+  getBenchPositionOrderByRole,
+  validateLineupComposition
+} from "@/lib/server/lineups/validate-lineup-composition.ts";
 import { validateRosterComposition } from "@/lib/server/rosters/validate-roster-composition.ts";
 import {
   canManageLineup,
@@ -17,7 +20,6 @@ import {
 type PlayerRole = "GOALKEEPER" | "DEFENDER" | "MIDFIELDER" | "ATTACKER";
 
 export type TournamentLineupSelectionInput = {
-  benchOrder: number | null;
   playerId: string;
   selection: "BENCH" | "NONE" | "STARTER";
 };
@@ -154,7 +156,7 @@ export async function saveTournamentLineup(options: {
   }
 
   const starters: Array<{ id: string; role: PlayerRole }> = [];
-  const bench: Array<{ id: string; order: number; role: PlayerRole }> = [];
+  const bench: Array<{ id: string; role: PlayerRole }> = [];
 
   for (const selection of options.selections) {
     const player = rosterPlayerMap.get(selection.playerId);
@@ -167,26 +169,11 @@ export async function saveTournamentLineup(options: {
     }
 
     if (selection.selection === "BENCH") {
-      if (selection.benchOrder == null) {
-        throw new Error("Ogni panchinaro deve avere un ordine tra 1 e 4.");
-      }
       bench.push({
         id: player.id,
-        order: selection.benchOrder,
         role: player.role
       });
     }
-  }
-
-  const benchOrders = bench.map((entry) => entry.order).sort((a, b) => a - b);
-  if (
-    benchOrders.length !== 4 ||
-    benchOrders[0] !== 1 ||
-    benchOrders[1] !== 2 ||
-    benchOrders[2] !== 3 ||
-    benchOrders[3] !== 4
-  ) {
-    throw new Error("La panchina deve avere ordini unici 1, 2, 3 e 4.");
   }
 
   const selectedIds = [...starters, ...bench].map((entry) => entry.id);
@@ -210,6 +197,12 @@ export async function saveTournamentLineup(options: {
   if (!validation.isValid) {
     throw new Error(validation.errors[0] ?? "Formazione non valida.");
   }
+
+  const orderedBench = [...bench].sort(
+    (left, right) =>
+      getBenchPositionOrderByRole(left.role) -
+      getBenchPositionOrderByRole(right.role)
+  );
 
   await prisma.$transaction(async (tx) => {
     const lineup = await tx.tournamentLineup.upsert({
@@ -244,10 +237,10 @@ export async function saveTournamentLineup(options: {
           positionOrder: index + 1,
           slotType: SlotType.STARTER
         })),
-        ...bench.map((player) => ({
+        ...orderedBench.map((player) => ({
           lineupId: lineup.id,
           playerId: player.id,
-          positionOrder: player.order,
+          positionOrder: getBenchPositionOrderByRole(player.role),
           slotType: SlotType.BENCH
         }))
       ]

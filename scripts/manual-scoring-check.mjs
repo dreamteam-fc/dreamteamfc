@@ -143,6 +143,59 @@ function runChecks() {
     1
   );
 
+  // Scrambled bench positionOrder must not change same-role substitution.
+  const orderIndependentSub = calculateTeamScore({
+    maxSubstitutions: 1,
+    lineupPlayers: [
+      player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
+      player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, svVote()),
+      player("s3", PlayerRole.MIDFIELDER, SlotType.STARTER, 3, validVote(7)),
+      player("s4", PlayerRole.ATTACKER, SlotType.STARTER, 4, validVote(5.5)),
+      player("s5", PlayerRole.MIDFIELDER, SlotType.STARTER, 5, validVote(6)),
+      player("b1", PlayerRole.ATTACKER, SlotType.BENCH, 1, validVote(6)),
+      player("b2", PlayerRole.MIDFIELDER, SlotType.BENCH, 2, validVote(5)),
+      player("b3", PlayerRole.GOALKEEPER, SlotType.BENCH, 3, validVote(7.5)),
+      player("b4", PlayerRole.DEFENDER, SlotType.BENCH, 4, validVote(6.5))
+    ]
+  });
+  assert.equal(orderIndependentSub.substitutionsCount, 1);
+  assert.equal(orderIndependentSub.totalScore, 31);
+  assert.equal(
+    orderIndependentSub.detailLines.some(
+      (line) =>
+        line.finalType === ScorePlayerFinalType.AUTO_SUB_IN &&
+        line.playerId === "b4"
+    ),
+    true
+  );
+
+  // Same-role bench present but also SV → starter stays with score 0.
+  const sameRoleBenchAlsoSv = calculateTeamScore({
+    maxSubstitutions: 1,
+    lineupPlayers: [
+      player("s1", PlayerRole.GOALKEEPER, SlotType.STARTER, 1, validVote(6)),
+      player("s2", PlayerRole.DEFENDER, SlotType.STARTER, 2, svVote()),
+      player("s3", PlayerRole.MIDFIELDER, SlotType.STARTER, 3, validVote(6)),
+      player("s4", PlayerRole.ATTACKER, SlotType.STARTER, 4, validVote(6)),
+      player("s5", PlayerRole.MIDFIELDER, SlotType.STARTER, 5, validVote(6)),
+      player("b1", PlayerRole.GOALKEEPER, SlotType.BENCH, 1, validVote(7)),
+      player("b2", PlayerRole.DEFENDER, SlotType.BENCH, 2, svVote()),
+      player("b3", PlayerRole.MIDFIELDER, SlotType.BENCH, 3, validVote(6)),
+      player("b4", PlayerRole.ATTACKER, SlotType.BENCH, 4, validVote(6))
+    ]
+  });
+  assert.equal(sameRoleBenchAlsoSv.substitutionsCount, 0);
+  assert.equal(sameRoleBenchAlsoSv.totalScore, 24);
+  assert.equal(
+    sameRoleBenchAlsoSv.detailLines.some(
+      (line) =>
+        line.playerId === "s2" &&
+        line.finalType === ScorePlayerFinalType.SV_NOT_REPLACED &&
+        line.scoreUsed === 0
+    ),
+    true
+  );
+
   console.log("Manual scoring checks passed.");
 }
 

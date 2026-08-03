@@ -173,14 +173,14 @@ Richiesta:
 
 Impatto sul progetto attuale:
 
-- oggi non esistono vincoli di ruolo nelle sostituzioni
-- il motore usa il primo panchinaro valido disponibile in ordine
+- motore: sub solo stesso ruolo; max 1; senza ordine panchina utente
+- se manca panchina stesso ruolo (o sub gia usata): titolare resta in XI con `0`
 
 Come applicarla al progetto:
 
 - aggiornare `calculate-team-score.ts`
 - il dettaglio `TeamScorePlayer` deve salvare il motivo della sostituzione coerente con i ruoli
-- la panchina dovra mantenere sia ordine sia ruolo
+- panchina: vincolo ruolo (1/ruolo); `positionOrder` solo storage stabile, non priorita sub
 
 Osservazione importante:
 

@@ -21,7 +21,6 @@ type LineupPageProps = {
 };
 
 type ExistingLineupSelection = {
-  benchOrder: number | "";
   selection: "BENCH" | "NONE" | "STARTER";
 };
 
@@ -62,7 +61,6 @@ function getExistingLineupSelectionMap(
 
   for (const player of players ?? []) {
     selections.set(player.playerId, {
-      benchOrder: player.slotType === SlotType.BENCH ? player.positionOrder : "",
       selection: player.slotType
     });
   }
@@ -277,7 +275,7 @@ export default async function TournamentFixtureLineupPage({
               <ul className="mt-3 space-y-2 text-sm text-slate-700">
                 {bench.map((player) => (
                   <li key={player.id}>
-                    {player.positionOrder}. {player.player.name} -{" "}
+                    {player.player.name} -{" "}
                     {getPlayerRoleLabel(player.player.role)}
                   </li>
                 ))}
@@ -312,7 +310,8 @@ export default async function TournamentFixtureLineupPage({
         </h3>
         <p className="mt-2 text-sm text-slate-600">
           Seleziona 5 titolari (1P, 1D, 1C, 1A + 1 libero tra D/C/A) e 4 panchinari
-          (1 per ruolo). I panchinari devono avere ordine 1, 2, 3 e 4.
+          (1 per ruolo). In caso di SV, entra il panchinaro dello stesso ruolo (max 1
+          sostituzione per partita).
         </p>
 
         <form action={saveTournamentLineupAction} className="mt-5 space-y-5">
@@ -331,7 +330,6 @@ export default async function TournamentFixtureLineupPage({
                   <th className="px-3 py-2 font-medium">Ruolo</th>
                   <th className="px-3 py-2 font-medium">Squadra reale</th>
                   <th className="px-3 py-2 font-medium">Selezione</th>
-                  <th className="px-3 py-2 font-medium">Ordine panchina</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -366,24 +364,6 @@ export default async function TournamentFixtureLineupPage({
                           <option value="NONE">Non selezionato</option>
                           <option value="STARTER">Titolare</option>
                           <option value="BENCH">Panchina</option>
-                        </select>
-                      </td>
-                      <td className="px-3 py-2">
-                        <select
-                          name={`benchOrder:${player.id}`}
-                          defaultValue={
-                            selection?.benchOrder === ""
-                              ? ""
-                              : String(selection?.benchOrder ?? "")
-                          }
-                          disabled={!data.canEdit}
-                          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
-                        >
-                          <option value="">-</option>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="3">3</option>
-                          <option value="4">4</option>
                         </select>
                       </td>
                     </tr>

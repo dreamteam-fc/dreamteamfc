@@ -1,5 +1,6 @@
 import { ScorePlayerFinalType, SlotType } from "@prisma/client";
 
+import { BENCH_POSITION_ORDER_BY_ROLE } from "../lineups/bench-position-order.ts";
 import { calculateFantavote } from "./calculate-fantavote.ts";
 import type {
   FantavoteCalculation,
@@ -14,8 +15,58 @@ type ResolvedVote = FantavoteCalculation & {
   playerVoteId?: string;
 };
 
+/** Product default: at most one automatic substitution per match. */
 const DEFAULT_MAX_SUBSTITUTIONS = 1;
 const DEFAULT_STARTERS_COUNT = 5;
+
+function compareBenchPlayers(
+  left: TeamScoreLineupPlayerInput,
+  right: TeamScoreLineupPlayerInput
+) {
+  const roleDelta =
+    BENCH_POSITION_ORDER_BY_ROLE[left.role] -
+    BENCH_POSITION_ORDER_BY_ROLE[right.role];
+  if (roleDelta !== 0) {
+    return roleDelta;
+  }
+
+  return left.positionOrder - right.positionOrder;
+}
+
+function findSameRoleBenchReplacement(
+  starter: TeamScoreLineupPlayerInput,
+  bench: TeamScoreLineupPlayerInput[],
+  usedBenchKeys: Set<string>,
+  resolveBenchVote: (player: TeamScoreLineupPlayerInput) => ResolvedVote
+):
+  | {
+      player: TeamScoreLineupPlayerInput;
+      resolvedVote: ResolvedVote;
+    }
+  | undefined {
+  for (const benchPlayer of bench) {
+    if (benchPlayer.role !== starter.role) {
+      continue;
+    }
+
+    const benchKey = getLineupPlayerKey(benchPlayer);
+    if (usedBenchKeys.has(benchKey)) {
+      continue;
+    }
+
+    const benchVote = resolveBenchVote(benchPlayer);
+    if (!benchVote.hasValidFantavote || benchVote.finalFantavote === null) {
+      continue;
+    }
+
+    return {
+      player: benchPlayer,
+      resolvedVote: benchVote
+    };
+  }
+
+  return undefined;
+}
 
 function roundToTwoDecimals(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -139,9 +190,10 @@ export function calculateTeamScore(
   const starters = input.lineupPlayers
     .filter((player) => player.slotType === SlotType.STARTER)
     .sort((left, right) => left.positionOrder - right.positionOrder);
+  // Bench order is role-stable for display/DB uniqueness; subs match by role only.
   const bench = input.lineupPlayers
     .filter((player) => player.slotType === SlotType.BENCH)
-    .sort((left, right) => left.positionOrder - right.positionOrder);
+    .sort(compareBenchPlayers);
 
   const detailLines: TeamScoreDetailLine[] = [];
   const usedBenchKeys = new Set<string>();
@@ -166,6 +218,8 @@ export function calculateTeamScore(
       continue;
     }
 
+    // SV / missing / invalid vote: try same-role bench with a valid fantavote.
+    // If none (or max subs already used), starter stays in XI with score 0.
     let replacement:
       | {
           player: TeamScoreLineupPlayerInput;
@@ -174,29 +228,18 @@ export function calculateTeamScore(
       | undefined;
 
     if (substitutionsCount < maxSubstitutions) {
-      for (const benchPlayer of bench) {
-        const benchKey = getLineupPlayerKey(benchPlayer);
-        if (usedBenchKeys.has(benchKey)) {
-          continue;
-        }
+      replacement = findSameRoleBenchReplacement(
+        starter,
+        bench,
+        usedBenchKeys,
+        resolveVote
+      );
 
-        if (benchPlayer.role !== starter.role) {
-          continue;
-        }
-
-        const benchVote = resolveVote(benchPlayer);
-        if (!benchVote.hasValidFantavote || benchVote.finalFantavote === null) {
-          continue;
-        }
-
-        replacement = {
-          player: benchPlayer,
-          resolvedVote: benchVote
-        };
+      if (replacement) {
+        const benchKey = getLineupPlayerKey(replacement.player);
         usedBenchKeys.add(benchKey);
-        usedBenchPlayerIds.add(benchPlayer.playerId);
+        usedBenchPlayerIds.add(replacement.player.playerId);
         substitutionsCount += 1;
-        break;
       }
     }
 

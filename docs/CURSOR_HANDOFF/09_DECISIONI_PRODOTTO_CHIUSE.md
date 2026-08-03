@@ -17,6 +17,7 @@ Fonte primaria: `docs/Dream Team FC.txt` + risposte utente + file esempio
 | Lock rosa owner | owner può add/remove **solo se count < 25**; a **count >= 25** rosa congelata (solo Admin); policy in `lib/server/rosters/roster-edit-policy.ts` |
 | Titolari | **5**: 1P + 1D + 1C + 1A + 1 libero tra D/C/A |
 | Panchina | **4**: 1 per ruolo (P, D, C, A) |
+| Ordine panchina | **rimosso** (UI/validazione); `positionOrder` DB auto P=1…A=4 |
 | Sostituzione auto | solo stesso ruolo |
 | Max sub auto | **1 sola** a partita (anche se piu titolari SV) |
 | Se manca panchina stesso ruolo | il titolare SV resta **0** |

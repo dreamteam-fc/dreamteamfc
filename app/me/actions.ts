@@ -27,7 +27,10 @@ import { prisma } from "@/lib/prisma.ts";
 import { getActionErrorMessage } from "@/lib/server/http/action-errors.ts";
 import { fileToOwnedBuffer } from "@/lib/server/http/owned-buffer.ts";
 import { TEAM_LOGO_MAX_INPUT_BYTES } from "@/lib/teams/team-logo-url.ts";
-import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
+import {
+  getBenchPositionOrderByRole,
+  validateLineupComposition
+} from "@/lib/server/lineups/validate-lineup-composition";
 import {
   assertPlayerFreeInLeague,
   isLeaguePlayerExclusivityConflict,
@@ -755,15 +758,6 @@ function parseLineupSelection(value: FormDataEntryValue | null): LineupSelection
   return "NONE";
 }
 
-function parseBenchOrder(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return null;
-  }
-
-  const parsedValue = Number.parseInt(value, 10);
-  return Number.isInteger(parsedValue) ? parsedValue : null;
-}
-
 export async function saveLineupAction(formData: FormData) {
   const rawTeamId = formData.get("teamId");
   const rawMatchdayId = formData.get("matchdayId");
@@ -867,7 +861,6 @@ export async function saveLineupAction(formData: FormData) {
         [];
       const benchSelections: Array<{
         id: string;
-        order: number | null;
         role: (typeof fullTeam.roster)[number]["player"]["role"];
       }> = [];
 
@@ -886,27 +879,9 @@ export async function saveLineupAction(formData: FormData) {
         if (selection === "BENCH") {
           benchSelections.push({
             id: rosterEntry.player.id,
-            order: parseBenchOrder(formData.get(`benchOrder:${rosterEntry.player.id}`)),
             role: rosterEntry.player.role
           });
         }
-      }
-
-      if (benchSelections.some((entry) => entry.order === null)) {
-        throw new Error("Ogni panchinaro deve avere un ordine tra 1 e 4.");
-      }
-
-      const benchOrders = benchSelections.map((entry) => entry.order as number);
-      const sortedBenchOrders = [...benchOrders].sort((left, right) => left - right);
-      const hasValidBenchOrderSequence =
-        sortedBenchOrders.length === 4 &&
-        sortedBenchOrders[0] === 1 &&
-        sortedBenchOrders[1] === 2 &&
-        sortedBenchOrders[2] === 3 &&
-        sortedBenchOrders[3] === 4;
-
-      if (!hasValidBenchOrderSequence) {
-        throw new Error("La panchina deve avere ordini unici 1, 2, 3 e 4.");
       }
 
       const duplicateCheck = new Set<string>();
@@ -1003,7 +978,9 @@ export async function saveLineupAction(formData: FormData) {
       });
 
       const orderedBenchSelections = [...benchSelections].sort(
-        (left, right) => (left.order as number) - (right.order as number)
+        (left, right) =>
+          getBenchPositionOrderByRole(left.role) -
+          getBenchPositionOrderByRole(right.role)
       );
 
       await tx.lineupPlayer.createMany({
@@ -1017,7 +994,7 @@ export async function saveLineupAction(formData: FormData) {
           ...orderedBenchSelections.map((player) => ({
             lineupId: lineup.id,
             playerId: player.id,
-            positionOrder: player.order as number,
+            positionOrder: getBenchPositionOrderByRole(player.role),
             slotType: SlotType.BENCH
           }))
         ]
@@ -1293,7 +1270,6 @@ export async function saveTournamentLineupAction(formData: FormData) {
     const playerId = key.slice("playerSelection:".length);
     const selection = parseLineupSelection(value);
     selections.push({
-      benchOrder: parseBenchOrder(formData.get(`benchOrder:${playerId}`)),
       playerId,
       selection
     });
