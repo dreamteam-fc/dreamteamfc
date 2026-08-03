@@ -24,6 +24,7 @@ import { hasLeagueScheduleGeneratedWithDb } from "@/lib/server/leagues/has-leagu
 import type { PlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { parsePlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { prisma } from "@/lib/prisma.ts";
+import { getActionErrorMessage } from "@/lib/server/http/action-errors.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
 import { assertCanEditTeamRoster } from "@/lib/server/rosters/roster-edit-policy";
 import {
@@ -324,9 +325,10 @@ export async function createFantasyTeamAction(formData: FormData) {
     redirect(
       buildJoinLeagueRedirectPath(
         leagueId,
-        error instanceof Error
-          ? error.message
-          : "Impossibile creare la squadra fantasy."
+        getActionErrorMessage(
+          error,
+          "Impossibile creare la squadra fantasy."
+        )
       )
     );
   }
@@ -425,10 +427,10 @@ export async function leaveLeagueAction(teamId: string, formData: FormData) {
   } catch (error) {
     redirect(
       buildTeamRedirectPath(teamId, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile abbandonare la lega."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile abbandonare la lega."
+        )
       })
     );
   }
@@ -534,9 +536,10 @@ export async function addPlayerToRosterAction(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
         ? "Questo giocatore e gia presente nella rosa."
-        : error instanceof Error
-          ? error.message
-          : "Impossibile aggiungere il giocatore alla rosa.";
+        : getActionErrorMessage(
+            error,
+            "Impossibile aggiungere il giocatore alla rosa."
+          );
 
     redirect(
       buildRosterRedirectPath(teamId, currentRoleFilter, currentSearchQuery, {
@@ -604,10 +607,10 @@ export async function removePlayerFromRosterAction(
   } catch (error) {
     redirect(
       buildRosterRedirectPath(teamId, currentRoleFilter, currentSearchQuery, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile rimuovere il giocatore dalla rosa."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile rimuovere il giocatore dalla rosa."
+        )
       })
     );
   }
@@ -905,10 +908,10 @@ export async function saveLineupAction(formData: FormData) {
   } catch (error) {
     redirect(
       buildLineupRedirectPath(teamId, matchdayId, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile salvare la formazione."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile salvare la formazione."
+        )
       })
     );
   }
@@ -943,10 +946,10 @@ export async function inviteTeamCoachAction(formData: FormData) {
   } catch (error) {
     redirect(
       buildTeamRedirectPath(teamId, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile creare l'invito allenatore."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile creare l'invito allenatore."
+        )
       })
     );
   }
@@ -978,10 +981,10 @@ export async function revokeTeamCoachInviteAction(formData: FormData) {
   } catch (error) {
     redirect(
       buildTeamRedirectPath(teamId, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile revocare l'invito."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile revocare l'invito."
+        )
       })
     );
   }
@@ -1015,10 +1018,10 @@ export async function regenerateTeamCoachInviteAction(formData: FormData) {
   } catch (error) {
     redirect(
       buildTeamRedirectPath(teamId, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile rigenerare il link invito."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile rigenerare il link invito."
+        )
       })
     );
   }
@@ -1049,10 +1052,10 @@ export async function revokeTeamCoachAction(formData: FormData) {
   } catch (error) {
     redirect(
       buildTeamRedirectPath(teamId, {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile rimuovere l'allenatore."
+        error: getActionErrorMessage(
+          error,
+          "Impossibile rimuovere l'allenatore."
+        )
       })
     );
   }
@@ -1087,9 +1090,7 @@ export async function acceptTeamCoachInviteAction(formData: FormData) {
   } catch (error) {
     redirect(
       `/me/coach-invites/${token}?error=${encodeURIComponent(
-        error instanceof Error
-          ? error.message
-          : "Impossibile accettare l'invito."
+        getActionErrorMessage(error, "Impossibile accettare l'invito.")
       )}`
     );
   }
@@ -1133,9 +1134,7 @@ export async function activateTournamentEntryAction(formData: FormData) {
   } catch (error) {
     redirect(
       `/tournaments/${tournamentId}/activate?error=${encodeURIComponent(
-        error instanceof Error
-          ? error.message
-          : "Impossibile sbloccare il torneo."
+        getActionErrorMessage(error, "Impossibile sbloccare il torneo.")
       )}`
     );
   }
@@ -1193,9 +1192,10 @@ export async function saveTournamentLineupAction(formData: FormData) {
   } catch (error) {
     redirect(
       `/me/teams/${teamId}/tournaments/fixtures/${tournamentFixtureId}/lineup?error=${encodeURIComponent(
-        error instanceof Error
-          ? error.message
-          : "Impossibile salvare la formazione torneo."
+        getActionErrorMessage(
+          error,
+          "Impossibile salvare la formazione torneo."
+        )
       )}`
     );
   }
