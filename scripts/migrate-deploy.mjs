@@ -4,8 +4,11 @@
  * Prefers the image-local CLI (installed with full transitive deps in Dockerfile).
  *
  * Prisma schema uses `directUrl = env("DIRECT_URL")` for the migrate engine.
- * Prefer a real Supabase direct connection (db.<project>.supabase.co:5432),
- * not the session/transaction pooler (pooler.supabase.com).
+ *
+ * Prefer DIRECT_URL when set. On Railway (IPv4-only), Supabase "Direct"
+ * (db.<project>.supabase.co) is often IPv6-only → P1001. Use Supabase
+ * Session mode pooler (*.pooler.supabase.com:5432) as DIRECT_URL instead.
+ * Retries handle transient EMAXCONNSESSION when the session pool is full.
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -19,6 +22,10 @@ console.log("[migrate-deploy] start");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
 const requireFromRoot = createRequire(path.join(root, "package.json"));
+
+const MAX_ATTEMPTS = 8;
+const RETRY_DELAY_MS_MIN = 8000;
+const RETRY_DELAY_MS_MAX = 15000;
 
 /** Minimal .env loader for local runs (Railway injects env vars directly). */
 function loadEnvFile(filePath) {
@@ -81,6 +88,75 @@ function isPoolerHost(value) {
   return host.includes("pooler");
 }
 
+function isSupabaseDirectHost(value) {
+  const host = urlHost(value).toLowerCase();
+  // db.<project-ref>.supabase.co — Direct connection (often IPv6-only).
+  return /^db\.[a-z0-9]+\.supabase\.co(?::\d+)?$/.test(host);
+}
+
+/** Ensure Prisma migrate uses a single connection (less pressure on session pool). */
+function withConnectionLimit(url, limit = 1) {
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has("connection_limit")) {
+      u.searchParams.set("connection_limit", String(limit));
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+function sleepSync(ms) {
+  // Portable sync sleep for the preDeploy CLI (no async main).
+  spawnSync(process.execPath, ["-e", `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${ms})`], {
+    stdio: "ignore"
+  });
+}
+
+function retryDelayMs(attempt) {
+  // attempt is 1-based after a failure; spread 8–15s with slight growth.
+  const span = RETRY_DELAY_MS_MAX - RETRY_DELAY_MS_MIN;
+  const t = Math.min(1, (attempt - 1) / Math.max(1, MAX_ATTEMPTS - 2));
+  return Math.round(RETRY_DELAY_MS_MIN + span * t);
+}
+
+function isRetryablePoolExhaustion(combined) {
+  return (
+    /EMAXCONNSESSION/i.test(combined) ||
+    /max clients reached/i.test(combined) ||
+    /max_connections/i.test(combined) ||
+    /too many clients/i.test(combined) ||
+    /remaining connection slots/i.test(combined)
+  );
+}
+
+function isUnreachableDb(combined) {
+  return (
+    /P1001/i.test(combined) ||
+    /Can't reach database server/i.test(combined) ||
+    /can't reach database server/i.test(combined)
+  );
+}
+
+function printSessionPoolerHint(context) {
+  console.error(
+    `[migrate-deploy] HINT IT (${context}): Su Railway (solo IPv4) la Direct Supabase (db.*.supabase.co) è spesso solo IPv6 → irraggiungibile. Imposta DIRECT_URL con la URI Session pooler da Supabase Connect → Session (host *.pooler.supabase.com:5432, user spesso postgres.PROJECTREF). Può coincidere con DATABASE_URL se già in session mode. Poi ridistribuisci.`
+  );
+  console.error(
+    `[migrate-deploy] HINT EN (${context}): Railway is IPv4-only; Supabase Direct (db.*.supabase.co) is often IPv6-only → P1001. Set DIRECT_URL to the Session pooler URI from Supabase Connect → Session (host *.pooler.supabase.com:5432, user often postgres.PROJECTREF). It can match DATABASE_URL if that is already session pooler. Then redeploy.`
+  );
+}
+
+function printPoolExhaustionHint() {
+  console.error(
+    "[migrate-deploy] HINT IT: Pool session pieno (EMAXCONNSESSION). Lo script ritenta; se persiste, chiudi connessioni idle / attendi e ridistribuisci. Su Railway usa Session pooler come DIRECT_URL (non Transaction :6543)."
+  );
+  console.error(
+    "[migrate-deploy] HINT EN: Session pool exhausted (EMAXCONNSESSION). This script retries; if it persists, free idle sessions / wait and redeploy. On Railway use Session pooler as DIRECT_URL (not Transaction :6543)."
+  );
+}
+
 const localCli = path.join(root, "node_modules", "prisma", "build", "index.js");
 const schemaPath = path.join(root, "prisma", "schema.prisma");
 const localCliComplete = fs.existsSync(localCli) && canRequire("effect");
@@ -123,36 +199,52 @@ let migrateSource = "DIRECT_URL";
 if (!migrateUrl) {
   migrateUrl = databaseUrl;
   migrateSource = "DATABASE_URL (fallback)";
-  process.env.DIRECT_URL = migrateUrl;
   console.warn(
     "[migrate-deploy] WARN: DIRECT_URL is not set; using DATABASE_URL for Prisma directUrl / migrate."
   );
   console.warn(
-    "[migrate-deploy] HINT IT: Imposta DIRECT_URL su Railway con la connection string Direct di Supabase (non il pooler)."
+    "[migrate-deploy] HINT IT: Imposta DIRECT_URL su Railway. Preferisci Session pooler (*.pooler.supabase.com:5432) se Direct IPv6 non è raggiungibile; altrimenti Direct db.*.supabase.co se IPv4/IPv6 funziona."
   );
   console.warn(
-    "[migrate-deploy] HINT EN: Set DIRECT_URL on Railway to the Supabase Direct connection URI (db.<project>.supabase.co:5432), not pooler.supabase.com."
+    "[migrate-deploy] HINT EN: Set DIRECT_URL on Railway. Prefer Session pooler (*.pooler.supabase.com:5432) when Direct IPv6 is unreachable; use true Direct db.*.supabase.co only if IPv4 add-on or IPv6 works."
+  );
+}
+
+migrateUrl = withConnectionLimit(migrateUrl, 1);
+process.env.DIRECT_URL = migrateUrl;
+if (migrateSource === "DIRECT_URL" && directUrlFromEnv) {
+  // Keep DATABASE_URL unchanged; only tighten the migrate/directUrl connection.
+  console.log(
+    "[migrate-deploy] applied connection_limit=1 on DIRECT_URL for migrate"
   );
 }
 
 const migrateHost = urlHost(migrateUrl);
 console.log(`[migrate-deploy] migrate uses ${migrateSource}; host=${migrateHost}`);
+console.log(`[migrate-deploy] migrate URL (redacted)=`, redactDbUrl(migrateUrl));
 
-if (isPoolerHost(migrateUrl)) {
+if (isSupabaseDirectHost(migrateUrl)) {
   console.warn(
-    "[migrate-deploy] WARN: migrate host contains 'pooler' — session/transaction pooler can hit EMAXCONNSESSION (max clients / pool_size)."
+    "[migrate-deploy] WARN: migrate host looks like Supabase Direct (db.*.supabase.co)."
   );
   console.warn(
-    "[migrate-deploy] HINT IT: Supabase → Project Settings → Database → Connection string → URI → Direct connection → host db.<project>.supabase.co:5432. Imposta quella stringa come DIRECT_URL su Railway, poi ridistribuisci."
+    "[migrate-deploy] WARN: On Railway (IPv4-only) this host is often IPv6-only → P1001 Can't reach database server."
   );
   console.warn(
-    "[migrate-deploy] HINT EN: Supabase → Project Settings → Database → Connection string → URI → Direct connection → host db.<project>.supabase.co:5432. Set that as DIRECT_URL on Railway, then redeploy. Session mode pooler is NOT enough for migrate under load."
+    "[migrate-deploy] HINT IT: Se preDeploy fallisce con P1001, usa Session pooler come DIRECT_URL (Connect → Session, *.pooler.supabase.com:5432)."
+  );
+  console.warn(
+    "[migrate-deploy] HINT EN: If preDeploy fails with P1001, set DIRECT_URL to Session pooler (Connect → Session, *.pooler.supabase.com:5432)."
+  );
+} else if (isPoolerHost(migrateUrl)) {
+  console.log(
+    "[migrate-deploy] migrate host is a pooler — OK for Railway IPv4. Retries enabled for EMAXCONNSESSION."
   );
 }
 
 if (/:(6543)\b/.test(migrateUrl) || /:(6543)\b/.test(databaseUrl)) {
   console.warn(
-    "[migrate-deploy] WARN: URL looks like Supabase transaction pooler (:6543). Migrations often fail there; use DIRECT_URL on :5432 direct host."
+    "[migrate-deploy] WARN: URL looks like Supabase transaction pooler (:6543). Migrations often fail there; use Session pooler :5432 as DIRECT_URL."
   );
 }
 
@@ -177,29 +269,99 @@ console.log(
   invocation.command,
   invocation.args.map((a) => (a.includes(" ") ? JSON.stringify(a) : a)).join(" ")
 );
+console.log(
+  `[migrate-deploy] retries: up to ${MAX_ATTEMPTS} attempts on pool exhaustion (${RETRY_DELAY_MS_MIN}-${RETRY_DELAY_MS_MAX}ms delay)`
+);
 
-const result = spawnSync(invocation.command, invocation.args, {
-  cwd: root,
-  env: process.env,
-  stdio: "inherit",
-  shell: Boolean(invocation.shell)
-});
+let lastCode = 1;
+let lastCombined = "";
 
-if (result.error) {
-  console.error("[migrate-deploy] spawn failed:", result.error.message);
-  if (result.error.code === "ENOENT") {
-    console.error(
-      "[migrate-deploy] HINT: Prisma CLI not found. Dockerfile should `npm install prisma@<lockfile-version>` so transitive deps (effect) are present."
+for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  if (attempt > 1) {
+    const delay = retryDelayMs(attempt);
+    console.warn(
+      `[migrate-deploy] retry ${attempt}/${MAX_ATTEMPTS} after pool exhaustion; waiting ${delay}ms…`
     );
+    sleepSync(delay);
+  } else {
+    console.log(`[migrate-deploy] attempt ${attempt}/${MAX_ATTEMPTS}`);
   }
-  process.exit(1);
+
+  const result = spawnSync(invocation.command, invocation.args, {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+    shell: Boolean(invocation.shell),
+    maxBuffer: 16 * 1024 * 1024
+  });
+
+  if (result.error) {
+    console.error("[migrate-deploy] spawn failed:", result.error.message);
+    if (result.error.code === "ENOENT") {
+      console.error(
+        "[migrate-deploy] HINT: Prisma CLI not found. Dockerfile should `npm install prisma@<lockfile-version>` so transitive deps (effect) are present."
+      );
+    }
+    process.exit(1);
+  }
+
+  const stdout = result.stdout || "";
+  const stderr = result.stderr || "";
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
+
+  lastCode = result.status ?? 1;
+  lastCombined = `${stdout}\n${stderr}`;
+
+  if (lastCode === 0) {
+    console.log(`[migrate-deploy] prisma migrate deploy succeeded on attempt ${attempt}`);
+    process.exit(0);
+  }
+
+  const unreachable = isUnreachableDb(lastCombined);
+  const poolFull = isRetryablePoolExhaustion(lastCombined);
+
+  if (unreachable && isSupabaseDirectHost(migrateUrl)) {
+    console.error(
+      `[migrate-deploy] prisma migrate deploy exited with code ${lastCode} (P1001 / unreachable Direct host)`
+    );
+    printSessionPoolerHint("P1001 on db.*.supabase.co");
+    process.exit(lastCode);
+  }
+
+  if (unreachable) {
+    console.error(
+      `[migrate-deploy] prisma migrate deploy exited with code ${lastCode} (P1001 / unreachable)`
+    );
+    printSessionPoolerHint("P1001");
+    process.exit(lastCode);
+  }
+
+  if (poolFull && attempt < MAX_ATTEMPTS) {
+    console.warn(
+      `[migrate-deploy] attempt ${attempt} failed: session pool exhausted (EMAXCONNSESSION / max clients)`
+    );
+    printPoolExhaustionHint();
+    continue;
+  }
+
+  if (poolFull) {
+    console.error(
+      `[migrate-deploy] prisma migrate deploy exited with code ${lastCode} after ${MAX_ATTEMPTS} attempts (pool still full)`
+    );
+    printPoolExhaustionHint();
+    process.exit(lastCode);
+  }
+
+  // Non-retryable failure
+  console.error(`[migrate-deploy] prisma migrate deploy exited with code ${lastCode}`);
+  console.error(
+    "[migrate-deploy] HINT: Open Railway Pre-deploy logs. Common: P1001 (Railway IPv4 vs Direct IPv6 — use Session pooler as DIRECT_URL), EMAXCONNSESSION (pooler full — retries help), MODULE_NOT_FOUND (CLI deps), transaction pooler :6543."
+  );
+  if (isSupabaseDirectHost(migrateUrl)) {
+    printSessionPoolerHint("migrate failed with Direct host");
+  }
+  process.exit(lastCode);
 }
 
-const code = result.status ?? 1;
-if (code !== 0) {
-  console.error(`[migrate-deploy] prisma migrate deploy exited with code ${code}`);
-  console.error(
-    "[migrate-deploy] HINT: Open Railway Pre-deploy logs. Common: P1001 (DB unreachable), EMAXCONNSESSION (pooler full — set DIRECT_URL to db.<project>.supabase.co), MODULE_NOT_FOUND (CLI deps), transaction pooler :6543."
-  );
-}
-process.exit(code);
+process.exit(lastCode);
