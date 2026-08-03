@@ -4,8 +4,8 @@ import path from "node:path";
 import sharp from "sharp";
 
 import {
-  toOwnedBuffer,
-  toOwnedUint8Array
+  toOwnedBlob,
+  toOwnedBuffer
 } from "@/lib/server/http/owned-buffer.ts";
 import { prisma } from "@/lib/prisma.ts";
 import {
@@ -141,13 +141,8 @@ export async function uploadTeamLogoObject(
 
       // Fresh copy from disk — never a SharedArrayBuffer-backed view.
       const fromDisk = await readFile(filePath);
-      const body = toOwnedUint8Array(fromDisk);
-
-      if (body.buffer instanceof SharedArrayBuffer) {
-        throw new Error(
-          "Buffer interno non valido (SharedArrayBuffer). Riprova."
-        );
-      }
+      // Blob + sliced ArrayBuffer avoids undici TypedArray/SharedArrayBuffer traps.
+      const body = toOwnedBlob(fromDisk, TEAM_LOGO_OUTPUT_MIME);
 
       const response = await fetch(url, {
         method: "POST",

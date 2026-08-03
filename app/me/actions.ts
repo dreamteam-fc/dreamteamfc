@@ -26,6 +26,7 @@ import { parsePlayerRoleFilter } from "@/lib/players/player-role.ts";
 import { prisma } from "@/lib/prisma.ts";
 import { getActionErrorMessage } from "@/lib/server/http/action-errors.ts";
 import { fileToOwnedBuffer } from "@/lib/server/http/owned-buffer.ts";
+import { TEAM_LOGO_MAX_INPUT_BYTES } from "@/lib/teams/team-logo-url.ts";
 import { validateLineupComposition } from "@/lib/server/lineups/validate-lineup-composition";
 import {
   assertPlayerFreeInLeague,
@@ -469,8 +470,13 @@ export async function uploadTeamLogoAction(formData: FormData) {
     const access = await requireOwnedFantasyTeam(teamId);
     const fileValue = formData.get("logo");
 
-    if (!(fileValue instanceof File) || fileValue.size === 0) {
+    // Server Actions usually provide File; accept Blob as a runtime-safe fallback.
+    if (!(fileValue instanceof Blob) || fileValue.size === 0) {
       throw new Error("Seleziona un'immagine valida da caricare.");
+    }
+
+    if (fileValue.size > TEAM_LOGO_MAX_INPUT_BYTES) {
+      throw new Error("Il logo supera il limite di 5 MB.");
     }
 
     const mimeType =

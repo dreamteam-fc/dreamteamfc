@@ -42,7 +42,7 @@ export function toOwnedBuffer(
   return Buffer.from(toOwnedUint8Array(source));
 }
 
-export async function fileToOwnedBuffer(file: File): Promise<Buffer> {
+export async function fileToOwnedBuffer(file: Blob): Promise<Buffer> {
   return toOwnedBuffer(await file.arrayBuffer());
 }
 
