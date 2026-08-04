@@ -105,21 +105,46 @@ export async function getUserTournamentFixtures(appUserId: string) {
   const fixtures = await prisma.tournamentFixture.findMany({
     where: {
       status: TournamentFixtureStatus.READY,
-      OR: [
-        { homeTeamId: { in: teamIds } },
-        { awayTeamId: { in: teamIds } }
-      ],
-      round: {
-        lineupsStatus: TournamentRoundLineupsStatus.OPEN,
-        tournament: {
-          status: {
-            in: [
-              TournamentStatus.BRACKET_GENERATED,
-              TournamentStatus.IN_PROGRESS
-            ]
-          }
+      AND: [
+        {
+          OR: [
+            { homeTeamId: { in: teamIds } },
+            { awayTeamId: { in: teamIds } }
+          ]
+        },
+        {
+          OR: [
+            {
+              leg: 1,
+              round: {
+                lineupsStatusLeg1: TournamentRoundLineupsStatus.OPEN,
+                tournament: {
+                  status: {
+                    in: [
+                      TournamentStatus.BRACKET_GENERATED,
+                      TournamentStatus.IN_PROGRESS
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              leg: 2,
+              round: {
+                lineupsStatusLeg2: TournamentRoundLineupsStatus.OPEN,
+                tournament: {
+                  status: {
+                    in: [
+                      TournamentStatus.BRACKET_GENERATED,
+                      TournamentStatus.IN_PROGRESS
+                    ]
+                  }
+                }
+              }
+            }
+          ]
         }
-      }
+      ]
     },
     orderBy: [{ createdAt: "asc" }],
     select: {
@@ -261,7 +286,8 @@ export async function getTournamentLineupPageData(
         select: {
           name: true,
           isFinal: true,
-          lineupsStatus: true,
+          lineupsStatusLeg1: true,
+          lineupsStatusLeg2: true,
           tournament: {
             select: {
               id: true,
@@ -349,6 +375,11 @@ export async function getTournamentLineupPageData(
         role: entry.player.role
       })) ?? [];
 
+  const legLineupsStatus =
+    fixture.leg === 2
+      ? fixture.round.lineupsStatusLeg2
+      : fixture.round.lineupsStatusLeg1;
+
   return {
     accessDenied: false as const,
     accessRole,
@@ -356,11 +387,12 @@ export async function getTournamentLineupPageData(
     canEdit:
       canManageLineup(accessRole) &&
       activated &&
-      fixture.round.lineupsStatus === TournamentRoundLineupsStatus.OPEN &&
+      legLineupsStatus === TournamentRoundLineupsStatus.OPEN &&
       fixture.status === TournamentFixtureStatus.READY &&
       (tournament.status === TournamentStatus.BRACKET_GENERATED ||
         tournament.status === TournamentStatus.IN_PROGRESS) &&
       rosterValidation.isValid,
+    legLineupsStatus,
     existingLineup,
     existingLineupValidation: existingLineup
       ? validateLineupComposition(starterPlayers, benchPlayers)

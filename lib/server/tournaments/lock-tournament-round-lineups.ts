@@ -5,29 +5,47 @@ import {
 
 import { prisma } from "@/lib/prisma.ts";
 import { syncTournamentLineupsOpenFlag } from "@/lib/server/tournaments/sync-tournament-lineups-open.ts";
+import {
+  assertTournamentLineupLeg,
+  getTournamentRoundLineupsStatusForLeg,
+  lineupsStatusFieldForLeg,
+  tournamentGiornataLabel,
+  tournamentLegLabel,
+  type TournamentVoteLeg
+} from "@/lib/server/tournaments/tournament-round-leg.ts";
 
 export type LockTournamentRoundLineupsResult = {
+  leg: TournamentVoteLeg;
+  giornataLabel: string;
   roundId: string;
   roundName: string;
   tournamentId: string;
 };
 
 /**
- * Close lineups for a tournament round: OPEN → LOCKED.
- * After lock, admin can generate vote lists / import XLS / calculate.
+ * Close lineups for one leg (giornata): OPEN → LOCKED.
+ * After lock, admin can generate vote lists / import XLS / calculate for that leg.
  */
 export async function lockTournamentRoundLineups(
-  roundId: string
+  roundId: string,
+  leg: number
 ): Promise<LockTournamentRoundLineupsResult> {
+  assertTournamentLineupLeg(leg);
+
   const round = await prisma.tournamentRound.findUnique({
     where: { id: roundId },
     select: {
       id: true,
       name: true,
-      lineupsStatus: true,
+      isFinal: true,
+      lineupsStatusLeg1: true,
+      lineupsStatusLeg2: true,
       tournamentId: true,
       fixtures: {
-        where: { status: TournamentFixtureStatus.READY },
+        where: {
+          status: TournamentFixtureStatus.READY,
+          leg
+        },
         select: {
           id: true,
           _count: {
@@ -42,8 +60,15 @@ export async function lockTournamentRoundLineups(
     throw new Error("Fase torneo non trovata.");
   }
 
-  if (round.lineupsStatus !== TournamentRoundLineupsStatus.OPEN) {
-    throw new Error("Puoi chiudere le formazioni solo da stato OPEN.");
+  if (round.isFinal && leg !== 1) {
+    throw new Error("La finale ha solo l'andata (leg 1).");
+  }
+
+  const currentStatus = getTournamentRoundLineupsStatusForLeg(round, leg);
+  if (currentStatus !== TournamentRoundLineupsStatus.OPEN) {
+    throw new Error(
+      `Puoi chiudere le formazioni di ${tournamentLegLabel(leg).toLowerCase()} solo da stato OPEN.`
+    );
   }
 
   const submittedLineups = round.fixtures.reduce(
@@ -53,18 +78,27 @@ export async function lockTournamentRoundLineups(
 
   if (submittedLineups === 0) {
     throw new Error(
-      "Non puoi chiudere le formazioni: nessuna formazione inserita sulle partite READY."
+      `Non puoi chiudere le formazioni di ${tournamentLegLabel(leg).toLowerCase()}: nessuna formazione inserita sulle partite READY.`
     );
   }
 
+  const field = lineupsStatusFieldForLeg(leg);
   await prisma.tournamentRound.update({
     where: { id: round.id },
-    data: { lineupsStatus: TournamentRoundLineupsStatus.LOCKED }
+    data: { [field]: TournamentRoundLineupsStatus.LOCKED }
   });
 
   await syncTournamentLineupsOpenFlag(round.tournamentId);
 
+  const giornataLabel = tournamentGiornataLabel({
+    isFinal: round.isFinal,
+    leg,
+    roundName: round.name
+  });
+
   return {
+    leg,
+    giornataLabel,
     roundId: round.id,
     roundName: round.name,
     tournamentId: round.tournamentId

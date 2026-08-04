@@ -41,10 +41,12 @@ export default async function TournamentPublicPage({
             <p className="mt-3 text-sm text-brand-mute">
               Stato: {tournament.status}
               {tournament.rounds.some(
-                (round) => round.lineupsStatus === "OPEN"
+                (round) =>
+                  round.lineupsStatusLeg1 === "OPEN" ||
+                  round.lineupsStatusLeg2 === "OPEN"
               )
-                ? " · Formazioni aperte (fase attiva)"
-                : " · Nessuna fase con formazioni aperte"}
+                ? " · Formazioni aperte (giornata attiva)"
+                : " · Nessuna giornata con formazioni aperte"}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link

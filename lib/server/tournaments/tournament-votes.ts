@@ -39,7 +39,8 @@ export async function generateTournamentRequiredVotes(
       id: true,
       name: true,
       isFinal: true,
-      lineupsStatus: true,
+      lineupsStatusLeg1: true,
+      lineupsStatusLeg2: true,
       fixtures: {
         where: {
           status: TournamentFixtureStatus.READY,
@@ -67,9 +68,11 @@ export async function generateTournamentRequiredVotes(
     throw new Error("La finale ha solo l'andata (leg 1).");
   }
 
-  if (round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED) {
+  const legStatus =
+    leg === 2 ? round.lineupsStatusLeg2 : round.lineupsStatusLeg1;
+  if (legStatus !== TournamentRoundLineupsStatus.LOCKED) {
     throw new Error(
-      "Genera la lista voti solo dopo aver chiuso le formazioni (LOCKED)."
+      `Genera la lista voti di ${tournamentVoteLegLabel(leg).toLowerCase()} solo dopo aver chiuso le formazioni (LOCKED).`
     );
   }
 

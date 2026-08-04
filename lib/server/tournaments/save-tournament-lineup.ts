@@ -39,10 +39,12 @@ export async function saveTournamentLineup(options: {
       awayTeamId: true,
       homeTeamId: true,
       status: true,
+      leg: true,
       round: {
         select: {
           name: true,
-          lineupsStatus: true,
+          lineupsStatusLeg1: true,
+          lineupsStatusLeg2: true,
           tournament: {
             select: {
               id: true,
@@ -78,9 +80,13 @@ export async function saveTournamentLineup(options: {
     throw new Error("Formazione modificabile solo su partite READY.");
   }
 
-  if (fixture.round.lineupsStatus !== TournamentRoundLineupsStatus.OPEN) {
+  const legStatus =
+    fixture.leg === 2
+      ? fixture.round.lineupsStatusLeg2
+      : fixture.round.lineupsStatusLeg1;
+  if (legStatus !== TournamentRoundLineupsStatus.OPEN) {
     throw new Error(
-      "Le formazioni di questa fase sono chiuse (o non ancora aperte)."
+      "Le formazioni di questa giornata sono chiuse (o non ancora aperte)."
     );
   }
 

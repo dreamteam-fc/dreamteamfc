@@ -15,9 +15,16 @@ import {
 } from "../lineups/generate-random-lineups-for-matchday.ts";
 import { REQUIRED_TOTAL_LINEUP_PLAYERS } from "../lineups/validate-lineup-composition.ts";
 import {
-  countReadyPlayableFixtures,
-  getNextUsefulTournamentRound
+  countReadyPlayableFixturesForLeg,
+  getNextUsefulTournamentLeg
 } from "./next-useful-tournament-round.ts";
+import {
+  assertTournamentLineupLeg,
+  getTournamentRoundLineupsStatusForLeg,
+  tournamentGiornataLabel,
+  tournamentLegLabel,
+  type TournamentVoteLeg
+} from "./tournament-round-leg.ts";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -29,7 +36,9 @@ export type GenerateRandomTournamentLineupsOptions = {
    * Admin UI always uses force=true.
    */
   force?: boolean;
-  /** When omitted, picks the next useful round for the tournament. */
+  /** When omitted with roundId, uses the next useful giornata. */
+  leg?: number;
+  /** When omitted, picks the next useful giornata for the tournament. */
   roundId?: string;
   tournamentId: string;
 };
@@ -42,6 +51,8 @@ export type GenerateRandomTournamentLineupsResult = {
     teamName: string;
   }>;
   fixtureCount: number;
+  giornataLabel: string;
+  leg: TournamentVoteLeg;
   lineupsStatus: TournamentRoundLineupsStatus;
   roundId: string;
   roundName: string;
@@ -114,8 +125,8 @@ async function persistSubmittedTournamentLineup(
 }
 
 /**
- * Writes random valid SUBMITTED tournament lineups for every home/away team
- * on READY fixtures of the target round (force overwrite by default).
+ * Writes random valid SUBMITTED tournament lineups for READY fixtures of one
+ * leg (giornata). Defaults to the next useful round+leg.
  */
 export async function generateRandomTournamentLineupsForRound(
   options: GenerateRandomTournamentLineupsOptions
@@ -133,11 +144,14 @@ export async function generateRandomTournamentLineupsForRound(
         select: {
           id: true,
           name: true,
+          isFinal: true,
           roundIndex: true,
-          lineupsStatus: true,
+          lineupsStatusLeg1: true,
+          lineupsStatusLeg2: true,
           fixtures: {
             select: {
               id: true,
+              leg: true,
               status: true,
               homeTeamId: true,
               awayTeamId: true,
@@ -154,26 +168,52 @@ export async function generateRandomTournamentLineupsForRound(
     throw new Error("Torneo non trovato.");
   }
 
-  const targetRound = options.roundId
-    ? (tournament.rounds.find((round) => round.id === options.roundId) ?? null)
-    : getNextUsefulTournamentRound(tournament.rounds);
-
-  if (!targetRound) {
-    throw new Error(
-      options.roundId
-        ? "Fase torneo non trovata."
-        : "Nessuna fase utile con partite READY (formazioni non LOCKED)."
-    );
+  let targetRound =
+    options.roundId != null
+      ? (tournament.rounds.find((round) => round.id === options.roundId) ??
+        null)
+      : null;
+  let targetLeg: TournamentVoteLeg | null = null;
+  if (options.leg != null) {
+    assertTournamentLineupLeg(options.leg);
+    targetLeg = options.leg;
   }
 
-  if (targetRound.lineupsStatus === TournamentRoundLineupsStatus.LOCKED) {
+  if (!targetRound || targetLeg == null) {
+    const next = getNextUsefulTournamentLeg(tournament.rounds);
+    if (!next) {
+      throw new Error(
+        options.roundId
+          ? "Fase torneo non trovata o senza giornata utile."
+          : "Nessuna giornata utile con partite READY (formazioni non LOCKED)."
+      );
+    }
+    targetRound = targetRound ?? next.round;
+    targetLeg = targetLeg ?? next.leg;
+  }
+
+  if (targetRound.isFinal && targetLeg !== 1) {
+    throw new Error("La finale ha solo l'andata (leg 1).");
+  }
+
+  const lineupsStatus = getTournamentRoundLineupsStatusForLeg(
+    targetRound,
+    targetLeg
+  );
+
+  if (lineupsStatus === TournamentRoundLineupsStatus.LOCKED) {
     throw new Error(
-      `Le formazioni di ${targetRound.name} sono già chiuse (LOCKED).`
+      `Le formazioni di ${tournamentGiornataLabel({
+        isFinal: targetRound.isFinal,
+        leg: targetLeg,
+        roundName: targetRound.name
+      })} sono già chiuse (LOCKED).`
     );
   }
 
   const readyFixtures = targetRound.fixtures.filter(
     (fixture) =>
+      fixture.leg === targetLeg &&
       fixture.status === TournamentFixtureStatus.READY &&
       fixture.homeTeamId != null &&
       fixture.awayTeamId != null &&
@@ -183,7 +223,11 @@ export async function generateRandomTournamentLineupsForRound(
 
   if (readyFixtures.length === 0) {
     throw new Error(
-      `Nessuna partita READY in ${targetRound.name}: impossibile generare formazioni.`
+      `Nessuna partita READY in ${tournamentGiornataLabel({
+        isFinal: targetRound.isFinal,
+        leg: targetLeg,
+        roundName: targetRound.name
+      })}: impossibile generare formazioni.`
     );
   }
 
@@ -295,10 +339,21 @@ export async function generateRandomTournamentLineupsForRound(
     }
   }
 
+  const giornataLabel = tournamentGiornataLabel({
+    isFinal: targetRound.isFinal,
+    leg: targetLeg,
+    roundName: targetRound.name
+  });
+
   return {
     failures,
-    fixtureCount: countReadyPlayableFixtures(readyFixtures),
-    lineupsStatus: targetRound.lineupsStatus,
+    fixtureCount: countReadyPlayableFixturesForLeg(
+      readyFixtures,
+      targetLeg
+    ),
+    giornataLabel,
+    leg: targetLeg,
+    lineupsStatus,
     roundId: targetRound.id,
     roundName: targetRound.name,
     skipped,
@@ -320,8 +375,8 @@ export function formatGenerateRandomTournamentLineupsNotice(
 
   const statusHint =
     result.lineupsStatus === TournamentRoundLineupsStatus.DRAFT
-      ? " (fase ancora DRAFT — apri le formazioni prima che gli utenti possano modificare)."
+      ? ` (${tournamentLegLabel(result.leg).toLowerCase()} ancora DRAFT — apri le formazioni prima che gli utenti possano modificare).`
       : "";
 
-  return `Formazioni casuali generate per ${result.roundName}: ${result.written} scritte su ${result.fixtureCount} partite READY.${failureSuffix}${statusHint}`;
+  return `Formazioni casuali generate per ${result.giornataLabel}: ${result.written} scritte su ${result.fixtureCount} partite READY.${failureSuffix}${statusHint}`;
 }

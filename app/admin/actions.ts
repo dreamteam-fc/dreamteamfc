@@ -780,21 +780,22 @@ export async function openTournamentRoundLineupsAction(formData: FormData) {
   await assertAdminAction();
   const tournamentId = readRequiredString(formData, "tournamentId");
   const roundId = readRequiredString(formData, "roundId");
+  const leg = readTournamentVoteLeg(formData);
 
   try {
-    const result = await openTournamentRoundLineups(roundId);
+    const result = await openTournamentRoundLineups(roundId, leg);
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
     revalidatePath(`/tournaments/${tournamentId}`);
     revalidatePath("/me");
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: `Formazioni aperte per ${result.roundName}.`
+      notice: `Formazioni aperte per ${result.giornataLabel}.`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
       error:
         error instanceof Error
           ? error.message
-          : "Impossibile aprire le formazioni della fase."
+          : "Impossibile aprire le formazioni della giornata."
     });
   }
 }
@@ -803,21 +804,22 @@ export async function lockTournamentRoundLineupsAction(formData: FormData) {
   await assertAdminAction();
   const tournamentId = readRequiredString(formData, "tournamentId");
   const roundId = readRequiredString(formData, "roundId");
+  const leg = readTournamentVoteLeg(formData);
 
   try {
-    const result = await lockTournamentRoundLineups(roundId);
+    const result = await lockTournamentRoundLineups(roundId, leg);
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
     revalidatePath(`/tournaments/${tournamentId}`);
     revalidatePath("/me");
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: `Formazioni chiuse per ${result.roundName}. Puoi generare la lista voti.`
+      notice: `Formazioni chiuse per ${result.giornataLabel}. Puoi generare la lista voti.`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
       error:
         error instanceof Error
           ? error.message
-          : "Impossibile chiudere le formazioni della fase."
+          : "Impossibile chiudere le formazioni della giornata."
     });
   }
 }
@@ -828,6 +830,7 @@ export async function generateRandomTournamentLineupsForRoundAction(
   await assertAdminAction();
   const tournamentId = readRequiredString(formData, "tournamentId");
   const roundId = readOptionalString(formData, "roundId");
+  const legRaw = readOptionalNumber(formData, "leg");
   const redirectPath =
     readOptionalString(formData, "redirectPath") ??
     `/admin/tournaments/${tournamentId}/bracket`;
@@ -838,7 +841,8 @@ export async function generateRandomTournamentLineupsForRoundAction(
     const result = await generateRandomTournamentLineupsForRound({
       force: true,
       tournamentId,
-      ...(roundId ? { roundId } : {})
+      ...(roundId ? { roundId } : {}),
+      ...(legRaw === 1 || legRaw === 2 ? { leg: legRaw } : {})
     });
 
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);

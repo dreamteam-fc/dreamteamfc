@@ -466,7 +466,7 @@ model Tournament {
   status       TournamentStatus         @default(DRAFT)
   /// Hash password iscrizione torneo (mai in chiaro).
   passwordHash String
-  /// Denormalizzato: true se almeno una fase ha lineupsStatus=OPEN (sync da open/lock fase).
+  /// Denormalizzato: true se almeno una gamba (giornata) ha status OPEN.
   lineupsOpen  Boolean                  @default(false)
   createdById  String
   createdAt    DateTime                 @default(now())
@@ -507,7 +507,7 @@ enum TournamentFixtureStatus {
   COMPLETED
 }
 
-/// Ciclo formazioni per fase torneo (allineato a Matchday LINEUPS_*).
+/// Ciclo formazioni per gamba/giornata (allineato a Matchday LINEUPS_*).
 enum TournamentRoundLineupsStatus {
   DRAFT
   OPEN
@@ -521,8 +521,10 @@ model TournamentRound {
   roundIndex   Int
   name         String
   isFinal      Boolean             @default(false)
-  /// DRAFT → OPEN (Apri) → LOCKED (Chiudi) per fase; gating formazioni utenti.
-  lineupsStatus TournamentRoundLineupsStatus @default(DRAFT)
+  /// DRAFT → OPEN → LOCKED per gamba 1 (andata / unica gara finale).
+  lineupsStatusLeg1 TournamentRoundLineupsStatus @default(DRAFT)
+  /// DRAFT → OPEN → LOCKED per gamba 2 (ritorno); inutilizzato in finale.
+  lineupsStatusLeg2 TournamentRoundLineupsStatus @default(DRAFT)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   tournament   Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
@@ -532,7 +534,8 @@ model TournamentRound {
 
   @@unique([tournamentId, roundIndex])
   @@index([tournamentId])
-  @@index([lineupsStatus])
+  @@index([lineupsStatusLeg1])
+  @@index([lineupsStatusLeg2])
 }
 
 /// Partita (o gamba) di un torneo. Serie A/R condividono seriesKey.

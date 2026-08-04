@@ -387,7 +387,8 @@ export async function getTournamentBracketPageData(tournamentId: string) {
         select: {
           id: true,
           isFinal: true,
-          lineupsStatus: true,
+          lineupsStatusLeg1: true,
+          lineupsStatusLeg2: true,
           name: true,
           roundIndex: true,
           requiredVotes: {

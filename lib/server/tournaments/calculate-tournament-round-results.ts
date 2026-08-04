@@ -97,7 +97,8 @@ export async function calculateTournamentRoundResultsFromVotes(
       name: true,
       isFinal: true,
       tournamentId: true,
-      lineupsStatus: true,
+      lineupsStatusLeg1: true,
+      lineupsStatusLeg2: true,
       requiredVotes: {
         where: { leg },
         select: { status: true }
@@ -149,9 +150,11 @@ export async function calculateTournamentRoundResultsFromVotes(
     throw new Error("La finale ha solo l'andata (leg 1).");
   }
 
-  if (round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED) {
+  const legStatus =
+    leg === 2 ? round.lineupsStatusLeg2 : round.lineupsStatusLeg1;
+  if (legStatus !== TournamentRoundLineupsStatus.LOCKED) {
     throw new Error(
-      "Calcola i risultati solo dopo aver chiuso le formazioni (LOCKED)."
+      `Calcola i risultati di ${tournamentVoteLegLabel(leg).toLowerCase()} solo dopo aver chiuso le formazioni (LOCKED).`
     );
   }
 

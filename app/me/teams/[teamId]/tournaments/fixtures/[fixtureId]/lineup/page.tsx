@@ -164,7 +164,8 @@ export default async function TournamentFixtureLineupPage({
       ? "Andata"
       : "Ritorno";
 
-  const roundLineupsOpen = data.fixture.round.lineupsStatus === "OPEN";
+  const legLineupsStatus = data.legLineupsStatus;
+  const roundLineupsOpen = legLineupsStatus === "OPEN";
 
   let lockMessage: string | null = null;
   if (!data.activated) {
@@ -172,9 +173,9 @@ export default async function TournamentFixtureLineupPage({
       "Sblocca prima l'accesso al torneo con la password (solo proprietario).";
   } else if (!roundLineupsOpen) {
     lockMessage =
-      data.fixture.round.lineupsStatus === "LOCKED"
-        ? "Formazioni di questa fase chiuse."
-        : "Formazioni di questa fase non ancora aperte.";
+      legLineupsStatus === "LOCKED"
+        ? "Formazioni di questa giornata chiuse."
+        : "Formazioni di questa giornata non ancora aperte.";
   } else if (data.fixture.status !== "READY") {
     lockMessage = "Formazione modificabile solo su partite READY.";
   }
@@ -217,11 +218,11 @@ export default async function TournamentFixtureLineupPage({
         <h3 className="text-xl font-semibold text-slate-900">Stato partita</h3>
         <p className="mt-2 text-sm text-slate-600">
           Stato fixture: <strong>{data.fixture.status}</strong> | Formazioni
-          fase:{" "}
+          giornata:{" "}
           <strong>
             {roundLineupsOpen
               ? "aperte"
-              : data.fixture.round.lineupsStatus === "LOCKED"
+              : legLineupsStatus === "LOCKED"
                 ? "chiuse"
                 : "non aperte"}
           </strong>{" "}

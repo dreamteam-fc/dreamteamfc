@@ -3,14 +3,17 @@ import { TournamentRoundLineupsStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma.ts";
 
 /**
- * Keep `Tournament.lineupsOpen` in sync with per-round OPEN status
+ * Keep `Tournament.lineupsOpen` in sync with any OPEN leg status
  * (denormalized for public lists / legacy reads).
  */
 export async function syncTournamentLineupsOpenFlag(tournamentId: string) {
   const openRound = await prisma.tournamentRound.findFirst({
     where: {
       tournamentId,
-      lineupsStatus: TournamentRoundLineupsStatus.OPEN
+      OR: [
+        { lineupsStatusLeg1: TournamentRoundLineupsStatus.OPEN },
+        { lineupsStatusLeg2: TournamentRoundLineupsStatus.OPEN }
+      ]
     },
     select: { id: true }
   });

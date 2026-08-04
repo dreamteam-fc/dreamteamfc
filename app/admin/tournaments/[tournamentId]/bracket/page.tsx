@@ -19,7 +19,15 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { isRequiredVoteCompletedStatus } from "@/lib/server/votes/shared";
 import { getTournamentBracketPageData } from "@/lib/server/tournaments/generate-tournament-bracket";
-import { getNextUsefulTournamentRound } from "@/lib/server/tournaments/next-useful-tournament-round";
+import { getNextUsefulTournamentLeg } from "@/lib/server/tournaments/next-useful-tournament-round";
+import {
+  getTournamentRoundLineupsStatusForLeg,
+  legsForTournamentRound,
+  roundHasOpenLineupsLeg,
+  tournamentGiornataLabel,
+  tournamentLegLabel,
+  type TournamentVoteLeg
+} from "@/lib/server/tournaments/tournament-round-leg";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +109,7 @@ function VoteLegActions({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
       <p className="text-sm font-semibold text-slate-900">
-        {isFinal ? "Voti (unica gara)" : legLabel}
+        {isFinal ? "Voti (unica gara)" : `Voti — ${legLabel}`}
       </p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <form action={generateTournamentRoundRequiredVotesAction}>
@@ -177,6 +185,113 @@ function VoteLegActions({
   );
 }
 
+function GiornataActions({
+  giornataLabel,
+  isFinal,
+  leg,
+  lineupsStatus,
+  readyPlayableCount,
+  requiredVotes,
+  savedVotesCount,
+  tournamentId,
+  roundId
+}: {
+  giornataLabel: string;
+  isFinal: boolean;
+  leg: TournamentVoteLeg;
+  lineupsStatus: TournamentRoundLineupsStatus;
+  readyPlayableCount: number;
+  requiredVotes: Array<{ status: RequiredVoteStatus }>;
+  savedVotesCount: number;
+  tournamentId: string;
+  roundId: string;
+}) {
+  const legLabel = tournamentLegLabel(leg);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-sm font-semibold text-slate-900">{giornataLabel}</p>
+      <p className="mt-1 text-sm text-slate-600">
+        Formazioni: <strong>{lineupsStatusLabel(lineupsStatus)}</strong>
+        {readyPlayableCount > 0
+          ? ` · ${readyPlayableCount} partite READY`
+          : " · nessuna partita READY"}
+      </p>
+      <p className="mt-1 text-sm text-slate-600">
+        1. Apri → 2. utenti schierano → 3. Chiudi → 4. Genera lista → 5. XLS →
+        6. Calcola (solo questa gamba)
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-3">
+        {lineupsStatus === TournamentRoundLineupsStatus.DRAFT &&
+        readyPlayableCount > 0 ? (
+          <form action={openTournamentRoundLineupsAction}>
+            <input type="hidden" name="tournamentId" value={tournamentId} />
+            <input type="hidden" name="roundId" value={roundId} />
+            <input type="hidden" name="leg" value={String(leg)} />
+            <button
+              type="submit"
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            >
+              Apri formazioni
+            </button>
+          </form>
+        ) : null}
+
+        {lineupsStatus === TournamentRoundLineupsStatus.OPEN ? (
+          <>
+            <form action={generateRandomTournamentLineupsForRoundAction}>
+              <input type="hidden" name="tournamentId" value={tournamentId} />
+              <input type="hidden" name="roundId" value={roundId} />
+              <input type="hidden" name="leg" value={String(leg)} />
+              <PendingSubmitButton
+                pendingLabel="Generazione formazioni…"
+                className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Schiera formazioni (questa giornata)
+              </PendingSubmitButton>
+            </form>
+            <form action={lockTournamentRoundLineupsAction}>
+              <input type="hidden" name="tournamentId" value={tournamentId} />
+              <input type="hidden" name="roundId" value={roundId} />
+              <input type="hidden" name="leg" value={String(leg)} />
+              <button
+                type="submit"
+                className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition hover:border-amber-400 hover:bg-amber-100"
+              >
+                Chiudi formazioni
+              </button>
+            </form>
+          </>
+        ) : null}
+      </div>
+
+      {lineupsStatus === TournamentRoundLineupsStatus.LOCKED ? (
+        <div className="mt-3">
+          <VoteLegActions
+            isFinal={isFinal}
+            leg={leg}
+            legLabel={legLabel}
+            readyPlayableCount={readyPlayableCount}
+            requiredVotes={requiredVotes}
+            savedVotesCount={savedVotesCount}
+            tournamentId={tournamentId}
+            roundId={roundId}
+          />
+        </div>
+      ) : null}
+
+      {lineupsStatus === TournamentRoundLineupsStatus.DRAFT &&
+      readyPlayableCount === 0 ? (
+        <p className="mt-2 text-xs text-slate-500">
+          Attendi che le partite di questa gamba diventino READY (squadre
+          definite), oppure completa la giornata precedente.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function TournamentBracketPage({
   params,
   searchParams
@@ -190,18 +305,24 @@ export default async function TournamentBracketPage({
     notFound();
   }
 
-  const nextUsefulRound = getNextUsefulTournamentRound(tournament.rounds);
-  const openRound =
-    tournament.rounds.find(
-      (round) => round.lineupsStatus === TournamentRoundLineupsStatus.OPEN
-    ) ?? null;
-  // Prefer OPEN phase for admin Genera/Chiudi; fall back to next useful READY round.
-  const lineupActionRound = openRound ?? nextUsefulRound;
+  const nextUsefulLeg = getNextUsefulTournamentLeg(tournament.rounds);
+  const openLeg =
+    tournament.rounds.flatMap((round) =>
+      legsForTournamentRound(round.isFinal)
+        .filter(
+          (leg) =>
+            getTournamentRoundLineupsStatusForLeg(round, leg) ===
+            TournamentRoundLineupsStatus.OPEN
+        )
+        .map((leg) => ({ round, leg }))
+    )[0] ?? null;
+  const lineupActionLeg = openLeg ?? nextUsefulLeg;
+  const anyOpen = tournament.rounds.some(roundHasOpenLineupsLeg);
 
   return (
     <AdminShell
       title={`Tabellone — ${tournament.name}`}
-      subtitle="Flusso per fase (come le giornate di lega): Apri formazioni → Chiudi → Genera liste → Carica XLS → Calcola. A serie completa il vincitore avanza."
+      subtitle="Flusso per giornata (gamba): Fase N — Andata, poi Ritorno, poi fase successiva. Apri → Chiudi → Genera liste → XLS → Calcola solo per quella gamba."
     >
       <Feedback error={error} notice={notice} />
 
@@ -228,26 +349,47 @@ export default async function TournamentBracketPage({
           Stato: <strong>{tournament.status}</strong>
         </span>
         <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          Formazioni:{" "}
-          <strong>{openRound ? "aperte" : "chiuse"}</strong>
-          {openRound ? ` (${openRound.name})` : null}
+          Formazioni: <strong>{anyOpen ? "aperte" : "chiuse"}</strong>
+          {openLeg
+            ? ` (${tournamentGiornataLabel({
+                isFinal: openLeg.round.isFinal,
+                leg: openLeg.leg,
+                roundName: openLeg.round.name
+              })})`
+            : null}
         </span>
-        {lineupActionRound ? (
+        {lineupActionLeg ? (
           <form action={generateRandomTournamentLineupsForRoundAction}>
             <input type="hidden" name="tournamentId" value={tournament.id} />
-            <input type="hidden" name="roundId" value={lineupActionRound.id} />
+            <input
+              type="hidden"
+              name="roundId"
+              value={lineupActionLeg.round.id}
+            />
+            <input
+              type="hidden"
+              name="leg"
+              value={String(lineupActionLeg.leg)}
+            />
             <PendingSubmitButton
               pendingLabel="Generazione formazioni…"
               className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Genera formazioni ({lineupActionRound.name})
+              Genera formazioni (
+              {tournamentGiornataLabel({
+                isFinal: lineupActionLeg.round.isFinal,
+                leg: lineupActionLeg.leg,
+                roundName: lineupActionLeg.round.name
+              })}
+              )
             </PendingSubmitButton>
           </form>
         ) : null}
-        {openRound ? (
+        {openLeg ? (
           <form action={lockTournamentRoundLineupsAction}>
             <input type="hidden" name="tournamentId" value={tournament.id} />
-            <input type="hidden" name="roundId" value={openRound.id} />
+            <input type="hidden" name="roundId" value={openLeg.round.id} />
+            <input type="hidden" name="leg" value={String(openLeg.leg)} />
             <button
               type="submit"
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
@@ -257,6 +399,49 @@ export default async function TournamentBracketPage({
           </form>
         ) : null}
       </div>
+
+      {nextUsefulLeg ? (
+        <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">
+            Giornata corrente:{" "}
+            {tournamentGiornataLabel({
+              isFinal: nextUsefulLeg.round.isFinal,
+              leg: nextUsefulLeg.leg,
+              roundName: nextUsefulLeg.round.name
+            })}
+          </h2>
+          <GiornataActions
+            giornataLabel={tournamentGiornataLabel({
+              isFinal: nextUsefulLeg.round.isFinal,
+              leg: nextUsefulLeg.leg,
+              roundName: nextUsefulLeg.round.name
+            })}
+            isFinal={nextUsefulLeg.round.isFinal}
+            leg={nextUsefulLeg.leg}
+            lineupsStatus={getTournamentRoundLineupsStatusForLeg(
+              nextUsefulLeg.round,
+              nextUsefulLeg.leg
+            )}
+            readyPlayableCount={nextUsefulLeg.round.fixtures.filter(
+              (fixture) =>
+                fixture.leg === nextUsefulLeg.leg &&
+                fixture.status === "READY" &&
+                fixture.homeTeam &&
+                fixture.awayTeam
+            ).length}
+            requiredVotes={nextUsefulLeg.round.requiredVotes.filter(
+              (entry) => entry.leg === nextUsefulLeg.leg
+            )}
+            savedVotesCount={
+              nextUsefulLeg.round.playerVotes.filter(
+                (entry) => entry.leg === nextUsefulLeg.leg
+              ).length
+            }
+            tournamentId={tournament.id}
+            roundId={nextUsefulLeg.round.id}
+          />
+        </section>
+      ) : null}
 
       {tournament.entries.some((entry) => entry.seedRank != null) ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -300,12 +485,6 @@ export default async function TournamentBracketPage({
             return left[1][0].bracketSlot - right[1][0].bracketSlot;
           });
 
-          const readyPlayableCount = round.fixtures.filter(
-            (fixture) =>
-              fixture.status === "READY" &&
-              fixture.homeTeam &&
-              fixture.awayTeam
-          ).length;
           const readyByLeg = {
             1: round.fixtures.filter(
               (fixture) =>
@@ -330,7 +509,9 @@ export default async function TournamentBracketPage({
             1: round.playerVotes.filter((entry) => entry.leg === 1).length,
             2: round.playerVotes.filter((entry) => entry.leg === 2).length
           };
-          const voteLegs: Array<1 | 2> = round.isFinal ? [1] : [1, 2];
+          const voteLegs = legsForTournamentRound(round.isFinal);
+          const isCurrentRound =
+            nextUsefulLeg != null && nextUsefulLeg.round.id === round.id;
 
           return (
             <section
@@ -344,108 +525,61 @@ export default async function TournamentBracketPage({
                     {round.isFinal ? " (solo andata)" : " (andata/ritorno)"}
                   </h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    Formazioni:{" "}
-                    <strong>{lineupsStatusLabel(round.lineupsStatus)}</strong>
-                    {readyPlayableCount > 0
-                      ? ` · ${readyPlayableCount} partite READY`
-                      : " · nessuna partita READY"}
+                    Andata:{" "}
+                    <strong>
+                      {lineupsStatusLabel(round.lineupsStatusLeg1)}
+                    </strong>
+                    {!round.isFinal ? (
+                      <>
+                        {" · "}
+                        Ritorno:{" "}
+                        <strong>
+                          {lineupsStatusLabel(round.lineupsStatusLeg2)}
+                        </strong>
+                      </>
+                    ) : null}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">
-                  Azioni fase (ordine lega)
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  1. Apri formazioni → 2. utenti schierano → 3. Chiudi → 4.
-                  Genera liste (per gamba) → 5. Carica XLS (per gamba) → 6.
-                  Calcola (per gamba)
-                </p>
+              {voteLegs.map((leg) => {
+                if (isCurrentRound && nextUsefulLeg?.leg === leg) {
+                  // Already shown in "Giornata corrente" panel.
+                  return null;
+                }
 
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {round.lineupsStatus === TournamentRoundLineupsStatus.DRAFT &&
-                  readyPlayableCount > 0 ? (
-                    <form action={openTournamentRoundLineupsAction}>
-                      <input
-                        type="hidden"
-                        name="tournamentId"
-                        value={tournament.id}
-                      />
-                      <input type="hidden" name="roundId" value={round.id} />
-                      <button
-                        type="submit"
-                        className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-                      >
-                        Apri formazioni
-                      </button>
-                    </form>
-                  ) : null}
+                const status = getTournamentRoundLineupsStatusForLeg(
+                  round,
+                  leg
+                );
+                // Show historical/upcoming giornata panels only when actionable
+                // or already locked (votes), to avoid duplicating the current one.
+                if (
+                  status === TournamentRoundLineupsStatus.DRAFT &&
+                  readyByLeg[leg] === 0
+                ) {
+                  return null;
+                }
 
-                  {round.lineupsStatus ===
-                  TournamentRoundLineupsStatus.OPEN ? (
-                    <>
-                      <form
-                        action={generateRandomTournamentLineupsForRoundAction}
-                      >
-                        <input
-                          type="hidden"
-                          name="tournamentId"
-                          value={tournament.id}
-                        />
-                        <input type="hidden" name="roundId" value={round.id} />
-                        <PendingSubmitButton
-                          pendingLabel="Generazione formazioni…"
-                          className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Schiera formazioni (tutte le squadre)
-                        </PendingSubmitButton>
-                      </form>
-                      <form action={lockTournamentRoundLineupsAction}>
-                        <input
-                          type="hidden"
-                          name="tournamentId"
-                          value={tournament.id}
-                        />
-                        <input type="hidden" name="roundId" value={round.id} />
-                        <button
-                          type="submit"
-                          className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition hover:border-amber-400 hover:bg-amber-100"
-                        >
-                          Chiudi formazioni
-                        </button>
-                      </form>
-                    </>
-                  ) : null}
-                </div>
-
-                {round.lineupsStatus ===
-                TournamentRoundLineupsStatus.LOCKED ? (
-                  <div className="mt-3 space-y-3">
-                    {voteLegs.map((leg) => (
-                      <VoteLegActions
-                        key={`${round.id}-leg-${leg}`}
-                        isFinal={round.isFinal}
-                        leg={leg}
-                        legLabel={leg === 1 ? "Andata" : "Ritorno"}
-                        readyPlayableCount={readyByLeg[leg]}
-                        requiredVotes={requiredByLeg[leg]}
-                        savedVotesCount={savedByLeg[leg]}
-                        tournamentId={tournament.id}
-                        roundId={round.id}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-
-                {round.lineupsStatus === TournamentRoundLineupsStatus.DRAFT &&
-                readyPlayableCount === 0 ? (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Attendi che le partite diventino READY (squadre definite)
-                    prima di aprire le formazioni.
-                  </p>
-                ) : null}
-              </div>
+                return (
+                  <GiornataActions
+                    key={`${round.id}-leg-${leg}`}
+                    giornataLabel={tournamentGiornataLabel({
+                      isFinal: round.isFinal,
+                      leg,
+                      roundName: round.name
+                    })}
+                    isFinal={round.isFinal}
+                    leg={leg}
+                    lineupsStatus={status}
+                    readyPlayableCount={readyByLeg[leg]}
+                    requiredVotes={requiredByLeg[leg]}
+                    savedVotesCount={savedByLeg[leg]}
+                    tournamentId={tournament.id}
+                    roundId={round.id}
+                  />
+                );
+              })}
 
               <div className="mt-4 space-y-4">
                 {series.map(([seriesKey, fixtures]) => {
