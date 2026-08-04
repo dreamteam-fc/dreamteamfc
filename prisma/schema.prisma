@@ -594,10 +594,12 @@ model TournamentLineupPlayer {
   @@index([playerId])
 }
 
-/// Lista voti richiesti per una fase di torneo (unione giocatori nelle formazioni READY).
+/// Lista voti richiesti per una gamba di fase torneo (andata=1 / ritorno=2).
 model TournamentRequiredVotePlayer {
   id       String             @id @default(cuid())
   roundId  String
+  /// 1 = andata, 2 = ritorno (finale solo leg=1).
+  leg      Int                @default(1)
   playerId String
   status   RequiredVoteStatus @default(PENDING)
   usageCount Int              @default(1)
@@ -606,14 +608,17 @@ model TournamentRequiredVotePlayer {
   round    TournamentRound    @relation(fields: [roundId], references: [id], onDelete: Cascade)
   player   Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
-  @@unique([roundId, playerId])
+  @@unique([roundId, leg, playerId])
+  @@index([roundId, leg])
   @@index([status])
 }
 
-/// Voti giocatore scoped alla fase torneo (import XLS Fantacalcio).
+/// Voti giocatore scoped alla gamba di fase torneo (import XLS Fantacalcio).
 model TournamentPlayerVote {
   id              String     @id @default(cuid())
   roundId         String
+  /// 1 = andata, 2 = ritorno (finale solo leg=1).
+  leg             Int        @default(1)
   playerId        String
   status          VoteStatus @default(PENDING)
   isSv            Boolean    @default(false)
@@ -635,6 +640,7 @@ model TournamentPlayerVote {
   round           TournamentRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
   player          Player          @relation(fields: [playerId], references: [id], onDelete: Restrict)
 
-  @@unique([roundId, playerId])
+  @@unique([roundId, leg, playerId])
+  @@index([roundId, leg])
   @@index([status, isSv])
 }

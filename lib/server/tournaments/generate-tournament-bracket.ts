@@ -392,12 +392,13 @@ export async function getTournamentBracketPageData(tournamentId: string) {
           roundIndex: true,
           requiredVotes: {
             select: {
+              leg: true,
               status: true
             }
           },
-          _count: {
+          playerVotes: {
             select: {
-              playerVotes: true
+              leg: true
             }
           },
           fixtures: {

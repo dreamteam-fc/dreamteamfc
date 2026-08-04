@@ -5,16 +5,20 @@ import {
   toSavePlayerVoteInput
 } from "@/lib/server/votes/parse-fantacalcio-votes-xls.ts";
 import {
+  assertTournamentVoteLeg,
   generateTournamentRequiredVotes,
-  saveTournamentPlayerVote
+  saveTournamentPlayerVote,
+  tournamentVoteLegLabel
 } from "@/lib/server/tournaments/tournament-votes.ts";
 
 export async function importFantacalcioVotesForTournamentRound(options: {
   buffer: Buffer;
+  leg: number;
   roundId: string;
   sheetName?: string;
 }) {
-  await generateTournamentRequiredVotes(options.roundId);
+  assertTournamentVoteLeg(options.leg);
+  await generateTournamentRequiredVotes(options.roundId, options.leg);
 
   const parsed = parseFantacalcioVotesBuffer(
     options.buffer,
@@ -26,7 +30,7 @@ export async function importFantacalcioVotesForTournamentRound(options: {
   }
 
   const requiredPlayers = await prisma.tournamentRequiredVotePlayer.findMany({
-    where: { roundId: options.roundId },
+    where: { roundId: options.roundId, leg: options.leg },
     select: {
       playerId: true,
       player: {
@@ -41,7 +45,9 @@ export async function importFantacalcioVotesForTournamentRound(options: {
   });
 
   if (requiredPlayers.length === 0) {
-    throw new Error("Nessun giocatore in lista voti richiesti per la fase.");
+    throw new Error(
+      `Nessun giocatore in lista voti richiesti per ${tournamentVoteLegLabel(options.leg).toLowerCase()}.`
+    );
   }
 
   const matchedPlayers = await prisma.player.findMany({
@@ -92,6 +98,7 @@ export async function importFantacalcioVotesForTournamentRound(options: {
       goals: payload.goals,
       goalsConceded: payload.goalsConceded,
       isSv: payload.isSv,
+      leg: options.leg,
       notes: payload.notes,
       ownGoals: payload.ownGoals,
       penaltiesMissed: payload.penaltiesMissed,
@@ -120,6 +127,7 @@ export async function importFantacalcioVotesForTournamentRound(options: {
     await saveTournamentPlayerVote({
       baseVote: null,
       isSv: true,
+      leg: options.leg,
       notes: "SV automatico: assente dal file voti",
       playerId: required.playerId,
       tournamentRoundId: options.roundId
@@ -129,6 +137,7 @@ export async function importFantacalcioVotesForTournamentRound(options: {
   }
 
   return {
+    leg: options.leg,
     matchedCount,
     missingMarkedSvCount,
     savedCount,

@@ -16,6 +16,10 @@ import {
 import { convertScoreToGoals } from "@/lib/scoring/convert-score-to-goals.ts";
 import { getFixtureForfeitOutcome } from "@/lib/server/fixtures/fixture-forfeit.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
+import {
+  assertTournamentVoteLeg,
+  tournamentVoteLegLabel
+} from "@/lib/server/tournaments/tournament-votes.ts";
 
 function buildTeamScoreInput(options: {
   lineupPlayers: Array<{
@@ -81,20 +85,26 @@ function buildTeamScoreInput(options: {
 }
 
 export async function calculateTournamentRoundResultsFromVotes(
-  roundId: string
+  roundId: string,
+  leg: number
 ) {
+  assertTournamentVoteLeg(leg);
+
   const round = await prisma.tournamentRound.findUnique({
     where: { id: roundId },
     select: {
       id: true,
       name: true,
+      isFinal: true,
       tournamentId: true,
       lineupsStatus: true,
       requiredVotes: {
+        where: { leg },
         select: { status: true }
       },
       fixtures: {
         where: {
+          leg,
           status: {
             in: [TournamentFixtureStatus.READY, TournamentFixtureStatus.COMPLETED]
           }
@@ -135,6 +145,10 @@ export async function calculateTournamentRoundResultsFromVotes(
     throw new Error("Fase torneo non trovata.");
   }
 
+  if (round.isFinal && leg !== 1) {
+    throw new Error("La finale ha solo l'andata (leg 1).");
+  }
+
   if (round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED) {
     throw new Error(
       "Calcola i risultati solo dopo aver chiuso le formazioni (LOCKED)."
@@ -143,7 +157,7 @@ export async function calculateTournamentRoundResultsFromVotes(
 
   if (round.requiredVotes.length === 0) {
     throw new Error(
-      "Genera/importa prima i voti per questa fase (lista voti richiesta vuota)."
+      `Genera/importa prima i voti per ${tournamentVoteLegLabel(leg).toLowerCase()} (lista voti richiesta vuota).`
     );
   }
 
@@ -152,12 +166,12 @@ export async function calculateTournamentRoundResultsFromVotes(
   );
   if (pending.length > 0) {
     throw new Error(
-      `Ci sono ancora ${pending.length} voti richiesti incompleti. Completa l'import XLS.`
+      `Ci sono ancora ${pending.length} voti richiesti incompleti per ${tournamentVoteLegLabel(leg).toLowerCase()}. Completa l'import XLS.`
     );
   }
 
   const votes = await prisma.tournamentPlayerVote.findMany({
-    where: { roundId },
+    where: { roundId, leg },
     select: {
       assists: true,
       baseVote: true,
@@ -200,7 +214,9 @@ export async function calculateTournamentRoundResultsFromVotes(
   );
 
   if (readyFixtures.length === 0) {
-    throw new Error("Nessuna partita READY da calcolare in questa fase.");
+    throw new Error(
+      `Nessuna partita READY da calcolare per ${tournamentVoteLegLabel(leg).toLowerCase()}.`
+    );
   }
 
   let calculatedCount = 0;
@@ -262,6 +278,7 @@ export async function calculateTournamentRoundResultsFromVotes(
 
   return {
     calculatedCount,
+    leg,
     roundId: round.id,
     roundName: round.name,
     tournamentId: round.tournamentId

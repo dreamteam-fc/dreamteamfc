@@ -11,21 +11,40 @@ import {
   validatePlayerVoteInput
 } from "@/lib/server/votes/shared.ts";
 
+export function assertTournamentVoteLeg(leg: number): asserts leg is 1 | 2 {
+  if (leg !== 1 && leg !== 2) {
+    throw new Error("Gamba non valida: usa 1 (andata) o 2 (ritorno).");
+  }
+}
+
+export function tournamentVoteLegLabel(leg: number): string {
+  return leg === 2 ? "Ritorno" : "Andata";
+}
+
 /**
- * Build required vote players for a tournament round.
+ * Build required vote players for one leg of a tournament round.
  *
  * Avoids interactive `$transaction` over Supabase PgBouncer (same durable
  * pattern as league calendar / matchday required-vote generation).
  */
-export async function generateTournamentRequiredVotes(roundId: string) {
+export async function generateTournamentRequiredVotes(
+  roundId: string,
+  leg: number
+) {
+  assertTournamentVoteLeg(leg);
+
   const round = await prisma.tournamentRound.findUnique({
     where: { id: roundId },
     select: {
       id: true,
       name: true,
+      isFinal: true,
       lineupsStatus: true,
       fixtures: {
-        where: { status: TournamentFixtureStatus.READY },
+        where: {
+          status: TournamentFixtureStatus.READY,
+          leg
+        },
         select: {
           id: true,
           lineups: {
@@ -42,6 +61,10 @@ export async function generateTournamentRequiredVotes(roundId: string) {
 
   if (!round) {
     throw new Error("Fase torneo non trovata.");
+  }
+
+  if (round.isFinal && leg !== 1) {
+    throw new Error("La finale ha solo l'andata (leg 1).");
   }
 
   if (round.lineupsStatus !== TournamentRoundLineupsStatus.LOCKED) {
@@ -61,18 +84,18 @@ export async function generateTournamentRequiredVotes(roundId: string) {
 
   if (usage.size === 0) {
     throw new Error(
-      "Nessun giocatore in formazione sulle partite READY di questa fase. Schiera prima le formazioni."
+      `Nessun giocatore in formazione sulle partite READY di ${tournamentVoteLegLabel(leg).toLowerCase()}. Schiera prima le formazioni.`
     );
   }
 
   const playerIds = Array.from(usage.keys());
   const [existingVotes, existingRequired] = await Promise.all([
     prisma.tournamentPlayerVote.findMany({
-      where: { roundId },
+      where: { roundId, leg },
       select: { playerId: true, isSv: true }
     }),
     prisma.tournamentRequiredVotePlayer.findMany({
-      where: { roundId },
+      where: { roundId, leg },
       select: { playerId: true }
     })
   ]);
@@ -86,11 +109,13 @@ export async function generateTournamentRequiredVotes(roundId: string) {
   await prisma.tournamentRequiredVotePlayer.deleteMany({
     where: {
       roundId,
+      leg,
       playerId: { notIn: playerIds }
     }
   });
 
   const createRows: Array<{
+    leg: number;
     playerId: string;
     roundId: string;
     status: RequiredVoteStatus;
@@ -110,7 +135,7 @@ export async function generateTournamentRequiredVotes(roundId: string) {
       : RequiredVoteStatus.PENDING;
 
     if (!existingPlayerIds.has(playerId)) {
-      createRows.push({ playerId, roundId, status, usageCount });
+      createRows.push({ playerId, roundId, leg, status, usageCount });
       continue;
     }
 
@@ -139,6 +164,7 @@ export async function generateTournamentRequiredVotes(roundId: string) {
       await prisma.tournamentRequiredVotePlayer.updateMany({
         where: {
           roundId,
+          leg,
           playerId: { in: group.playerIds.slice(index, index + 50) }
         },
         data: {
@@ -150,6 +176,7 @@ export async function generateTournamentRequiredVotes(roundId: string) {
   }
 
   return {
+    leg,
     playerCount: usage.size,
     roundId,
     roundName: round.name
@@ -162,6 +189,7 @@ export async function saveTournamentPlayerVote(input: {
   goals?: number;
   goalsConceded?: number;
   isSv: boolean;
+  leg: number;
   notes?: string | null;
   ownGoals?: number;
   penaltiesMissed?: number;
@@ -172,6 +200,8 @@ export async function saveTournamentPlayerVote(input: {
   tournamentRoundId: string;
   yellowCards?: number;
 }) {
+  assertTournamentVoteLeg(input.leg);
+
   const validated = validatePlayerVoteInput({
     ...input,
     matchdayId: input.tournamentRoundId
@@ -201,7 +231,8 @@ export async function saveTournamentPlayerVote(input: {
   await prisma.$transaction(async (tx) => {
     await tx.tournamentPlayerVote.upsert({
       where: {
-        roundId_playerId: {
+        roundId_leg_playerId: {
+          leg: input.leg,
           playerId: voteForPersist.playerId,
           roundId: input.tournamentRoundId
         }
@@ -214,6 +245,7 @@ export async function saveTournamentPlayerVote(input: {
         goals: voteForPersist.goals,
         goalsConceded: voteForPersist.goalsConceded,
         isSv: voteForPersist.isSv,
+        leg: input.leg,
         notes: voteForPersist.notes,
         ownGoals: voteForPersist.ownGoals,
         penaltiesMissed: voteForPersist.penaltiesMissed,
@@ -246,6 +278,7 @@ export async function saveTournamentPlayerVote(input: {
 
     await tx.tournamentRequiredVotePlayer.updateMany({
       where: {
+        leg: input.leg,
         playerId: voteForPersist.playerId,
         roundId: input.tournamentRoundId
       },

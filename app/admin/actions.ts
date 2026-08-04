@@ -26,7 +26,10 @@ import {
   formatGenerateRandomTournamentLineupsNotice,
   generateRandomTournamentLineupsForRound
 } from "@/lib/server/tournaments/generate-random-tournament-lineups-for-round.ts";
-import { generateTournamentRequiredVotes } from "@/lib/server/tournaments/tournament-votes.ts";
+import {
+  generateTournamentRequiredVotes,
+  tournamentVoteLegLabel
+} from "@/lib/server/tournaments/tournament-votes.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
 import { saveTournamentEntries } from "@/lib/server/tournaments/tournament-entries.ts";
 import {
@@ -362,6 +365,14 @@ function readOptionalString(formData: FormData, fieldName: string): string | nul
   }
 
   return value;
+}
+
+function readTournamentVoteLeg(formData: FormData): 1 | 2 {
+  const parsed = readOptionalNumber(formData, "leg");
+  if (parsed !== 1 && parsed !== 2) {
+    throw new Error("Gamba non valida: usa 1 (andata) o 2 (ritorno).");
+  }
+  return parsed;
 }
 
 function getVoteFieldName(playerId: string, fieldName: VoteFieldName) {
@@ -880,6 +891,7 @@ export async function importTournamentRoundVotesAction(formData: FormData) {
   let errorMessage: string | undefined;
 
   try {
+    const leg = readTournamentVoteLeg(formData);
     if (!(fileValue instanceof File) || fileValue.size === 0) {
       throw new Error("Seleziona un file XLS/XLSX dei voti Fantacalcio.");
     }
@@ -892,6 +904,7 @@ export async function importTournamentRoundVotesAction(formData: FormData) {
     const buffer = await fileToOwnedBuffer(fileValue);
     const result = await importFantacalcioVotesForTournamentRound({
       buffer,
+      leg,
       roundId,
       sheetName: sheetNameRaw || undefined
     });
@@ -901,8 +914,9 @@ export async function importTournamentRoundVotesAction(formData: FormData) {
       result.skippedUnmatchedCodes.length > 0
         ? ` Codici non in DB: ${result.skippedUnmatchedCodes.slice(0, 8).join(", ")}${result.skippedUnmatchedCodes.length > 8 ? "…" : ""}.`
         : "";
+    const legLabel = tournamentVoteLegLabel(result.leg);
 
-    notice = `Import voti fase (${result.sheetName}): ${result.savedCount} salvati, ${result.matchedCount} dal file, ${result.missingMarkedSvCount} SV assenti.${unmatchedPreview}`;
+    notice = `Import voti ${legLabel} (${result.sheetName}): ${result.savedCount} salvati, ${result.matchedCount} dal file, ${result.missingMarkedSvCount} SV assenti.${unmatchedPreview}`;
   } catch (error) {
     errorMessage =
       error instanceof Error ? error.message : "Import voti torneo non riuscito.";
@@ -919,12 +933,13 @@ export async function calculateTournamentRoundFromVotesAction(
   const roundId = readRequiredString(formData, "roundId");
 
   try {
-    const result = await calculateTournamentRoundResultsFromVotes(roundId);
+    const leg = readTournamentVoteLeg(formData);
+    const result = await calculateTournamentRoundResultsFromVotes(roundId, leg);
     revalidatePath("/admin/tournaments");
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
     revalidatePath(`/tournaments/${tournamentId}`);
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: `Calcolate ${result.calculatedCount} partite READY in ${result.roundName} da fantavoto.`
+      notice: `Calcolate ${result.calculatedCount} partite READY (${tournamentVoteLegLabel(result.leg)}) in ${result.roundName} da fantavoto.`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
@@ -944,10 +959,11 @@ export async function generateTournamentRoundRequiredVotesAction(
   const roundId = readRequiredString(formData, "roundId");
 
   try {
-    const result = await generateTournamentRequiredVotes(roundId);
+    const leg = readTournamentVoteLeg(formData);
+    const result = await generateTournamentRequiredVotes(roundId, leg);
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: `Lista voti generata per ${result.roundName}: ${result.playerCount} giocatori.`
+      notice: `Lista voti ${tournamentVoteLegLabel(result.leg)} generata per ${result.roundName}: ${result.playerCount} giocatori.`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {

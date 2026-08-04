@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { TournamentRoundLineupsStatus } from "@prisma/client";
+import {
+  RequiredVoteStatus,
+  TournamentRoundLineupsStatus
+} from "@prisma/client";
 import { notFound } from "next/navigation";
 import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
@@ -68,6 +71,110 @@ function lineupsStatusLabel(status: TournamentRoundLineupsStatus): string {
     default:
       return "Formazioni non aperte";
   }
+}
+
+function VoteLegActions({
+  isFinal,
+  leg,
+  legLabel,
+  readyPlayableCount,
+  requiredVotes,
+  savedVotesCount,
+  tournamentId,
+  roundId
+}: {
+  isFinal: boolean;
+  leg: 1 | 2;
+  legLabel: string;
+  readyPlayableCount: number;
+  requiredVotes: Array<{ status: RequiredVoteStatus }>;
+  savedVotesCount: number;
+  tournamentId: string;
+  roundId: string;
+}) {
+  const completedVotes = requiredVotes.filter((entry) =>
+    isRequiredVoteCompletedStatus(entry.status)
+  ).length;
+  const hasVoteList = requiredVotes.length > 0;
+  const votesReady = hasVoteList && completedVotes === requiredVotes.length;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <p className="text-sm font-semibold text-slate-900">
+        {isFinal ? "Voti (unica gara)" : legLabel}
+      </p>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <form action={generateTournamentRoundRequiredVotesAction}>
+          <input type="hidden" name="tournamentId" value={tournamentId} />
+          <input type="hidden" name="roundId" value={roundId} />
+          <input type="hidden" name="leg" value={String(leg)} />
+          <button
+            type="submit"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400"
+          >
+            Genera lista voti
+          </button>
+        </form>
+        <form
+          action={importTournamentRoundVotesAction}
+          encType="multipart/form-data"
+          className="flex flex-wrap items-end gap-2"
+        >
+          <input type="hidden" name="tournamentId" value={tournamentId} />
+          <input type="hidden" name="roundId" value={roundId} />
+          <input type="hidden" name="leg" value={String(leg)} />
+          <label className="space-y-1 text-xs text-slate-600">
+            <span>File XLS {isFinal ? "" : `(${legLabel})`}</span>
+            <input
+              type="file"
+              name="votesFile"
+              accept=".xls,.xlsx"
+              required
+              className="block text-sm"
+            />
+          </label>
+          <label className="space-y-1 text-xs text-slate-600">
+            <span>Foglio</span>
+            <input
+              type="text"
+              name="sheetName"
+              defaultValue="Fantacalcio"
+              className="w-36 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          >
+            Carica XLS
+          </button>
+        </form>
+        <form action={calculateTournamentRoundFromVotesAction}>
+          <input type="hidden" name="tournamentId" value={tournamentId} />
+          <input type="hidden" name="roundId" value={roundId} />
+          <input type="hidden" name="leg" value={String(leg)} />
+          <button
+            type="submit"
+            disabled={!votesReady || readyPlayableCount === 0}
+            className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition enabled:hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Calcola {isFinal ? "partite" : legLabel.toLowerCase()}
+          </button>
+        </form>
+      </div>
+      {hasVoteList ? (
+        <p className="mt-2 text-xs text-slate-500">
+          Lista voti: {completedVotes}/{requiredVotes.length} pronti ·{" "}
+          {savedVotesCount} voti salvati
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-slate-500">
+          Lista voti non ancora generata
+          {isFinal ? "." : ` per ${legLabel.toLowerCase()}.`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default async function TournamentBracketPage({
@@ -199,12 +306,31 @@ export default async function TournamentBracketPage({
               fixture.homeTeam &&
               fixture.awayTeam
           ).length;
-          const completedVotes = round.requiredVotes.filter((entry) =>
-            isRequiredVoteCompletedStatus(entry.status)
-          ).length;
-          const hasVoteList = round.requiredVotes.length > 0;
-          const votesReady =
-            hasVoteList && completedVotes === round.requiredVotes.length;
+          const readyByLeg = {
+            1: round.fixtures.filter(
+              (fixture) =>
+                fixture.leg === 1 &&
+                fixture.status === "READY" &&
+                fixture.homeTeam &&
+                fixture.awayTeam
+            ).length,
+            2: round.fixtures.filter(
+              (fixture) =>
+                fixture.leg === 2 &&
+                fixture.status === "READY" &&
+                fixture.homeTeam &&
+                fixture.awayTeam
+            ).length
+          };
+          const requiredByLeg = {
+            1: round.requiredVotes.filter((entry) => entry.leg === 1),
+            2: round.requiredVotes.filter((entry) => entry.leg === 2)
+          };
+          const savedByLeg = {
+            1: round.playerVotes.filter((entry) => entry.leg === 1).length,
+            2: round.playerVotes.filter((entry) => entry.leg === 2).length
+          };
+          const voteLegs: Array<1 | 2> = round.isFinal ? [1] : [1, 2];
 
           return (
             <section
@@ -233,7 +359,8 @@ export default async function TournamentBracketPage({
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
                   1. Apri formazioni → 2. utenti schierano → 3. Chiudi → 4.
-                  Genera liste → 5. Carica XLS → 6. Calcola
+                  Genera liste (per gamba) → 5. Carica XLS (per gamba) → 6.
+                  Calcola (per gamba)
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-3">
@@ -290,91 +417,25 @@ export default async function TournamentBracketPage({
                       </form>
                     </>
                   ) : null}
-
-                  {round.lineupsStatus ===
-                  TournamentRoundLineupsStatus.LOCKED ? (
-                    <>
-                      <form action={generateTournamentRoundRequiredVotesAction}>
-                        <input
-                          type="hidden"
-                          name="tournamentId"
-                          value={tournament.id}
-                        />
-                        <input type="hidden" name="roundId" value={round.id} />
-                        <button
-                          type="submit"
-                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400"
-                        >
-                          Genera lista voti
-                        </button>
-                      </form>
-                      <form
-                        action={importTournamentRoundVotesAction}
-                        encType="multipart/form-data"
-                        className="flex flex-wrap items-end gap-2"
-                      >
-                        <input
-                          type="hidden"
-                          name="tournamentId"
-                          value={tournament.id}
-                        />
-                        <input type="hidden" name="roundId" value={round.id} />
-                        <label className="space-y-1 text-xs text-slate-600">
-                          <span>File XLS</span>
-                          <input
-                            type="file"
-                            name="votesFile"
-                            accept=".xls,.xlsx"
-                            required
-                            className="block text-sm"
-                          />
-                        </label>
-                        <label className="space-y-1 text-xs text-slate-600">
-                          <span>Foglio</span>
-                          <input
-                            type="text"
-                            name="sheetName"
-                            defaultValue="Fantacalcio"
-                            className="w-36 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                          />
-                        </label>
-                        <button
-                          type="submit"
-                          className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-                        >
-                          Carica XLS
-                        </button>
-                      </form>
-                      <form action={calculateTournamentRoundFromVotesAction}>
-                        <input
-                          type="hidden"
-                          name="tournamentId"
-                          value={tournament.id}
-                        />
-                        <input type="hidden" name="roundId" value={round.id} />
-                        <button
-                          type="submit"
-                          disabled={!votesReady || readyPlayableCount === 0}
-                          className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition enabled:hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Calcola partite da voti
-                        </button>
-                      </form>
-                    </>
-                  ) : null}
                 </div>
 
-                {round.lineupsStatus === TournamentRoundLineupsStatus.LOCKED ? (
-                  hasVoteList ? (
-                    <p className="mt-2 text-xs text-slate-500">
-                      Lista voti: {completedVotes}/{round.requiredVotes.length}{" "}
-                      pronti · {round._count.playerVotes} voti salvati
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-xs text-slate-500">
-                      Lista voti non ancora generata per questa fase.
-                    </p>
-                  )
+                {round.lineupsStatus ===
+                TournamentRoundLineupsStatus.LOCKED ? (
+                  <div className="mt-3 space-y-3">
+                    {voteLegs.map((leg) => (
+                      <VoteLegActions
+                        key={`${round.id}-leg-${leg}`}
+                        isFinal={round.isFinal}
+                        leg={leg}
+                        legLabel={leg === 1 ? "Andata" : "Ritorno"}
+                        readyPlayableCount={readyByLeg[leg]}
+                        requiredVotes={requiredByLeg[leg]}
+                        savedVotesCount={savedByLeg[leg]}
+                        tournamentId={tournament.id}
+                        roundId={round.id}
+                      />
+                    ))}
+                  </div>
                 ) : null}
 
                 {round.lineupsStatus === TournamentRoundLineupsStatus.DRAFT &&
