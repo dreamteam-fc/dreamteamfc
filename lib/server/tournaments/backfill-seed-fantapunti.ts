@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma.ts";
-import { calculateLeagueStandings } from "@/lib/server/standings/calculate-league-standings.ts";
-import { prismaDecimalToNumber } from "@/lib/server/votes/shared.ts";
+import { prisma } from "../../prisma.ts";
+import { calculateLeagueStandings } from "../standings/calculate-league-standings.ts";
+import { prismaDecimalToNumber } from "../votes/shared.ts";
 
 /**
  * Best-effort: fill seedFantapunti=0 entries from current league standings.
