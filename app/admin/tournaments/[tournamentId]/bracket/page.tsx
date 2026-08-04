@@ -13,12 +13,17 @@ import {
   importTournamentRoundVotesAction,
   lockTournamentRoundLineupsAction,
   openTournamentRoundLineupsAction,
+  pickTournamentSeriesWinnerAction,
   recordTournamentFixtureResultAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import { isRequiredVoteCompletedStatus } from "@/lib/server/votes/shared";
+import {
+  isRequiredVoteCompletedStatus,
+  prismaDecimalToNumber
+} from "@/lib/server/votes/shared";
 import { getTournamentBracketPageData } from "@/lib/server/tournaments/generate-tournament-bracket";
+import { listPendingTournamentSeriesTies } from "@/lib/server/tournaments/pending-series-ties";
 import { getNextUsefulTournamentLeg } from "@/lib/server/tournaments/next-useful-tournament-round";
 import {
   getTournamentRoundLineupsStatusForLeg,
@@ -28,6 +33,7 @@ import {
   tournamentLegLabel,
   type TournamentVoteLeg
 } from "@/lib/server/tournaments/tournament-round-leg";
+import { resolveSeriesWinner } from "@/lib/tournaments/resolve-series-winner";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +196,7 @@ function GiornataActions({
   isFinal,
   leg,
   lineupsStatus,
+  pendingSeriesTies,
   readyPlayableCount,
   requiredVotes,
   savedVotesCount,
@@ -200,6 +207,7 @@ function GiornataActions({
   isFinal: boolean;
   leg: TournamentVoteLeg;
   lineupsStatus: TournamentRoundLineupsStatus;
+  pendingSeriesTies: number;
   readyPlayableCount: number;
   requiredVotes: Array<{ status: RequiredVoteStatus }>;
   savedVotesCount: number;
@@ -207,6 +215,7 @@ function GiornataActions({
   roundId: string;
 }) {
   const legLabel = tournamentLegLabel(leg);
+  const openBlockedByTies = pendingSeriesTies > 0;
 
   return (
     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -221,6 +230,13 @@ function GiornataActions({
         1. Apri → 2. utenti schierano → 3. Chiudi → 4. Genera lista → 5. XLS →
         6. Calcola (solo questa gamba)
       </p>
+      {openBlockedByTies &&
+      lineupsStatus === TournamentRoundLineupsStatus.DRAFT ? (
+        <p className="mt-2 text-sm text-amber-800">
+          Apertura bloccata: scegli prima un vincitore per ogni serie in parità
+          ({pendingSeriesTies}).
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-3">
         {lineupsStatus === TournamentRoundLineupsStatus.DRAFT &&
@@ -231,7 +247,8 @@ function GiornataActions({
             <input type="hidden" name="leg" value={String(leg)} />
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+              disabled={openBlockedByTies}
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Apri formazioni
             </button>
@@ -318,6 +335,16 @@ export default async function TournamentBracketPage({
     )[0] ?? null;
   const lineupActionLeg = openLeg ?? nextUsefulLeg;
   const anyOpen = tournament.rounds.some(roundHasOpenLineupsLeg);
+  const pendingTies = await listPendingTournamentSeriesTies(tournament.id);
+  const seedByTeamId = new Map(
+    tournament.entries.map((entry) => [
+      entry.fantasyTeamId,
+      {
+        seedFantapunti: prismaDecimalToNumber(entry.seedFantapunti) ?? 0,
+        seedPoints: entry.seedPoints
+      }
+    ])
+  );
 
   return (
     <AdminShell
@@ -325,6 +352,20 @@ export default async function TournamentBracketPage({
       subtitle="Flusso per giornata (gamba): Fase N — Andata, poi Ritorno, poi fase successiva. Apri → Chiudi → Genera liste → XLS → Calcola solo per quella gamba."
     >
       <Feedback error={error} notice={notice} />
+
+      {pendingTies.length > 0 ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">
+            Prossima giornata bloccata: {pendingTies.length} serie in parità
+            senza vincitore.
+          </p>
+          <p className="mt-1">
+            Non si può avviare una nuova giornata finché non scegli un vincitore
+            per ogni serie sotto (gol, fantapunti, seed pt e seed FP tutti
+            uguali).
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Link
@@ -422,6 +463,7 @@ export default async function TournamentBracketPage({
               nextUsefulLeg.round,
               nextUsefulLeg.leg
             )}
+            pendingSeriesTies={pendingTies.length}
             readyPlayableCount={nextUsefulLeg.round.fixtures.filter(
               (fixture) =>
                 fixture.leg === nextUsefulLeg.leg &&
@@ -451,7 +493,8 @@ export default async function TournamentBracketPage({
               <li key={entry.fantasyTeamId}>
                 <strong>#{entry.seedRank ?? "-"}</strong>{" "}
                 {entry.fantasyTeam.name} ({entry.sourceLeague.name}) —{" "}
-                {entry.seedPoints} pt
+                {entry.seedPoints} pt ·{" "}
+                {prismaDecimalToNumber(entry.seedFantapunti) ?? 0} FP
                 {entry.activatedAt ? (
                   <span className="ml-2 text-emerald-700">· attivata</span>
                 ) : (
@@ -572,6 +615,7 @@ export default async function TournamentBracketPage({
                     isFinal={round.isFinal}
                     leg={leg}
                     lineupsStatus={status}
+                    pendingSeriesTies={pendingTies.length}
                     readyPlayableCount={readyByLeg[leg]}
                     requiredVotes={requiredByLeg[leg]}
                     savedVotesCount={savedByLeg[leg]}
@@ -584,14 +628,131 @@ export default async function TournamentBracketPage({
               <div className="mt-4 space-y-4">
                 {series.map(([seriesKey, fixtures]) => {
                   const first = fixtures[0];
+                  const expectedLegs = round.isFinal ? 1 : 2;
+                  const seriesComplete =
+                    fixtures.length === expectedLegs &&
+                    fixtures.every(
+                      (fixture) =>
+                        fixture.status === "COMPLETED" &&
+                        fixture.homeGoals != null &&
+                        fixture.awayGoals != null &&
+                        fixture.homeTeamId &&
+                        fixture.awayTeamId
+                    );
+                  const seriesWinner =
+                    fixtures.find((fixture) => fixture.seriesWinnerTeam)
+                      ?.seriesWinnerTeam ?? null;
+                  const seriesScores = fixtures.map((fixture) => ({
+                    awayFantapunti: prismaDecimalToNumber(
+                      fixture.awayFantapunti
+                    ),
+                    awayGoals: fixture.awayGoals,
+                    awayTeamId: fixture.awayTeamId,
+                    homeFantapunti: prismaDecimalToNumber(
+                      fixture.homeFantapunti
+                    ),
+                    homeGoals: fixture.homeGoals,
+                    homeTeamId: fixture.homeTeamId,
+                    leg: fixture.leg
+                  }));
+                  const teamAId = first.homeTeamId;
+                  const teamBId = first.awayTeamId;
+                  const showTotals =
+                    seriesComplete && teamAId != null && teamBId != null;
+                  const resolved =
+                    showTotals
+                      ? resolveSeriesWinner({
+                          fixtures: seriesScores,
+                          seedByTeamId
+                        })
+                      : null;
+                  const needsManualPick =
+                    showTotals &&
+                    seriesWinner == null &&
+                    resolved?.kind === "tied";
+
                   return (
                     <article
                       key={seriesKey}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      className={`rounded-2xl border p-4 ${
+                        needsManualPick
+                          ? "border-amber-300 bg-amber-50"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
                     >
                       <p className="text-sm font-semibold text-slate-500">
                         Serie #{first.bracketSlot + 1}
+                        {seriesWinner ? (
+                          <span className="ml-2 text-emerald-700">
+                            · Vince {seriesWinner.name}
+                          </span>
+                        ) : needsManualPick ? (
+                          <span className="ml-2 text-amber-800">
+                            · Parità: seleziona vincitore
+                          </span>
+                        ) : null}
                       </p>
+
+                      {showTotals && resolved ? (
+                        <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                          {resolved.totals.map((row) => {
+                            const name =
+                              tournament.entries.find(
+                                (entry) => entry.fantasyTeamId === row.teamId
+                              )?.fantasyTeam.name ??
+                              (first.homeTeamId === row.teamId
+                                ? teamLabel(first.homeTeam)
+                                : teamLabel(first.awayTeam));
+                            return (
+                              <div
+                                key={row.teamId}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                              >
+                                <p className="font-semibold text-slate-900">
+                                  {name}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-600">
+                                  Gol serie: <strong>{row.goals}</strong> · FP
+                                  serie: <strong>{row.fantapunti}</strong>
+                                  <br />
+                                  Seed pt: <strong>{row.seedPoints}</strong> ·
+                                  Seed FP:{" "}
+                                  <strong>{row.seedFantapunti}</strong>
+                                </p>
+                                {needsManualPick ? (
+                                  <form
+                                    action={pickTournamentSeriesWinnerAction}
+                                    className="mt-2"
+                                  >
+                                    <input
+                                      type="hidden"
+                                      name="tournamentId"
+                                      value={tournament.id}
+                                    />
+                                    <input
+                                      type="hidden"
+                                      name="seriesKey"
+                                      value={seriesKey}
+                                    />
+                                    <input
+                                      type="hidden"
+                                      name="winnerTeamId"
+                                      value={row.teamId}
+                                    />
+                                    <button
+                                      type="submit"
+                                      className="rounded-xl bg-amber-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-700"
+                                    >
+                                      Seleziona vincitore
+                                    </button>
+                                  </form>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+
                       <div className="mt-3 space-y-3 text-sm text-slate-700">
                         {fixtures.map((fixture) => (
                           <div
@@ -613,7 +774,12 @@ export default async function TournamentBracketPage({
                               <span className="text-slate-500">
                                 {fixture.homeGoals != null &&
                                 fixture.awayGoals != null
-                                  ? `${fixture.homeGoals} - ${fixture.awayGoals}`
+                                  ? `${fixture.homeGoals} - ${fixture.awayGoals}${
+                                      fixture.homeFantapunti != null ||
+                                      fixture.awayFantapunti != null
+                                        ? ` · FP ${prismaDecimalToNumber(fixture.homeFantapunti) ?? 0}-${prismaDecimalToNumber(fixture.awayFantapunti) ?? 0}`
+                                        : ""
+                                    }`
                                   : fixture.status}
                               </span>
                             </div>
@@ -686,6 +852,26 @@ export default async function TournamentBracketPage({
                                     name="awayGoals"
                                     min={0}
                                     required
+                                    className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                                  />
+                                </label>
+                                <label className="space-y-1 text-xs text-slate-600">
+                                  <span>FP casa (opz.)</span>
+                                  <input
+                                    type="number"
+                                    name="homeFantapunti"
+                                    min={0}
+                                    step="0.01"
+                                    className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                                  />
+                                </label>
+                                <label className="space-y-1 text-xs text-slate-600">
+                                  <span>FP trasferta (opz.)</span>
+                                  <input
+                                    type="number"
+                                    name="awayFantapunti"
+                                    min={0}
+                                    step="0.01"
                                     className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
                                   />
                                 </label>

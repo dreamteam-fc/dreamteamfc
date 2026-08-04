@@ -368,6 +368,7 @@ export async function getTournamentBracketPageData(tournamentId: string) {
         select: {
           activatedAt: true,
           fantasyTeamId: true,
+          seedFantapunti: true,
           seedPoints: true,
           seedRank: true,
           sourceLeague: {
@@ -406,13 +407,16 @@ export async function getTournamentBracketPageData(tournamentId: string) {
             orderBy: [{ bracketSlot: "asc" }, { leg: "asc" }],
             select: {
               id: true,
+              awayFantapunti: true,
               awayGoals: true,
               awayTeamId: true,
               bracketSlot: true,
+              homeFantapunti: true,
               homeGoals: true,
               homeTeamId: true,
               leg: true,
               seriesKey: true,
+              seriesWinnerTeamId: true,
               status: true,
               awayTeam: {
                 select: {
@@ -421,6 +425,12 @@ export async function getTournamentBracketPageData(tournamentId: string) {
                 }
               },
               homeTeam: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              },
+              seriesWinnerTeam: {
                 select: {
                   id: true,
                   name: true

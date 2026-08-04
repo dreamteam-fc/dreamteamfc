@@ -216,6 +216,7 @@ model FantasyTeam {
   tournamentEntries TournamentTeamEntry[]
   tournamentHomeFixtures TournamentFixture[] @relation("TournamentFixtureHomeTeam")
   tournamentAwayFixtures TournamentFixture[] @relation("TournamentFixtureAwayTeam")
+  tournamentSeriesWins TournamentFixture[] @relation("TournamentFixtureSeriesWinner")
   tournamentLineups TournamentLineup[]
 
   @@unique([leagueId, userId])
@@ -486,6 +487,8 @@ model TournamentTeamEntry {
   sourceLeagueId  String
   /// Punti classifica di lega al momento della selezione (snapshot).
   seedPoints      Int         @default(0)
+  /// Fantapunti di lega al momento della selezione (snapshot).
+  seedFantapunti  Decimal     @default(0) @db.Decimal(10, 2)
   /// Rank seeding 1 = più alto. Valorizzato alla generazione tabellone.
   seedRank        Int?
   /// Null finche il proprietario non sblocca con la password torneo.
@@ -552,18 +555,26 @@ model TournamentFixture {
   awayTeamId    String?
   homeGoals     Int?
   awayGoals     Int?
+  /// Fantapunti squadra casa usati per questa gamba (null se non calcolati).
+  homeFantapunti Decimal?               @db.Decimal(8, 2)
+  /// Fantapunti squadra trasferta usati per questa gamba.
+  awayFantapunti Decimal?               @db.Decimal(8, 2)
+  /// Vincitore serie (stesso valore su entrambe le gambe quando risolto).
+  seriesWinnerTeamId String?
   status        TournamentFixtureStatus @default(SCHEDULED)
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
   round         TournamentRound         @relation(fields: [roundId], references: [id], onDelete: Cascade)
   homeTeam      FantasyTeam?            @relation("TournamentFixtureHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
   awayTeam      FantasyTeam?            @relation("TournamentFixtureAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  seriesWinnerTeam FantasyTeam?         @relation("TournamentFixtureSeriesWinner", fields: [seriesWinnerTeamId], references: [id], onDelete: Restrict)
   lineups       TournamentLineup[]
 
   @@unique([roundId, seriesKey, leg])
   @@index([roundId, bracketSlot])
   @@index([homeTeamId])
   @@index([awayTeamId])
+  @@index([seriesWinnerTeamId])
 }
 
 model TournamentLineup {

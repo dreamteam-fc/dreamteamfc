@@ -5,6 +5,8 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { autoResolveCompletedSeriesWinners } from "@/lib/server/tournaments/auto-resolve-series-winners.ts";
+import { assertNoPendingTournamentSeriesTies } from "@/lib/server/tournaments/pending-series-ties.ts";
 import { syncTournamentLineupsOpenFlag } from "@/lib/server/tournaments/sync-tournament-lineups-open.ts";
 import {
   arePriorTournamentLegsLocked,
@@ -104,6 +106,9 @@ export async function openTournamentRoundLineups(
       "Chiudi e completa prima la giornata precedente (ordine andata → ritorno → fase successiva)."
     );
   }
+
+  await autoResolveCompletedSeriesWinners(round.tournamentId);
+  await assertNoPendingTournamentSeriesTies(round.tournamentId);
 
   const playableReady = round.fixtures.filter(
     (fixture) => fixture.homeTeamId && fixture.awayTeamId

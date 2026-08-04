@@ -220,11 +220,13 @@ export async function saveTournamentEntries(options: {
 
   const leagueIds = Array.from(new Set(teams.map((team) => team.leagueId)));
   const pointsByTeam = new Map<string, number>();
+  const fantapuntiByTeam = new Map<string, number>();
 
   for (const leagueId of leagueIds) {
     const standings = await calculateLeagueStandings(leagueId);
     for (const row of standings.standings) {
       pointsByTeam.set(row.teamId, row.leaguePoints);
+      fantapuntiByTeam.set(row.teamId, row.fantasyPointsTotal);
     }
   }
 
@@ -236,6 +238,7 @@ export async function saveTournamentEntries(options: {
     await tx.tournamentTeamEntry.createMany({
       data: teams.map((team) => ({
         fantasyTeamId: team.id,
+        seedFantapunti: fantapuntiByTeam.get(team.id) ?? 0,
         seedPoints: pointsByTeam.get(team.id) ?? 0,
         sourceLeagueId: team.leagueId,
         tournamentId: tournament.id

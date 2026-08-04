@@ -243,6 +243,8 @@ export async function calculateTournamentRoundResultsFromVotes(
 
     let homeGoals = 0;
     let awayGoals = 0;
+    let homeFantapunti = 0;
+    let awayFantapunti = 0;
 
     if (forfeit === "HOME_WIN_BY_FORFEIT") {
       homeGoals = 3;
@@ -267,13 +269,17 @@ export async function calculateTournamentRoundResultsFromVotes(
         })
       );
 
+      homeFantapunti = homeScore.totalScore;
+      awayFantapunti = awayScore.totalScore;
       homeGoals = convertScoreToGoals(homeScore.totalScore);
       awayGoals = convertScoreToGoals(awayScore.totalScore);
     }
 
     await recordTournamentFixtureResult({
+      awayFantapunti: String(awayFantapunti),
       awayGoals: String(awayGoals),
       fixtureId: fixture.id,
+      homeFantapunti: String(homeFantapunti),
       homeGoals: String(homeGoals)
     });
     calculatedCount += 1;

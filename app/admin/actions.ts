@@ -30,6 +30,9 @@ import {
   generateTournamentRequiredVotes,
   tournamentVoteLegLabel
 } from "@/lib/server/tournaments/tournament-votes.ts";
+import { autoResolveCompletedSeriesWinners } from "@/lib/server/tournaments/auto-resolve-series-winners.ts";
+import { listPendingTournamentSeriesTies } from "@/lib/server/tournaments/pending-series-ties.ts";
+import { pickTournamentSeriesWinner } from "@/lib/server/tournaments/pick-tournament-series-winner.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
 import { saveTournamentEntries } from "@/lib/server/tournaments/tournament-entries.ts";
 import {
@@ -756,15 +759,24 @@ export async function recordTournamentFixtureResultAction(formData: FormData) {
   }
 
   try {
-    await recordTournamentFixtureResult({
+    const result = await recordTournamentFixtureResult({
+      awayFantapunti: formData.get("awayFantapunti"),
       awayGoals: formData.get("awayGoals"),
       fixtureId,
+      homeFantapunti: formData.get("homeFantapunti"),
       homeGoals: formData.get("homeGoals")
     });
     revalidatePath("/admin/tournaments");
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
+    const notice =
+      result.seriesOutcome === "tied"
+        ? "Risultato salvato. Serie in parità: seleziona manualmente il vincitore prima di aprire la prossima giornata."
+        : result.seriesOutcome === "advanced" ||
+            result.seriesOutcome === "final_done"
+          ? "Risultato salvato. Vincitore serie determinato e aggiornato nel tabellone."
+          : "Risultato salvato.";
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: "Risultato salvato. Se la serie e completa, il vincitore avanza."
+      notice
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
@@ -772,6 +784,36 @@ export async function recordTournamentFixtureResultAction(formData: FormData) {
         error instanceof Error
           ? error.message
           : "Salvataggio risultato non riuscito."
+    });
+  }
+}
+
+export async function pickTournamentSeriesWinnerAction(formData: FormData) {
+  await assertAdminAction();
+  const tournamentId = readRequiredString(formData, "tournamentId");
+  const seriesKey = readRequiredString(formData, "seriesKey");
+  const winnerTeamId = readRequiredString(formData, "winnerTeamId");
+
+  try {
+    const result = await pickTournamentSeriesWinner({
+      seriesKey,
+      tournamentId,
+      winnerTeamId
+    });
+    revalidatePath("/admin/tournaments");
+    revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+    redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
+      notice: result.advanced
+        ? `Vincitore serie selezionato in ${result.roundName}: avanza alla fase successiva.`
+        : `Vincitore della finale selezionato in ${result.roundName}. Torneo completato.`
+    });
+  } catch (error) {
+    redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Selezione vincitore serie non riuscita."
     });
   }
 }
@@ -939,11 +981,19 @@ export async function calculateTournamentRoundFromVotesAction(
   try {
     const leg = readTournamentVoteLeg(formData);
     const result = await calculateTournamentRoundResultsFromVotes(roundId, leg);
+    const auto = await autoResolveCompletedSeriesWinners(tournamentId);
+    const pending = await listPendingTournamentSeriesTies(tournamentId);
     revalidatePath("/admin/tournaments");
     revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
     revalidatePath(`/tournaments/${tournamentId}`);
+    const tieNotice =
+      pending.length > 0
+        ? ` Attenzione: ${pending.length} serie in parità senza vincitore — selezionale prima di aprire la prossima giornata.`
+        : auto.advanced > 0
+          ? ` Avanzate automaticamente ${auto.advanced} serie.`
+          : "";
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: `Calcolate ${result.calculatedCount} partite READY (${tournamentVoteLegLabel(result.leg)}) in ${result.roundName} da fantavoto.`
+      notice: `Calcolate ${result.calculatedCount} partite READY (${tournamentVoteLegLabel(result.leg)}) in ${result.roundName} da fantavoto.${tieNotice}`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {

@@ -1,9 +1,16 @@
 import {
+  Prisma,
   TournamentFixtureStatus,
   TournamentStatus
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { prismaDecimalToNumber } from "@/lib/server/votes/shared.ts";
+import {
+  resolveSeriesWinner,
+  type SeriesFixtureScore,
+  type SeriesTeamSeed
+} from "@/lib/tournaments/resolve-series-winner.ts";
 
 function parseNonNegativeInt(value: unknown, label: string): number {
   if (typeof value !== "string" && typeof value !== "number") {
@@ -20,169 +27,79 @@ function parseNonNegativeInt(value: unknown, label: string): number {
   return parsed;
 }
 
-/**
- * Somma gol di una squadra su una serie A/R (o singola finale).
- * In andata/ritorno i campi si invertono al ritorno.
- */
-export function aggregateSeriesGoals(
-  fixtures: Array<{
-    awayGoals: number | null;
-    awayTeamId: string | null;
-    homeGoals: number | null;
-    homeTeamId: string | null;
-  }>,
-  teamId: string
-): number {
-  let total = 0;
-
-  for (const fixture of fixtures) {
-    if (
-      fixture.homeGoals == null ||
-      fixture.awayGoals == null ||
-      !fixture.homeTeamId ||
-      !fixture.awayTeamId
-    ) {
-      continue;
-    }
-
-    if (fixture.homeTeamId === teamId) {
-      total += fixture.homeGoals;
-    } else if (fixture.awayTeamId === teamId) {
-      total += fixture.awayGoals;
-    }
+function parseNonNegativeNumber(value: unknown, label: string): number {
+  if (value == null || value === "") {
+    return 0;
   }
 
-  return total;
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw new Error(`${label} non valido.`);
+  }
+
+  const parsed =
+    typeof value === "number" ? value : Number.parseFloat(value.trim());
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${label} deve essere un numero >= 0.`);
+  }
+
+  return parsed;
 }
 
-export function resolveSeriesWinner(options: {
+function toFixtureScores(
   fixtures: Array<{
+    awayFantapunti: Prisma.Decimal | number | null;
     awayGoals: number | null;
     awayTeamId: string | null;
+    homeFantapunti: Prisma.Decimal | number | null;
     homeGoals: number | null;
     homeTeamId: string | null;
     leg: number;
-  }>;
-  seedRankByTeamId: Map<string, number>;
-}): string {
-  const { fixtures, seedRankByTeamId } = options;
-  const first = fixtures[0];
-
-  if (!first?.homeTeamId || !first.awayTeamId) {
-    throw new Error("Serie incompleta: mancano le squadre.");
-  }
-
-  const teamA = first.homeTeamId;
-  const teamB = first.awayTeamId;
-
-  for (const fixture of fixtures) {
-    if (fixture.homeGoals == null || fixture.awayGoals == null) {
-      throw new Error("Serie incompleta: mancano ancora dei risultati.");
-    }
-  }
-
-  const goalsA = aggregateSeriesGoals(fixtures, teamA);
-  const goalsB = aggregateSeriesGoals(fixtures, teamB);
-
-  if (goalsA > goalsB) {
-    return teamA;
-  }
-
-  if (goalsB > goalsA) {
-    return teamB;
-  }
-
-  // Pareggio aggregato: vince il seed migliore (rank più basso).
-  const rankA = seedRankByTeamId.get(teamA) ?? Number.MAX_SAFE_INTEGER;
-  const rankB = seedRankByTeamId.get(teamB) ?? Number.MAX_SAFE_INTEGER;
-
-  if (rankA !== rankB) {
-    return rankA < rankB ? teamA : teamB;
-  }
-
-  return teamA.localeCompare(teamB) <= 0 ? teamA : teamB;
+  }>
+): SeriesFixtureScore[] {
+  return fixtures.map((fixture) => ({
+    awayFantapunti: prismaDecimalToNumber(fixture.awayFantapunti),
+    awayGoals: fixture.awayGoals,
+    awayTeamId: fixture.awayTeamId,
+    homeFantapunti: prismaDecimalToNumber(fixture.homeFantapunti),
+    homeGoals: fixture.homeGoals,
+    homeTeamId: fixture.homeTeamId,
+    leg: fixture.leg
+  }));
 }
 
-async function advanceWinnerIfSeriesComplete(options: {
-  roundId: string;
-  seriesKey: string;
-  tournamentId: string;
-}) {
-  const round = await prisma.tournamentRound.findUnique({
-    where: { id: options.roundId },
-    select: {
-      id: true,
-      isFinal: true,
-      roundIndex: true,
-      tournamentId: true,
-      fixtures: {
-        where: { seriesKey: options.seriesKey },
-        orderBy: { leg: "asc" },
-        select: {
-          awayGoals: true,
-          awayTeamId: true,
-          bracketSlot: true,
-          homeGoals: true,
-          homeTeamId: true,
-          id: true,
-          leg: true,
-          status: true
-        }
-      }
-    }
-  });
-
-  if (!round) {
-    return;
-  }
-
-  const expectedLegs = round.isFinal ? 1 : 2;
-  if (round.fixtures.length !== expectedLegs) {
-    return;
-  }
-
-  if (
-    round.fixtures.some(
-      (fixture) =>
-        fixture.status !== TournamentFixtureStatus.COMPLETED ||
-        fixture.homeGoals == null ||
-        fixture.awayGoals == null
-    )
-  ) {
-    return;
-  }
-
-  if (round.isFinal) {
-    await prisma.tournament.update({
-      where: { id: options.tournamentId },
-      data: { status: TournamentStatus.COMPLETED }
-    });
-    return;
-  }
-
+async function loadSeedByTeamId(
+  tournamentId: string
+): Promise<Map<string, SeriesTeamSeed>> {
   const entries = await prisma.tournamentTeamEntry.findMany({
-    where: { tournamentId: options.tournamentId },
+    where: { tournamentId },
     select: {
       fantasyTeamId: true,
-      seedRank: true
+      seedFantapunti: true,
+      seedPoints: true
     }
   });
-  const seedRankByTeamId = new Map(
+
+  return new Map(
     entries.map((entry) => [
       entry.fantasyTeamId,
-      entry.seedRank ?? Number.MAX_SAFE_INTEGER
+      {
+        seedFantapunti: prismaDecimalToNumber(entry.seedFantapunti) ?? 0,
+        seedPoints: entry.seedPoints
+      }
     ])
   );
+}
 
-  const winnerId = resolveSeriesWinner({
-    fixtures: round.fixtures,
-    seedRankByTeamId
-  });
-
-  const bracketSlot = round.fixtures[0].bracketSlot;
-  const nextRoundIndex = round.roundIndex + 1;
-  const nextSlot = Math.floor(bracketSlot / 2);
-  const isHomeSide = bracketSlot % 2 === 0;
+async function placeWinnerInNextRound(options: {
+  bracketSlot: number;
+  roundIndex: number;
+  tournamentId: string;
+  winnerId: string;
+}) {
+  const nextRoundIndex = options.roundIndex + 1;
+  const nextSlot = Math.floor(options.bracketSlot / 2);
+  const isHomeSide = options.bracketSlot % 2 === 0;
 
   const nextRound = await prisma.tournamentRound.findUnique({
     where: {
@@ -193,7 +110,6 @@ async function advanceWinnerIfSeriesComplete(options: {
     },
     select: {
       id: true,
-      isFinal: true,
       fixtures: {
         where: {
           bracketSlot: nextSlot
@@ -203,9 +119,7 @@ async function advanceWinnerIfSeriesComplete(options: {
           awayTeamId: true,
           homeTeamId: true,
           id: true,
-          leg: true,
-          seriesKey: true,
-          status: true
+          leg: true
         }
       }
     }
@@ -219,11 +133,11 @@ async function advanceWinnerIfSeriesComplete(options: {
     const data =
       fixture.leg === 1
         ? isHomeSide
-          ? { homeTeamId: winnerId }
-          : { awayTeamId: winnerId }
+          ? { homeTeamId: options.winnerId }
+          : { awayTeamId: options.winnerId }
         : isHomeSide
-          ? { awayTeamId: winnerId }
-          : { homeTeamId: winnerId };
+          ? { awayTeamId: options.winnerId }
+          : { homeTeamId: options.winnerId };
 
     await prisma.tournamentFixture.update({
       where: { id: fixture.id },
@@ -259,13 +173,188 @@ async function advanceWinnerIfSeriesComplete(options: {
   }
 }
 
+export async function applySeriesWinner(options: {
+  roundId: string;
+  seriesKey: string;
+  tournamentId: string;
+  winnerId: string;
+}) {
+  const round = await prisma.tournamentRound.findUnique({
+    where: { id: options.roundId },
+    select: {
+      id: true,
+      isFinal: true,
+      roundIndex: true,
+      fixtures: {
+        where: { seriesKey: options.seriesKey },
+        orderBy: { leg: "asc" },
+        select: {
+          awayTeamId: true,
+          bracketSlot: true,
+          homeTeamId: true,
+          id: true,
+          seriesWinnerTeamId: true
+        }
+      }
+    }
+  });
+
+  if (!round) {
+    throw new Error("Fase torneo non trovata.");
+  }
+
+  const teamIds = new Set<string>();
+  for (const fixture of round.fixtures) {
+    if (fixture.homeTeamId) {
+      teamIds.add(fixture.homeTeamId);
+    }
+    if (fixture.awayTeamId) {
+      teamIds.add(fixture.awayTeamId);
+    }
+  }
+
+  if (!teamIds.has(options.winnerId)) {
+    throw new Error("Il vincitore deve essere una delle due squadre della serie.");
+  }
+
+  if (
+    round.fixtures.some(
+      (fixture) =>
+        fixture.seriesWinnerTeamId != null &&
+        fixture.seriesWinnerTeamId !== options.winnerId
+    )
+  ) {
+    throw new Error("Questa serie ha gia un vincitore diverso.");
+  }
+
+  await prisma.tournamentFixture.updateMany({
+    where: {
+      roundId: options.roundId,
+      seriesKey: options.seriesKey
+    },
+    data: {
+      seriesWinnerTeamId: options.winnerId
+    }
+  });
+
+  if (round.isFinal) {
+    await prisma.tournament.update({
+      where: { id: options.tournamentId },
+      data: { status: TournamentStatus.COMPLETED }
+    });
+    return { advanced: false as const, winnerId: options.winnerId };
+  }
+
+  await placeWinnerInNextRound({
+    bracketSlot: round.fixtures[0].bracketSlot,
+    roundIndex: round.roundIndex,
+    tournamentId: options.tournamentId,
+    winnerId: options.winnerId
+  });
+
+  return { advanced: true as const, winnerId: options.winnerId };
+}
+
+async function advanceWinnerIfSeriesComplete(options: {
+  roundId: string;
+  seriesKey: string;
+  tournamentId: string;
+}): Promise<"advanced" | "tied" | "incomplete" | "final_done"> {
+  const round = await prisma.tournamentRound.findUnique({
+    where: { id: options.roundId },
+    select: {
+      id: true,
+      isFinal: true,
+      roundIndex: true,
+      tournamentId: true,
+      fixtures: {
+        where: { seriesKey: options.seriesKey },
+        orderBy: { leg: "asc" },
+        select: {
+          awayFantapunti: true,
+          awayGoals: true,
+          awayTeamId: true,
+          bracketSlot: true,
+          homeFantapunti: true,
+          homeGoals: true,
+          homeTeamId: true,
+          id: true,
+          leg: true,
+          seriesWinnerTeamId: true,
+          status: true
+        }
+      }
+    }
+  });
+
+  if (!round) {
+    return "incomplete";
+  }
+
+  const expectedLegs = round.isFinal ? 1 : 2;
+  if (round.fixtures.length !== expectedLegs) {
+    return "incomplete";
+  }
+
+  if (
+    round.fixtures.some(
+      (fixture) =>
+        fixture.status !== TournamentFixtureStatus.COMPLETED ||
+        fixture.homeGoals == null ||
+        fixture.awayGoals == null
+    )
+  ) {
+    return "incomplete";
+  }
+
+  const existingWinner = round.fixtures.find(
+    (fixture) => fixture.seriesWinnerTeamId != null
+  )?.seriesWinnerTeamId;
+
+  if (existingWinner) {
+    if (round.isFinal) {
+      return "final_done";
+    }
+    return "advanced";
+  }
+
+  const seedByTeamId = await loadSeedByTeamId(options.tournamentId);
+  const resolved = resolveSeriesWinner({
+    fixtures: toFixtureScores(round.fixtures),
+    seedByTeamId
+  });
+
+  if (resolved.kind === "tied") {
+    return "tied";
+  }
+
+  await applySeriesWinner({
+    roundId: options.roundId,
+    seriesKey: options.seriesKey,
+    tournamentId: options.tournamentId,
+    winnerId: resolved.winnerId
+  });
+
+  return round.isFinal ? "final_done" : "advanced";
+}
+
 export async function recordTournamentFixtureResult(options: {
+  awayFantapunti?: unknown;
   awayGoals: unknown;
   fixtureId: string;
+  homeFantapunti?: unknown;
   homeGoals: unknown;
 }) {
   const homeGoals = parseNonNegativeInt(options.homeGoals, "Gol casa");
   const awayGoals = parseNonNegativeInt(options.awayGoals, "Gol trasferta");
+  const homeFantapunti = parseNonNegativeNumber(
+    options.homeFantapunti,
+    "Fantapunti casa"
+  );
+  const awayFantapunti = parseNonNegativeNumber(
+    options.awayFantapunti,
+    "Fantapunti trasferta"
+  );
 
   const fixture = await prisma.tournamentFixture.findUnique({
     where: { id: options.fixtureId },
@@ -316,7 +405,9 @@ export async function recordTournamentFixtureResult(options: {
   await prisma.tournamentFixture.update({
     where: { id: fixture.id },
     data: {
+      awayFantapunti,
       awayGoals,
+      homeFantapunti,
       homeGoals,
       status: TournamentFixtureStatus.COMPLETED
     }
@@ -329,7 +420,7 @@ export async function recordTournamentFixtureResult(options: {
     });
   }
 
-  await advanceWinnerIfSeriesComplete({
+  const seriesOutcome = await advanceWinnerIfSeriesComplete({
     roundId: fixture.round.id,
     seriesKey: fixture.seriesKey,
     tournamentId: fixture.round.tournamentId
@@ -337,6 +428,14 @@ export async function recordTournamentFixtureResult(options: {
 
   return {
     fixtureId: fixture.id,
+    seriesOutcome,
     tournamentId: fixture.round.tournamentId
   };
 }
+
+/** Re-export pure helpers for callers/tests. */
+export {
+  aggregateSeriesFantapunti,
+  aggregateSeriesGoals,
+  resolveSeriesWinner
+} from "@/lib/tournaments/resolve-series-winner.ts";
