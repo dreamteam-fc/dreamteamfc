@@ -9,7 +9,8 @@ import {
   lockLineupsAction,
   openAllLineupsAction,
   publishAllMatchdaysAction,
-  resetLeagueDataAction
+  wipeLeaguesAction,
+  wipeTournamentsAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
@@ -18,6 +19,7 @@ import { requireStaffAccess } from "@/lib/auth/admin.ts";
 import { canManagePlatform, isAppAdmin } from "@/lib/auth/app-roles.ts";
 import { getNextUsefulMatchday } from "@/lib/matchdays/next-useful-matchday";
 import { getAdminDashboardData } from "@/lib/server/admin/read-admin-data";
+import { getPlayerCatalogImportMode } from "@/lib/server/players/sync-fantacalcio-quotazioni-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +58,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const authContext = await requireStaffAccess();
   const role = authContext.appUser.role;
   const showPlatform = canManagePlatform(role);
-  const { leagues } = await getAdminDashboardData();
+  const [{ leagues }, catalogMode] = await Promise.all([
+    getAdminDashboardData(),
+    showPlatform
+      ? getPlayerCatalogImportMode()
+      : Promise.resolve(null)
+  ]);
 
   return (
     <AdminShell
@@ -331,34 +338,83 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       )}
 
-      {showPlatform ? (
+      {showPlatform && catalogMode ? (
         <section className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-slate-900">
-            Zona pericolosa
+            Fine anno / zona pericolosa
           </h2>
           <p className="mt-2 text-sm text-rose-700">
-            Cancella leghe, squadre, rose, giornate, voti, risultati e scontri.
-            Mantiene utenti e giocatori.
+            Ordine obbligatorio: 1) WIPE TORNEO → 2) WIPE LEGHE → 3) upload XLS
+            giocatori su{" "}
+            <Link href="/admin/players" className="underline">
+              /admin/players
+            </Link>{" "}
+            (wipe lista solo se leghe e tornei = 0).
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            Stato attuale: tornei={catalogMode.tournamentCount}, leghe=
+            {catalogMode.leagueCount}. Mode upload lista:{" "}
+            <strong>{catalogMode.mode === "wipe" ? "WIPE" : "SYNC"}</strong>.
           </p>
 
-          <form action={resetLeagueDataAction} className="mt-5 space-y-4">
-            <label className="block space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Conferma reset</span>
-              <input
-                type="text"
-                name="confirmation"
-                placeholder="RESET LEGHE"
-                className="w-full rounded-xl border border-rose-300 px-3 py-2"
-              />
-            </label>
+          <div className="mt-5 grid gap-6 md:grid-cols-2">
+            <form action={wipeTournamentsAction} className="space-y-4">
+              <input type="hidden" name="redirectPath" value="/admin" />
+              <h3 className="text-sm font-semibold text-slate-900">
+                1. WIPE TORNEO
+              </h3>
+              <p className="text-sm text-slate-600">
+                Elimina tutti i tornei e i dati collegati. Non tocca le leghe.
+              </p>
+              <label className="block space-y-2 text-sm text-slate-700">
+                <span className="font-medium">
+                  Digita <code>WIPE TORNEO</code> per confermare
+                </span>
+                <input
+                  type="text"
+                  name="confirmation"
+                  placeholder="WIPE TORNEO"
+                  autoComplete="off"
+                  className="w-full rounded-xl border border-rose-300 px-3 py-2"
+                />
+              </label>
+              <PendingSubmitButton
+                pendingLabel="Wipe tornei…"
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                WIPE TORNEO
+              </PendingSubmitButton>
+            </form>
 
-            <button
-              type="submit"
-              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700"
-            >
-              Reset dati leghe
-            </button>
-          </form>
+            <form action={wipeLeaguesAction} className="space-y-4">
+              <input type="hidden" name="redirectPath" value="/admin" />
+              <h3 className="text-sm font-semibold text-slate-900">
+                2. WIPE LEGHE
+              </h3>
+              <p className="text-sm text-slate-600">
+                Elimina leghe, squadre, rose, giornate, voti e risultati. Rifiuta
+                se esistono ancora tornei.
+              </p>
+              <label className="block space-y-2 text-sm text-slate-700">
+                <span className="font-medium">
+                  Digita <code>WIPE LEGHE</code> per confermare
+                </span>
+                <input
+                  type="text"
+                  name="confirmation"
+                  placeholder="WIPE LEGHE"
+                  autoComplete="off"
+                  className="w-full rounded-xl border border-rose-300 px-3 py-2"
+                />
+              </label>
+              <PendingSubmitButton
+                pendingLabel="Wipe leghe…"
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                WIPE LEGHE
+              </PendingSubmitButton>
+            </form>
+          </div>
         </section>
       ) : null}
     </AdminShell>

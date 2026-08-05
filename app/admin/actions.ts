@@ -15,8 +15,13 @@ import { prisma } from "@/lib/prisma.ts";
 import { calculateFantavote } from "@/lib/scoring/calculate-fantavote.ts";
 import { fileToOwnedBuffer } from "@/lib/server/http/owned-buffer.ts";
 import { createLeague } from "@/lib/server/admin/create-league.ts";
-import { resetLeagueData } from "@/lib/server/admin/reset-league-data.ts";
+import { wipeAllLeagues } from "@/lib/server/admin/wipe-leagues.ts";
+import { wipeAllTournaments } from "@/lib/server/admin/wipe-tournaments.ts";
 import { createTournament } from "@/lib/server/tournaments/create-tournament.ts";
+import {
+  formatSyncFantacalcioQuotazioniNotice,
+  syncFantacalcioQuotazioniCatalogFromBuffer
+} from "@/lib/server/players/sync-fantacalcio-quotazioni-catalog.ts";
 import { generateTournamentBracket } from "@/lib/server/tournaments/generate-tournament-bracket.ts";
 import { calculateTournamentRoundResultsFromVotes } from "@/lib/server/tournaments/calculate-tournament-round-results.ts";
 import { importFantacalcioVotesForTournamentRound } from "@/lib/server/tournaments/import-tournament-votes.ts";
@@ -2083,33 +2088,107 @@ export async function calculateFantasyFixtureResultsAction(formData: FormData) {
   redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
-export async function resetLeagueDataAction(formData: FormData) {
-  await assertAdminAction();
+function readAdminRedirectPath(formData: FormData, fallback: string) {
+  return readOptionalString(formData, "redirectPath") ?? fallback;
+}
 
+export async function wipeTournamentsAction(formData: FormData) {
+  await assertAdminAction();
+  const redirectPath = readAdminRedirectPath(formData, "/admin");
   const confirmation = formData.get("confirmation");
 
-  if (confirmation !== "RESET LEGHE") {
-    redirectWithMessage("/admin", {
-      error: "Conferma non valida. Inserisci esattamente RESET LEGHE."
+  if (confirmation !== "WIPE TORNEO") {
+    redirectWithMessage(redirectPath, {
+      error: "Conferma non valida. Digita esattamente WIPE TORNEO."
     });
   }
 
   try {
-    const summary = await resetLeagueData();
+    const summary = await wipeAllTournaments();
 
     revalidatePath("/admin");
-    revalidatePath("/leagues");
+    revalidatePath("/admin/players");
+    revalidatePath("/admin/tournaments");
+    revalidatePath("/tournaments");
     revalidatePath("/me");
 
-    redirectWithMessage("/admin", {
-      notice: `Reset completato. Leghe: ${summary.leagueCount}, squadre: ${summary.fantasyTeamCount}, giornate: ${summary.matchdayCount}, formazioni: ${summary.lineupCount}.`
+    redirectWithMessage(redirectPath, {
+      notice: `WIPE TORNEO completato. Tornei eliminati: ${summary.tournamentCount}. Prossimo passo: WIPE LEGHE.`
     });
   } catch (error) {
-    redirectWithMessage("/admin", {
+    redirectWithMessage(redirectPath, {
       error:
         error instanceof Error
           ? error.message
-          : "Reset dati leghe non riuscito."
+          : "WIPE TORNEO non riuscito."
+    });
+  }
+}
+
+export async function wipeLeaguesAction(formData: FormData) {
+  await assertAdminAction();
+  const redirectPath = readAdminRedirectPath(formData, "/admin");
+  const confirmation = formData.get("confirmation");
+
+  if (confirmation !== "WIPE LEGHE") {
+    redirectWithMessage(redirectPath, {
+      error: "Conferma non valida. Digita esattamente WIPE LEGHE."
+    });
+  }
+
+  try {
+    const summary = await wipeAllLeagues();
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/players");
+    revalidatePath("/leagues");
+    revalidatePath("/me");
+
+    redirectWithMessage(redirectPath, {
+      notice: `WIPE LEGHE completato. Leghe: ${summary.leagueCount}, squadre: ${summary.fantasyTeamCount}, giornate: ${summary.matchdayCount}, formazioni: ${summary.lineupCount}. Prossimo passo: upload XLS giocatori (wipe lista).`
+    });
+  } catch (error) {
+    redirectWithMessage(redirectPath, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "WIPE LEGHE non riuscito."
+    });
+  }
+}
+
+export async function importFantacalcioQuotazioniCatalogAction(
+  formData: FormData
+) {
+  await assertAdminAction();
+  const redirectPath = readAdminRedirectPath(formData, "/admin/players");
+  const fileValue = formData.get("file");
+
+  try {
+    if (!(fileValue instanceof File) || fileValue.size === 0) {
+      throw new Error("Seleziona un file XLSX quotazioni Fantacalcio.");
+    }
+
+    const fileName = fileValue.name.toLowerCase();
+    if (!fileName.endsWith(".xls") && !fileName.endsWith(".xlsx")) {
+      throw new Error("Formato non supportato. Carica un file .xls o .xlsx.");
+    }
+
+    const buffer = await fileToOwnedBuffer(fileValue);
+    const result = await syncFantacalcioQuotazioniCatalogFromBuffer(buffer);
+
+    await revalidateGlobalPlayerAvailabilityPaths();
+    revalidatePath("/admin/players");
+
+    redirectWithMessage(redirectPath, {
+      notice: formatSyncFantacalcioQuotazioniNotice(result)
+    });
+  } catch (error) {
+    redirectWithMessage(redirectPath, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Import catalogo giocatori non riuscito."
     });
   }
 }

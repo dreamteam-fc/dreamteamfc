@@ -4,9 +4,13 @@ import { requireAdminAccess } from "@/lib/auth/admin.ts";
 
 import {
   deactivatePlayerGloballyAction,
-  reactivatePlayerGloballyAction
+  importFantacalcioQuotazioniCatalogAction,
+  reactivatePlayerGloballyAction,
+  wipeLeaguesAction,
+  wipeTournamentsAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
   getPlayerRoleFilterLabel,
   getPlayerRoleLabel,
@@ -18,6 +22,7 @@ import {
   type AdminPlayerSourceFilter,
   type AdminPlayerStatusFilter
 } from "@/lib/server/admin/read-admin-data";
+import { getPlayerCatalogImportMode } from "@/lib/server/players/sync-fantacalcio-quotazioni-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -151,12 +156,15 @@ export default async function AdminPlayersPage({
   const sourceFilter = parseSourceFilter(source);
   const statusFilter = parseStatusFilter(status);
   const searchQuery = q?.trim() ?? "";
-  const data = await getAdminPlayersData({
-    roleFilter,
-    searchQuery,
-    sourceFilter,
-    statusFilter
-  });
+  const [data, catalogMode] = await Promise.all([
+    getAdminPlayersData({
+      roleFilter,
+      searchQuery,
+      sourceFilter,
+      statusFilter
+    }),
+    getPlayerCatalogImportMode()
+  ]);
 
   const redirectPath = buildAdminPlayersPath({
     q: data.filters.searchQuery,
@@ -171,6 +179,130 @@ export default async function AdminPlayersPage({
       subtitle="Gestione globale dei giocatori importati. La disattivazione globale li rende non selezionabili in tutte le leghe; i blocchi per singola lega restano separati."
     >
       <Feedback error={error} notice={notice} />
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">
+              Catalogo quotazioni Fantacalcio
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Carica un XLSX con i fogli Portieri, Difensori, Centrocampisti,
+              Attaccanti (colonne Id, R, Nome, Squadra).
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Fine anno: WIPE TORNEO → WIPE LEGHE → upload XLS (wipe lista). Con
+              leghe/tornei presenti l&apos;upload fa sync (upsert, mai delete dei
+              Cod mancanti).
+            </p>
+          </div>
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+              catalogMode.mode === "wipe"
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-sky-300 bg-sky-50 text-sky-900"
+            }`}
+          >
+            Mode: {catalogMode.mode === "wipe" ? "WIPE lista" : "SYNC"}
+            <div className="mt-1 text-xs font-normal opacity-80">
+              Leghe: {catalogMode.leagueCount} · Tornei:{" "}
+              {catalogMode.tournamentCount}
+            </div>
+          </div>
+        </div>
+
+        <form
+          action={importFantacalcioQuotazioniCatalogAction}
+          encType="multipart/form-data"
+          className="mt-5 space-y-4"
+        >
+          <input type="hidden" name="redirectPath" value={redirectPath} />
+          <label className="block space-y-2 text-sm text-slate-700">
+            <span className="font-medium">File quotazioni (.xlsx)</span>
+            <input
+              type="file"
+              name="file"
+              accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              required
+              className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700"
+            />
+          </label>
+          <PendingSubmitButton
+            pendingLabel={
+              catalogMode.mode === "wipe"
+                ? "Wipe lista in corso…"
+                : "Sync lista in corso…"
+            }
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {catalogMode.mode === "wipe"
+              ? "Carica e WIPE lista"
+              : "Carica e SYNC lista"}
+          </PendingSubmitButton>
+        </form>
+      </section>
+
+      <section className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-slate-900">
+          Fine anno / wipe piattaforma
+        </h2>
+        <p className="mt-2 text-sm text-rose-700">
+          Conferme tipizzate obbligatorie. Ordine: WIPE TORNEO → WIPE LEGHE →
+          upload XLS sopra.
+        </p>
+
+        <div className="mt-5 grid gap-6 md:grid-cols-2">
+          <form action={wipeTournamentsAction} className="space-y-4">
+            <input type="hidden" name="redirectPath" value={redirectPath} />
+            <h3 className="text-sm font-semibold text-slate-900">
+              1. WIPE TORNEO
+            </h3>
+            <label className="block space-y-2 text-sm text-slate-700">
+              <span className="font-medium">
+                Digita <code>WIPE TORNEO</code>
+              </span>
+              <input
+                type="text"
+                name="confirmation"
+                placeholder="WIPE TORNEO"
+                autoComplete="off"
+                className="w-full rounded-xl border border-rose-300 px-3 py-2"
+              />
+            </label>
+            <PendingSubmitButton
+              pendingLabel="Wipe tornei…"
+              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              WIPE TORNEO
+            </PendingSubmitButton>
+          </form>
+
+          <form action={wipeLeaguesAction} className="space-y-4">
+            <input type="hidden" name="redirectPath" value={redirectPath} />
+            <h3 className="text-sm font-semibold text-slate-900">
+              2. WIPE LEGHE
+            </h3>
+            <label className="block space-y-2 text-sm text-slate-700">
+              <span className="font-medium">
+                Digita <code>WIPE LEGHE</code>
+              </span>
+              <input
+                type="text"
+                name="confirmation"
+                placeholder="WIPE LEGHE"
+                autoComplete="off"
+                className="w-full rounded-xl border border-rose-300 px-3 py-2"
+              />
+            </label>
+            <PendingSubmitButton
+              pendingLabel="Wipe leghe…"
+              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              WIPE LEGHE
+            </PendingSubmitButton>
+          </form>
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-3">
