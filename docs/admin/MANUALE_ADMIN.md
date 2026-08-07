@@ -192,6 +192,8 @@ Risultato: 18 giornate con le partite.
 | 9 | **Pubblica giornate** | `/admin` o `/admin/votes` |
 | 10 | Verifica pubblica | `/leagues/[id]/standings` e pagina giornata |
 
+Su `/admin/matchdays/[id]`, sezione **Stato formazioni**: tasto **Elimina formazione** per squadra (disponibile in DRAFT / OPEN / LOCKED, prima di voti/punteggi).
+
 ### Flusso Mister (senza batch)
 
 1. Apri/chiudi dalla **giornata** (`/admin/matchdays/[id]`) o dalla schedule della lega  

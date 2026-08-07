@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import {
   calculateFantasyFixtureResultsAction,
   calculateMatchdayScoresAction,
+  deleteMatchdayLineupAction,
   generateFantasyFixturesAction,
   generateRequiredVotePlayersAction,
   lockLineupsAction,
@@ -93,6 +94,10 @@ export default async function AdminMatchdayDetailPage({
   const canGenerateFixtureResults =
     matchday.status === MatchdayStatus.SCORES_CALCULATED && hasFixtures;
   const publicMatchdayPath = `/leagues/${matchday.league.id}/matchdays/${matchday.id}`;
+  const canDeleteLineups =
+    matchday.status === MatchdayStatus.DRAFT ||
+    matchday.status === MatchdayStatus.LINEUPS_OPEN ||
+    matchday.status === MatchdayStatus.LINEUPS_LOCKED;
 
   return (
     <AdminShell
@@ -149,7 +154,8 @@ export default async function AdminMatchdayDetailPage({
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Per ogni squadra: se la formazione e stata inserita per questa
-              giornata.
+              giornata. Puoi eliminarla finché la giornata è aperta o chiusa
+              (prima di voti/punteggi).
             </p>
           </div>
           <p className="text-sm text-slate-600">
@@ -184,6 +190,8 @@ export default async function AdminMatchdayDetailPage({
                       ? "ADMIN"
                       : "NON INSERITA";
 
+              const hasLineup = team.formationStatus !== "NON_INSERITA";
+
               return (
                 <li
                   key={team.fantasyTeamId}
@@ -197,11 +205,33 @@ export default async function AdminMatchdayDetailPage({
                       {team.ownerDisplayName ?? team.ownerEmail}
                     </p>
                   </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
-                  >
-                    {badgeLabel}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
+                    >
+                      {badgeLabel}
+                    </span>
+                    {hasLineup && canDeleteLineups ? (
+                      <form action={deleteMatchdayLineupAction}>
+                        <input
+                          type="hidden"
+                          name="matchdayId"
+                          value={matchday.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="fantasyTeamId"
+                          value={team.fantasyTeamId}
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-800 transition hover:bg-rose-100"
+                        >
+                          Elimina formazione
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
                 </li>
               );
             })}

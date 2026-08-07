@@ -79,6 +79,7 @@ import {
   generateAllRandomLineups
 } from "@/lib/server/lineups/generate-all-random-lineups.ts";
 import { generateRandomLineupsForMatchday } from "@/lib/server/lineups/generate-random-lineups-for-matchday.ts";
+import { deleteMatchdayLineup } from "@/lib/server/lineups/delete-matchday-lineup.ts";
 import {
   formatLockAllLineupsNotice,
   lockAllLineups
@@ -1524,6 +1525,31 @@ export async function lockLineupsAction(matchdayId: string, _formData: FormData)
         error instanceof Error
           ? error.message
           : "Chiusura formazioni non riuscita."
+    });
+  }
+}
+
+export async function deleteMatchdayLineupAction(formData: FormData) {
+  await assertLeagueOpsAction();
+  const matchdayId = readRequiredString(formData, "matchdayId");
+  const fantasyTeamId = readRequiredString(formData, "fantasyTeamId");
+
+  try {
+    const result = await deleteMatchdayLineup({
+      fantasyTeamId,
+      matchdayId
+    });
+
+    revalidateAdminPaths(result.matchdayId, result.leagueId);
+    redirectWithMessage(buildAdminMatchdayPath(result.matchdayId), {
+      notice: `Formazione eliminata per ${result.fantasyTeamName}.`
+    });
+  } catch (error) {
+    redirectWithMessage(buildAdminMatchdayPath(matchdayId), {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Eliminazione formazione non riuscita."
     });
   }
 }
