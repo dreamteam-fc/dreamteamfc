@@ -1,12 +1,16 @@
 import Link from "next/link";
 
-import { generateRandomLineupsForMatchdayAction } from "@/app/admin/actions";
+import {
+  generateRandomLineupsForMatchdayAction,
+  lockLineupsAction,
+  openLineupsAction
+} from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { RosterPresenceBadge } from "@/components/admin/roster-presence-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { requireStaffAccess } from "@/lib/auth/admin.ts";
-import { canManagePlatform } from "@/lib/auth/app-roles.ts";
+import { canManagePlatform, isAppAdmin } from "@/lib/auth/app-roles.ts";
 import { getAdminLineupsHubData } from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
@@ -47,12 +51,14 @@ export default async function AdminLineupsHubPage({
 }: AdminLineupsPageProps) {
   const { error, notice } = await searchParams;
   const authContext = await requireStaffAccess();
-  const showPlatform = canManagePlatform(authContext.appUser.role);
+  const role = authContext.appUser.role;
+  const showPlatform = canManagePlatform(role);
   const data = await getAdminLineupsHubData();
   const redirectPath = "/admin/lineups";
 
   return (
     <AdminShell
+      eyebrow={isAppAdmin(role) ? "Admin" : "Mister"}
       title="Formazioni"
       subtitle={`Hub formazioni per leghe complete: esattamente ${data.requiredTeamCount} squadre iscritte e rosa completa (${data.requiredRosterSize}/${data.requiredRosterSize}) su tutte.`}
     >
@@ -140,6 +146,36 @@ export default async function AdminLineupsHubPage({
                     >
                       Vista pubblica giornata
                     </Link>
+                    {league.nextMatchday.status === "DRAFT" ? (
+                      <form
+                        action={openLineupsAction.bind(
+                          null,
+                          league.nextMatchday.id
+                        )}
+                      >
+                        <PendingSubmitButton
+                          pendingLabel="Apertura in corso…"
+                          className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Apri formazioni
+                        </PendingSubmitButton>
+                      </form>
+                    ) : null}
+                    {league.nextMatchday.status === "LINEUPS_OPEN" ? (
+                      <form
+                        action={lockLineupsAction.bind(
+                          null,
+                          league.nextMatchday.id
+                        )}
+                      >
+                        <PendingSubmitButton
+                          pendingLabel="Chiusura in corso…"
+                          className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-900 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Chiudi formazioni
+                        </PendingSubmitButton>
+                      </form>
+                    ) : null}
                     {showPlatform ? (
                       <>
                         <Link

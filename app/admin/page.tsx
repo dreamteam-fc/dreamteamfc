@@ -8,6 +8,7 @@ import {
   lockAllLineupsAction,
   lockLineupsAction,
   openAllLineupsAction,
+  openLineupsAction,
   publishAllMatchdaysAction,
   wipeLeaguesAction,
   wipeTournamentsAction
@@ -76,7 +77,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       subtitle={
         isAppAdmin(role)
           ? "Area admin per gestire leghe, giornate, pagelle assistite e risultati."
-          : "Gestisci pagelle Fantacalcio, calendario, giornate e calcolo punteggi."
+          : "Gestisci pagelle Fantacalcio, apertura/chiusura formazioni per giornata, calendario e punteggi."
       }
     >
       <Feedback error={error} notice={notice} />
@@ -88,7 +89,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <p className="mt-2 text-sm text-slate-600">
               {showPlatform
                 ? "Crea nuove leghe e monitora capienza, giornate e classifica."
-                : "Calendario, giornate, pagelle e punteggi delle leghe attive."}
+                : "Apri/chiudi formazioni sulla giornata utile di ogni lega, poi pagelle e punteggi."}
             </p>
           </div>
 
@@ -106,6 +107,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-100"
             >
               Pagelle unificate
+            </Link>
+            <Link
+              href="/admin/lineups"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+            >
+              Hub formazioni
             </Link>
             {showPlatform ? (
               <>
@@ -133,7 +140,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     pendingLabel="Apertura formazioni…"
                     className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Apri formazioni
+                    Apri formazioni (tutte)
                   </PendingSubmitButton>
                 </form>
                 <form action={lockAllLineupsAction}>
@@ -142,7 +149,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     pendingLabel="Chiusura formazioni…"
                     className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-900 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Chiudi formazioni
+                    Chiudi formazioni (tutte)
                   </PendingSubmitButton>
                 </form>
                 <form action={calculateAllScoresAndResultsAction}>
@@ -163,12 +170,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     Pubblica giornate
                   </PendingSubmitButton>
                 </form>
-                <Link
-                  href="/admin/lineups"
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                >
-                  Hub formazioni
-                </Link>
                 <Link
                   href="/admin/players"
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
@@ -311,6 +312,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                               className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Genera formazioni casuali
+                            </PendingSubmitButton>
+                          </form>
+                        ) : null}
+                        {nextMatchday.status === "DRAFT" ? (
+                          <form
+                            action={openLineupsAction.bind(null, nextMatchday.id)}
+                          >
+                            <PendingSubmitButton
+                              pendingLabel="Apertura in corso…"
+                              className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Apri formazioni
                             </PendingSubmitButton>
                           </form>
                         ) : null}
