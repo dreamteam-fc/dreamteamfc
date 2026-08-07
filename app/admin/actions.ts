@@ -1310,7 +1310,7 @@ export async function generateAllRandomLineupsAction(formData: FormData) {
 }
 
 export async function openAllLineupsAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
 
   const redirectPath =
     readOptionalString(formData, "redirectPath") ?? "/admin";
@@ -1352,7 +1352,7 @@ export async function openAllLineupsAction(formData: FormData) {
 }
 
 export async function lockAllLineupsAction(formData: FormData) {
-  await assertAdminAction();
+  await assertLeagueOpsAction();
 
   const redirectPath =
     readOptionalString(formData, "redirectPath") ?? "/admin";

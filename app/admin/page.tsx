@@ -108,6 +108,24 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             >
               Pagelle unificate
             </Link>
+            <form action={openAllLineupsAction}>
+              <input type="hidden" name="redirectPath" value="/admin" />
+              <PendingSubmitButton
+                pendingLabel="Apertura formazioni…"
+                className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Apri formazioni (tutte)
+              </PendingSubmitButton>
+            </form>
+            <form action={lockAllLineupsAction}>
+              <input type="hidden" name="redirectPath" value="/admin" />
+              <PendingSubmitButton
+                pendingLabel="Chiusura formazioni…"
+                className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-900 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Chiudi formazioni (tutte)
+              </PendingSubmitButton>
+            </form>
             <Link
               href="/admin/lineups"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
@@ -132,24 +150,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-900 transition hover:border-orange-400 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Genera formazioni
-                  </PendingSubmitButton>
-                </form>
-                <form action={openAllLineupsAction}>
-                  <input type="hidden" name="redirectPath" value="/admin" />
-                  <PendingSubmitButton
-                    pendingLabel="Apertura formazioni…"
-                    className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Apri formazioni (tutte)
-                  </PendingSubmitButton>
-                </form>
-                <form action={lockAllLineupsAction}>
-                  <input type="hidden" name="redirectPath" value="/admin" />
-                  <PendingSubmitButton
-                    pendingLabel="Chiusura formazioni…"
-                    className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-900 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Chiudi formazioni (tutte)
                   </PendingSubmitButton>
                 </form>
                 <form action={calculateAllScoresAndResultsAction}>

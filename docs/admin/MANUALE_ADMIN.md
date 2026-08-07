@@ -53,9 +53,10 @@ Entra in `/admin` e gestisce le operazioni **giornata per giornata**:
 
 - Pagelle unificate XLS (`/admin/votes`)
 - Hub formazioni, dettaglio giornata, voti e punteggi per matchday
+- **Apri / Chiudi formazioni (tutte)** in dashboard (batch multi-lega)
 - Apertura/chiusura formazioni e calcoli **sulla singola giornata** (dove i bottoni sono presenti)
 
-**Non** vede (o non può usare) i bottoni batch multi-lega della dashboard, né wipe, né creazione leghe/tornei, né permessi, né CRUD rose admin.
+**Non** vede (o non può usare) gli altri batch Admin (calendari, formazioni random, calcola/pubblica globali), né wipe, né creazione leghe/tornei, né permessi, né CRUD rose admin.
 
 ### 1.3 User (giocatore / owner)
 
@@ -87,22 +88,23 @@ Dopo il login con account Admin o Mister vai su **`/admin`**.
 | Pulsante / link | Percorso | Chi |
 |-----------------|----------|-----|
 | Pagelle unificate | `/admin/votes` | Admin + Mister |
+| Apri / Chiudi formazioni (tutte) | `/admin` | Admin + Mister |
 | Tornei | `/admin/tournaments` | solo Admin |
 | Hub formazioni | `/admin/lineups` | Admin (+ Mister via path) |
 | Giocatori | `/admin/players` | solo Admin (link in dashboard) |
 | Crea nuova lega | `/admin/leagues/new` | solo Admin |
 | Permessi | `/admin/permessi` | solo admin principale (dreamteamfc@proton.me) |
 
-### 2.2 Batch multi-lega (solo Admin)
+### 2.2 Batch multi-lega
 
 In alto nella sezione **Leghe**, i bottoni che agiscono su **tutte le leghe** (o sulle giornate “utili” di ciascuna):
 
-1. **Genera calendari** — crea il calendario A/R per le leghe ancora senza schedule  
-2. **Genera formazioni** — formazioni casuali (utile per test o squadre assenti)  
-3. **Apri formazioni** — apre l’inserimento lineup sulle prossime giornate utili  
-4. **Chiudi formazioni** — chiude le lineup  
-5. **Calcola punteggi e risultati** — dopo i voti  
-6. **Pubblica giornate** — rende pubblici risultati e aggiorna le classifiche  
+1. **Apri formazioni (tutte)** — apre l’inserimento lineup sulle prossime giornate utili (**Admin + Mister**)  
+2. **Chiudi formazioni (tutte)** — chiude le lineup (**Admin + Mister**)  
+3. **Genera calendari** — crea il calendario A/R per le leghe ancora senza schedule (**solo Admin**)  
+4. **Genera formazioni** — formazioni casuali (utile per test o squadre assenti) (**solo Admin**)  
+5. **Calcola punteggi e risultati** — dopo i voti (**solo Admin**)  
+6. **Pubblica giornate** — rende pubblici risultati e aggiorna le classifiche (**solo Admin**)  
 
 > **Nota timeout:** con molte leghe un click batch può superare il tempo del server/proxy. Se fallisce, riprova oppure lavora lega per lega / giornata per giornata (vedi §10).
 
@@ -197,11 +199,11 @@ Su `/admin/matchdays/[id]`, sezione **Stato formazioni**: badge **INSERITA** (ow
 
 L’owner/coach può eliminare la propria formazione da `/me/teams/.../lineup` solo a formazioni **aperte**.
 
-### Flusso Mister (senza batch)
+### Flusso Mister
 
-1. Apri/chiudi dalla **giornata** (`/admin/matchdays/[id]`) o dalla schedule della lega  
+1. Apri/chiudi in batch da **`/admin`** (**Apri / Chiudi formazioni (tutte)**) oppure per **giornata** / schedule della lega  
 2. Usa **`/admin/votes`** per l’XLS su tutte le leghe della stessa giornata N  
-3. Calcolo e pubblicazione: dalla pagina voti della giornata o dai link per matchday (i bottoni batch globali restano ad Admin)
+3. Calcolo e pubblicazione: dalla pagina voti della giornata o dai link per matchday (calendari / random / calcola-pubblica batch restano ad Admin)
 
 ### Regole formazione (per ricordarle agli utenti)
 
@@ -362,7 +364,8 @@ Zona pericolosa in basso su **`/admin`** (e richiami su `/admin/players`).
 | Formazione lega/torneo (se aperta) | ✓ | ✓ | | ✓** |
 | Invito coach / logo | ✓ | | | |
 | Pagelle XLS / voti giornata | | | ✓ | ✓ |
-| Batch multi-lega dashboard | | | | ✓ |
+| Apri/Chiudi formazioni (tutte) | | | ✓ | ✓ |
+| Altri batch dashboard (calendari, random, calcola, pubblica) | | | | ✓ |
 | Crea leghe / tornei | | | | ✓ |
 | Permessi / assegna ruoli | | | | solo admin principale |
 | Catalogo giocatori / wipe | | | | ✓ |
@@ -415,9 +418,9 @@ Zona pericolosa in basso su **`/admin`** (e richiami su `/admin/players`).
 3. Colonna **Cod.** presente e numerica
 4. Formazioni chiuse e liste voti generate prima dell’import
 
-### Mister non vede i bottoni batch
+### Mister non vede calendari / random / calcola-pubblica batch
 
-È voluto: Mister lavora per giornata + pagelle unificate. Per i batch multi-lega serve un Admin (o promuovere l’account da `/admin/permessi`).
+È voluto: Mister ha **Apri / Chiudi formazioni (tutte)** e lavora anche per giornata + pagelle unificate. Calendari, formazioni random, calcola e pubblica globali restano ad Admin.
 
 ### Lega non arriva a 10 / calendario non generabile
 
