@@ -89,6 +89,18 @@ export default function HomePage() {
             <Link href="/login" className="btn-brand-secondary text-center">
               Accedi
             </Link>
+            <Link
+              href="/regolamento"
+              className="btn-brand-secondary text-center"
+            >
+              Regolamento
+            </Link>
+            <Link
+              href="/come-giocare"
+              className="btn-brand-secondary text-center"
+            >
+              Come giocare
+            </Link>
           </div>
         </div>
       </section>
@@ -160,12 +172,20 @@ export default function HomePage() {
 
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-600">
             <p>Dream Team FC</p>
-            <Link
-              href="/regolamento"
-              className="font-semibold text-brand-blue transition hover:text-[#0f4de0]"
-            >
-              Regolamento
-            </Link>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                href="/come-giocare"
+                className="text-slate-500 transition hover:text-brand-blue"
+              >
+                Come giocare
+              </Link>
+              <Link
+                href="/regolamento"
+                className="text-slate-500 transition hover:text-brand-blue"
+              >
+                Regolamento
+              </Link>
+            </div>
           </footer>
         </div>
       </section>

@@ -53,6 +53,12 @@ export async function AdminShell({
                 Torna alla dashboard
               </Link>
               <Link
+                href="/come-giocare"
+                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                Come giocare
+              </Link>
+              <Link
                 href="/regolamento"
                 className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
               >

@@ -67,12 +67,20 @@ export default function RegolamentoPage() {
           title="Regolamento"
           description="Le regole ufficiali di Dream Team FC: come funziona la rosa, la formazione, i fantavoti, la classifica e i tornei."
           actions={
-            <Link
-              href="/"
-              className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-            >
-              Home
-            </Link>
+            <>
+              <Link
+                href="/"
+                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                Home
+              </Link>
+              <Link
+                href="/come-giocare"
+                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                Come giocare
+              </Link>
+            </>
           }
         />
 
@@ -619,9 +627,20 @@ export default function RegolamentoPage() {
           <Link href="/" className="font-semibold text-brand-blue">
             ← Home
           </Link>
-          <a href="#rosa" className="font-semibold text-slate-600 hover:text-brand-blue">
-            Torna all&apos;inizio
-          </a>
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href="/come-giocare"
+              className="font-semibold text-brand-blue"
+            >
+              Come giocare
+            </Link>
+            <a
+              href="#rosa"
+              className="font-semibold text-slate-600 hover:text-brand-blue"
+            >
+              Torna all&apos;inizio
+            </a>
+          </div>
         </div>
       </div>
     </main>
