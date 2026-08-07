@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
 
 const gettingStartedSteps = [
   {
@@ -101,6 +102,7 @@ export default function HomePage() {
             >
               Come giocare
             </Link>
+            <InstallAppButton />
           </div>
         </div>
       </section>
