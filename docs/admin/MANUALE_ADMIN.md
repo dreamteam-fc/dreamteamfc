@@ -6,8 +6,8 @@ Non è documentazione tecnica: spiega **cosa fare in app**, in che ordine, e com
 **Regolamento ufficiale (regole di gioco):** [REGOLAMENTO.md](./REGOLAMENTO.md)  
 **Manuale utente (owner/coach):** [MANUALE_UTENTE.md](./MANUALE_UTENTE.md)
 
-**Area staff:** `/admin`  
-**App pubblica / utente:** `/leagues/...`, `/me/...`, `/tournaments/...`
+**Area staff:** `/admin` (link **Admin** anche da `/me` per ADMIN e MISTER)  
+**App pubblica / utente:** `/leagues/...`, `/me/...`, `/tournaments/...`, `/regolamento`, `/come-giocare`
 
 ---
 
@@ -47,16 +47,18 @@ Può tutto ciò che serve a far funzionare la stagione:
 - Wipe fine anno
 - Assegna Mister / Admin ad altri account (**solo admin principale** `dreamteamfc@proton.me`)
 
-### 1.2 Mister (operatore giornata)
+### 1.2 Mister (ruolo piattaforma `UserRole.MISTER`)
 
-Entra in `/admin` e gestisce le operazioni **giornata per giornata**:
+Operatore di stagione: su `/me` vede il link **Admin** verso `/admin`. Gestisce:
 
 - Pagelle unificate XLS (`/admin/votes`)
 - Hub formazioni, dettaglio giornata, voti e punteggi per matchday
 - **Apri / Chiudi formazioni (tutte)** in dashboard (batch multi-lega)
-- Apertura/chiusura formazioni e calcoli **sulla singola giornata** (dove i bottoni sono presenti)
+- Apertura/chiusura formazioni e ops **sulla singola giornata** (dove i bottoni sono presenti)
 
-**Non** vede (o non può usare) gli altri batch Admin (calendari, formazioni random, calcola/pubblica globali), né wipe, né creazione leghe/tornei, né permessi, né CRUD rose admin.
+**Non** può: wipe, tornei, crea lega, catalogo giocatori, permessi, batch random, calendari globali, calcola/pubblica batch, CRUD rose admin.
+
+> **Non confondere** con l’**allenatore** (TeamCoach): quello è un invito sulla squadra. Il badge formazione **MISTER** in admin significa “salvata dal coach”, non “inserita dal ruolo piattaforma Mister”.
 
 ### 1.3 User (giocatore / owner)
 
@@ -68,11 +70,14 @@ Entra in `/admin` e gestisce le operazioni **giornata per giornata**:
 
 Quando la rosa arriva a **25 giocatori**, l’owner **non può più modificarla**: da quel momento solo l’Admin può intervenire.
 
-### 1.4 Coach (allenatore invitato)
+### 1.4 Coach / allenatore (TeamCoach, non è `UserRole`)
 
-- Accetta un invito via link/token
+- Accetta un invito via link/token (`TeamCoachInvite` → coach attivo)
 - Può **solo** impostare la formazione della squadra che lo ha invitato (lega + torneo)
-- **Non** modifica la rosa
+- In admin lo stato formazione compare come badge **MISTER** (`LineupSource.COACH`)
+- **Non** modifica la rosa e **non** ha accesso a `/admin`
+
+Pagine pubbliche utili: **`/regolamento`**, **`/come-giocare`** (anche sotto-pagine lega / formazioni / allenatore / tornei).
 
 ---
 
@@ -482,7 +487,7 @@ Devi prima completare **WIPE TORNEO**. Ordine: tornei → leghe → lista giocat
 | `/admin/votes` | Pagelle XLS multi-lega |
 | `/admin/lineups` | Stato formazioni |
 | `/admin/players` | Catalogo quotazioni |
-| `/admin/permessi` | Ruoli USER/MISTER/ADMIN |
+| `/admin/permessi` | Ruoli USER/MISTER/ADMIN (solo admin principale) |
 | `/admin/leagues/new` | Nuova lega |
 | `/admin/leagues/[id]/schedule` | Calendario / apri formazioni per giornata |
 | `/admin/leagues/[id]/teams` | Squadre e ingresso rose admin |

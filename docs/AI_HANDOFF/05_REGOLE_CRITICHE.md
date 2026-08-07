@@ -86,11 +86,15 @@ Sintomi storici: `42P05` prepared statements, `P1001`, `EMAXCONNSESSION`, `Trans
 
 - Capacità da `lib/auth/app-roles.ts`  
 - `ADMIN_EMAIL` solo bootstrap se zero Admin  
-- Platform (wipe, tornei, permessi, batch multi-lega) = `canManagePlatform`  
+- Platform (wipe, tornei, crea lega, giocatori, random, calendari, calcola/pubblica batch) = `canManagePlatform` (solo ADMIN)  
+- Batch **Apri/Chiudi formazioni (tutte)** = `canManageLeagueOps` (ADMIN + MISTER)  
+- Assegnazione ruoli `/admin/permessi` = `canAssignAppRoles` (solo admin principale `dreamteamfc@proton.me` / `PRIMARY_ADMIN_EMAIL`, non ogni ADMIN)  
+- Mister piattaforma ≠ TeamCoach (badge lineup **MISTER** = coach)  
 
 ### DON’T
 
 - Esporre wipe/catalogo a Mister “per comodità” senza decisione prodotto  
+- Dare `/admin/permessi` a un ADMIN nominato (resta solo admin principale)  
 - Reintrodurre `LeagueRole` admin di lega  
 
 ---

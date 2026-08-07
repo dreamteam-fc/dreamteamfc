@@ -52,10 +52,11 @@ Fantacalcio a **5 calcetto** (rosa 25, lineup 5+4) su leghe da **10 squadre**, c
 ## Ruoli in una riga
 
 - **USER** — join lega, rosa, lineup, coach invite, torneo lineup  
-- **MISTER** — area `/admin` ops giornata + pagelle XLS (no batch multi-lega platform, no wipe/tornei/permessi)  
-- **ADMIN** — tutto + batch dashboard, catalogo, wipe, tornei, permessi  
+- **MISTER** — `/admin` (link da `/me`) + pagelle XLS + batch **Apri/Chiudi formazioni (tutte)** + ops per giornata; no wipe/tornei/crea lega/giocatori/permessi/random/calendari/calcola-pubblica batch  
+- **ADMIN** — platform (`canManagePlatform`): batch restanti, catalogo, wipe, tornei, crea leghe  
+- **Admin principale** (`dreamteamfc@proton.me` / `PRIMARY_ADMIN_EMAIL`) — unico con `/admin/permessi`  
 
-Dettaglio: `lib/auth/app-roles.ts`.
+Non confondere **Mister** (ruolo piattaforma) con **allenatore** TeamCoach (badge formazione **MISTER**). Dettaglio: `lib/auth/app-roles.ts`, `04_ADMIN_E_DATI.md`.
 
 ---
 

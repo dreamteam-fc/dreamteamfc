@@ -7,31 +7,32 @@ Actions: `app/admin/actions.ts` (molto grosso — cerca per nome action).
 
 ## Matrice capacità
 
-| Capacità | USER | MISTER | ADMIN |
-|----------|:----:|:------:|:-----:|
-| Area `/admin` | | ✓ | ✓ |
-| Pagelle XLS / voti / score per giornata | | ✓ | ✓ |
-| Hub formazioni `/admin/lineups` | | ✓ | ✓ |
-| Batch multi-lega dashboard (`/admin`) | | | ✓ |
-| Crea leghe, tornei, permessi | | | ✓ |
-| Catalogo players wipe/sync | | | ✓ |
-| CRUD rosa admin post-lock | | | ✓ |
-| Wipe tornei / wipe leghe | | | ✓ |
+| Capacità | USER | MISTER | ADMIN | Admin principale |
+|----------|:----:|:------:|:-----:|:----------------:|
+| Area `/admin` (+ link da `/me`) | | ✓ | ✓ | ✓ |
+| Pagelle XLS / voti / score per giornata | | ✓ | ✓ | ✓ |
+| Hub formazioni `/admin/lineups` | | ✓ | ✓ | ✓ |
+| Batch **Apri/Chiudi formazioni (tutte)** | | ✓ | ✓ | ✓ |
+| Altri batch dashboard (calendari, random, calcola, pubblica) | | | ✓ | ✓ |
+| Crea leghe, tornei, catalogo, wipe, CRUD rosa admin | | | ✓ | ✓ |
+| `/admin/permessi` (assegna USER/MISTER/ADMIN) | | | | ✓ |
 
-`canManagePlatform` = solo ADMIN → nasconde bottoni batch/wipe su dashboard.  
-Mister lavora **giornata-per-giornata** + `/admin/votes`. Non confondere “ops complete” con “vede tutti i batch”.
+- **Admin principale** = email `dreamteamfc@proton.me` (override opzionale `PRIMARY_ADMIN_EMAIL`). Solo lui passa `canAssignAppRoles` / `requirePrimaryAdminAccess`. Gli ADMIN nominati **non** assegnano ruoli.
+- `canManagePlatform` = solo `UserRole.ADMIN` → wipe, tornei, crea lega, giocatori, random, calendari, calcola/pubblica batch.
+- `canManageLeagueOps` / `canManageVotes` = MISTER + ADMIN (ops giornata + apri/chiudi batch + pagelle).
+- **Mister ≠ allenatore:** `UserRole.MISTER` è staff piattaforma; TeamCoach è delega formazione (badge admin **MISTER** = `LineupSource.COACH`).
 
 ---
 
-## Dashboard `/admin` — batch (solo Admin)
+## Dashboard `/admin` — batch
 
-Tipici bottoni multi-lega (implementati in actions + `lib/server/*`):
-
-1. Genera calendari (tutte le leghe senza schedule)  
-2. Genera formazioni casuali  
-3. Apri / chiudi formazioni (alla chiusura: auto-carry lineup mancanti)  
-4. Calcola punteggi + risultati  
-5. Pubblica giornate  
+| Bottone | Chi |
+|---------|-----|
+| Apri / Chiudi formazioni (tutte) | Admin + Mister |
+| Genera calendari | solo Admin |
+| Genera formazioni (random) | solo Admin |
+| Calcola punteggi e risultati | solo Admin |
+| Pubblica giornate | solo Admin |
 
 Concurrency limitata nei batch (proxy Railway ~60s). Path: `open-all-lineups.ts`, `lock-all-lineups.ts` (+ `auto-carry-matchday-lineups.ts`), `calculate-all-scores-and-results.ts`, `publish-all-matchdays.ts`, `generate-all-league-schedules.ts`, `generate-all-random-lineups.ts`.
 
@@ -109,6 +110,7 @@ Libs tipiche: `generate-tournament-bracket.ts`, `open/lock-tournament-round-line
 | Lineup torneo | `/me/teams/[teamId]/tournaments/fixtures/.../lineup` |
 | Logo | upload WebP Sharp → Storage; body limit 6mb in `next.config.ts` |
 | Coach | invite da owner → accept token |
+| Regolamento / guide | `/regolamento`, `/come-giocare` |
 
 Actions utente: `app/me/actions.ts`.
 

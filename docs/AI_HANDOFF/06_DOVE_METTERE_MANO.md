@@ -10,7 +10,7 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 |----------|-------|
 | Cambiare chi può fare cosa | `lib/auth/app-roles.ts` + gate in `lib/auth/admin.ts` + check nelle actions |
 | Mapping login → User / bootstrap Admin | `lib/auth/app-user.ts`, env `ADMIN_EMAIL` |
-| Assegnare Mister/Admin in UI | `app/admin/permessi/`, action in `app/admin/actions.ts` |
+| Assegnare Mister/Admin in UI | `app/admin/permessi/` (solo admin principale), `canAssignAppRoles`, action in `app/admin/actions.ts` |
 
 ---
 

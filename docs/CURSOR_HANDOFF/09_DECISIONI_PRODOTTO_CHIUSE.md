@@ -127,13 +127,16 @@ Libs: `lib/server/tournaments/tournament-votes.ts`, `import-tournament-votes.ts`
 ## 8. Poteri admin / ruoli piattaforma
 
 - CRUD giocatori nelle rose utente (add/remove/replace) — solo **Admin** (dopo il lock a 25; Mister/coach non modificano rose)
-- Aprire/chiudere giornate, punteggi, calendario — **Admin** e **Mister**
+- Aprire/chiudere formazioni (per giornata **e** batch **Apri/Chiudi formazioni (tutte)**) — **Admin** e **Mister**
 - Pagelle Fantacalcio XLS (lega / unificato) — **Admin** e **Mister**
-- Tornei, creazione leghe, reset, ruoli piattaforma — solo **Admin**
+- Calendari globali, formazioni random, calcola/pubblica batch, tornei, creazione leghe, wipe, catalogo — solo **Admin** (`canManagePlatform`)
+- Assegnazione ruoli piattaforma (`/admin/permessi`) — solo **admin principale** email `dreamteamfc@proton.me` (override `PRIMARY_ADMIN_EMAIL`); gli ADMIN nominati **non** possono
+- Mister (piattaforma) vede link **Admin** su `/me`; **non** confondere con allenatore TeamCoach (badge formazione **MISTER** = `LineupSource.COACH`)
 - Nessun admin di lega separato
 - `LeagueRole` = solo `OWNER` | `MEMBER` (membership in lega)
-- `UserRole` = `USER` | `MISTER` | `ADMIN` (ruolo piattaforma; assegnabile da `/admin`)
+- `UserRole` = `USER` | `MISTER` | `ADMIN` (ruolo piattaforma)
 - Bootstrap sicuro: `ADMIN_EMAIL` promuove a `ADMIN` al login solo se non esiste già alcun Admin; poi DB è source of truth
+- Pagine pubbliche guida: `/regolamento`, `/come-giocare`
 
 ---
 

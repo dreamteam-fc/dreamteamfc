@@ -25,18 +25,20 @@ next.config.ts       # bodyLimit Server Actions 6mb (loghi)
 |------|-----|------|
 | `app/admin/` | Mister+Admin (gate layout); molte subroute **solo Admin** | Ops + platform |
 | `app/admin/actions.ts` | — | **Hub** server actions admin/batch/wipe/catalogo/torneo |
-| `app/admin/page.tsx` | — | Dashboard batch + zona pericolosa wipe |
+| `app/admin/page.tsx` | — | Dashboard: Apri/Chiudi (tutte) per Mister+Admin; altri batch/wipe solo Admin |
 | `app/admin/votes/` | Mister+Admin | Pagelle XLS unificate multi-lega |
 | `app/admin/lineups/` | Mister+Admin | Hub stato formazioni |
 | `app/admin/players/` | Admin | Catalogo quotazioni wipe/sync |
 | `app/admin/tournaments/` | Admin | CRUD torneo, entries, bracket |
-| `app/admin/permessi/` | Admin | Assegna USER/MISTER/ADMIN |
+| `app/admin/permessi/` | Solo admin principale | Assegna USER/MISTER/ADMIN (`canAssignAppRoles`) |
 | `app/admin/matchdays/[id]/` | Mister+Admin | Ops giornata |
 | `app/admin/teams/[teamId]/roster/` | Admin | CRUD rosa post-lock |
-| `app/me/` | User auth | Squadre, rosa, lineup, coach |
+| `app/me/` | User auth; staff vede link Admin | Squadre, rosa, lineup, coach |
 | `app/me/actions.ts` | — | Team/rosa/lineup/logo/coach |
 | `app/leagues/` | Pubblico + join | Lega, standings, join |
 | `app/tournaments/` | Pubblico + activate | Torneo pubblico / entry |
+| `app/regolamento/` | Pubblico | Regolamento giocatori |
+| `app/come-giocare/` | Pubblico | Guide (lega, formazioni, allenatore, tornei) |
 | `app/api/health/` | — | Liveness Railway (no DB) |
 | `app/login|signup|forgot-password|reset-password|auth/` | — | Auth Supabase |
 

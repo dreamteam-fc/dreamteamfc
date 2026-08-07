@@ -37,7 +37,7 @@ Regole prodotto attive nel codice (non solo nei doc):
 | Formazione mancante | auto-carry ultima USER o COACH + −2 FP (−1 classifica); else forfait | `auto-carry-*.ts`, `lineup-penalties.ts` |
 | Voti | XLS Fantacalcio, match `Cod.` = `externalId` | `lib/server/votes/*` |
 
-**Batch admin multi-lega** (dashboard `/admin`, solo Admin): genera calendari, genera formazioni casuali, apri/chiudi formazioni, calcola punteggi+risultati, pubblica giornate. Pagelle unificate su `/admin/votes` (Admin + Mister).
+**Batch admin multi-lega** (dashboard `/admin`): **Apri/Chiudi formazioni (tutte)** = Admin + Mister; calendari, random, calcola, pubblica = solo Admin. Pagelle unificate su `/admin/votes` (Admin + Mister).
 
 ### 1.2 Torneo cross-league
 
@@ -68,16 +68,19 @@ Route chiave: `/admin/tournaments/*`, `/tournaments/*`, lineup utente su `/me/te
 - Login / signup / forgot / reset password
 - Bootstrap Admin: `ADMIN_EMAIL` promuove solo se non esiste già alcun Admin; poi DB è source of truth
 - `UserRole`: `USER` | `MISTER` | `ADMIN` (`lib/auth/app-roles.ts`)
-- Assegnazione ruoli: `/admin/permessi` (solo Admin)
+- Assegnazione ruoli: `/admin/permessi` (solo **admin principale** `dreamteamfc@proton.me` / `PRIMARY_ADMIN_EMAIL`; ADMIN nominati esclusi)
+- Mister ≠ TeamCoach: badge formazione **MISTER** = allenatore (`LineupSource.COACH`)
 - `LeagueRole`: solo `OWNER` | `MEMBER` (niente admin di lega)
+- Pagine pubbliche: `/regolamento`, `/come-giocare`
 
-| Capacità | USER | MISTER | ADMIN |
-|----------|------|--------|-------|
-| Area `/admin` | no | sì (ops) | sì |
-| Pagelle XLS / voti / score giornata | no | sì | sì |
-| Batch multi-lega dashboard | no | no | sì |
-| CRUD rose admin, giocatori globali, wipe | no | no | sì |
-| Tornei, crea leghe, permessi | no | no | sì |
+| Capacità | USER | MISTER | ADMIN | Admin principale |
+|----------|------|--------|-------|------------------|
+| Area `/admin` (+ link `/me`) | no | sì | sì | sì |
+| Pagelle XLS / voti / score giornata | no | sì | sì | sì |
+| Batch Apri/Chiudi formazioni (tutte) | no | sì | sì | sì |
+| Altri batch (calendari, random, calcola, pubblica) | no | no | sì | sì |
+| CRUD rose admin, giocatori, wipe, tornei, crea leghe | no | no | sì | sì |
+| Permessi `/admin/permessi` | no | no | no | sì |
 
 ### 1.5 Coach (allenatore invitato)
 
@@ -192,7 +195,7 @@ Pattern stabile nei write path pesanti: **evitare** `$transaction` interattive l
 
 1. **Timeout proxy su batch grossi** — con molte leghe + XLS pesante, un singolo click può ancora superare la finestra proxy Railway anche con concurrency 3. Non c’è job queue.
 2. **Session pool Free (~15 slot)** — `withSessionPrisma` e migrate condividono `:5432`; `npm run dev` locale + prod possono esaurirlo. Mitigato, non eliminato.
-3. **Mister vs Admin UI** — Mister vede dashboard “operativa” ma i bottoni batch multi-lega sono nascosti (`canManagePlatform`). Può lavorare giornata-per-giornata / pagelle unificate; facile confondersi se i doc dicono “Mister = ops complete”.
+3. **Mister vs Admin UI** — Mister ha Apri/Chiudi (tutte) + pagelle + ops giornata; calendari/random/calcola/pubblica/wipe restano `canManagePlatform`. Copy UI può ancora confondere “ops complete”.
 4. **Docs drift** — `02_STATO_ATTUALE` e pezzi di `08_*` / `QA_MANUALE` descrivono ancora rosa 8, lineup 5+3, solo ruolo ADMIN, maxTeams 2–50. La verità prodotto è `09_DECISIONI` + codice.
 5. **Sorgenti player miste** — sync disattiva api-football/demo, ma filtri UI e script legacy restano; rischio confusione matching voti se qualcuno riattiva giocatori sbagliati.
 6. **Nessuna automazione settimanale** — se l’operatore dimentica un passo (chiudi formazioni / pubblica), la giornata resta ferma. By design oggi, ma rischio operativo.
@@ -213,7 +216,7 @@ Pattern stabile nei write path pesanti: **evitare** `$transaction` interattive l
 | Tema | Nota |
 |------|------|
 | **UI gaps** | Dashboard ricca di form batch; hub formazioni esiste (`/admin/lineups`) ma UX non “season console” unificata. Pubblico ok ma non brand-polished ovunque. |
-| **Mister vs Admin** | Allineare copy/help in UI: cosa può fare Mister in una settimana tipica senza Admin. Eventuale esporre alcuni batch “safe” anche a Mister. |
+| **Mister vs Admin** | Apri/Chiudi (tutte) già a Mister; allineare copy UI su cosa resta solo Admin (calcola/pubblica/calendari). |
 | **Mercato** | Deciso deferred; senza di esso le rose restano fisse post-lock (solo Admin CRUD). |
 | **Automation** | Cron o “wizard giornata N” (apri → reminder → chiudi → importa → calcola → pubblica) ridurrebbe errori umani. |
 | **Docs** | Aggiornare o marcare obsoleti `02_*`, `03_*` (lineup 5+3), `QA_MANUALE` (maxTeams, ruoli), README handoff remote GitHub vecchio. |
@@ -234,7 +237,7 @@ Pattern stabile nei write path pesanti: **evitare** `$transaction` interattive l
 ### P1 — riduzione carico operatore
 
 4. **Wizard “Giornata N”** — un’unica pagina che guida i passi in ordine con stato per lega (formazioni aperte? voti completi? pubblicata?).
-5. **Mister: permessi batch letti** — decidere se Mister può apri/chiudi/calcola/pubblica multi-lega o resta per-giornata; oggi mismatch aspettativa vs UI.
+5. **Mister: batch calcola/pubblica** — Apri/Chiudi (tutte) già a Mister; decidere se anche calcola/pubblica multi-lega restano solo Admin (oggi sì).
 6. **Policy catalogo in UI** — banner chiaro: sorgente canonica, cosa fa SYNC vs WIPE, avviso su player non-Fantacalcio attivi.
 
 ### P2 — prodotto futuro
