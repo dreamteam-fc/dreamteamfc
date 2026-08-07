@@ -3,7 +3,8 @@
 Manuale operativo per chi gestisce la stagione (Admin e, dove indicato, Mister).  
 Non è documentazione tecnica: spiega **cosa fare in app**, in che ordine, e come risolvere i problemi tipici.
 
-**Regolamento ufficiale (regole di gioco):** [REGOLAMENTO.md](./REGOLAMENTO.md)
+**Regolamento ufficiale (regole di gioco):** [REGOLAMENTO.md](./REGOLAMENTO.md)  
+**Manuale utente (owner/coach):** [MANUALE_UTENTE.md](./MANUALE_UTENTE.md)
 
 **Area staff:** `/admin`  
 **App pubblica / utente:** `/leagues/...`, `/me/...`, `/tournaments/...`

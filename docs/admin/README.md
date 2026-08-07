@@ -1,8 +1,9 @@
-# Documentazione Admin (operatori)
+# Documentazione operatori e utenti
 
-Documenti per chi gestisce la stagione in produzione (non per sviluppatori):
+Documenti per chi usa o gestisce la stagione in produzione (non per sviluppatori):
 
-→ **[MANUALE_ADMIN.md](./MANUALE_ADMIN.md)** — procedure operative  
+→ **[MANUALE_UTENTE.md](./MANUALE_UTENTE.md)** — guida owner e coach (join, rosa, formazione, torneo)  
+→ **[MANUALE_ADMIN.md](./MANUALE_ADMIN.md)** — procedure operative Admin/Mister  
 → **[REGOLAMENTO.md](./REGOLAMENTO.md)** — regole ufficiali (rosa, formazione, scoring Gf/Rf, recupero formazioni, classifica, torneo)
 
-Il manuale copre ruoli, dashboard, setup stagione, workflow settimanale, pagelle XLS, torneo, wipe fine anno, coach/loghi e problemi comuni.
+I manuali spiegano **cosa fare in app**; il regolamento spiega **come funziona il gioco**.

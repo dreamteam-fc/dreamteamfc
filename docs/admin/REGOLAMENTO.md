@@ -3,7 +3,8 @@
 Documento di regole per Admin, Mister e utenti.  
 Allineato al comportamento dell’applicazione (motore di scoring, classifica, rose, formazioni, torneo).
 
-**Manuale operativo:** [MANUALE_ADMIN.md](./MANUALE_ADMIN.md)  
+**Manuale utente (owner/coach):** [MANUALE_UTENTE.md](./MANUALE_UTENTE.md)  
+**Manuale operativo Admin/Mister:** [MANUALE_ADMIN.md](./MANUALE_ADMIN.md)  
 **Indice docs admin:** [README.md](./README.md)
 
 ---
