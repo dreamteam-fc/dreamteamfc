@@ -19,6 +19,22 @@ export const ASSIGNABLE_APP_ROLES = [
 
 export type AssignableAppRole = (typeof ASSIGNABLE_APP_ROLES)[number];
 
+/**
+ * Admin principale: solo questo account può `/admin/permessi` e assegnare ruoli.
+ * Override opzionale: PRIMARY_ADMIN_EMAIL. Default prodotto: dreamteamfc@proton.me.
+ */
+export const DEFAULT_PRIMARY_ADMIN_EMAIL = "dreamteamfc@proton.me";
+
+export function getPrimaryAdminEmail(): string {
+  const raw = process.env.PRIMARY_ADMIN_EMAIL?.trim();
+  return (raw && raw.length > 0 ? raw : DEFAULT_PRIMARY_ADMIN_EMAIL).toLowerCase();
+}
+
+/** Case-insensitive match against the primary-admin allowlist (one email). */
+export function isPrimaryAdminEmail(email: string): boolean {
+  return email.trim().toLowerCase() === getPrimaryAdminEmail();
+}
+
 export function isAppAdmin(role: UserRole): boolean {
   return role === UserRole.ADMIN;
 }
@@ -44,14 +60,18 @@ export function canManageVotes(role: UserRole): boolean {
 
 /**
  * Platform God mode: leagues, tournaments, global players, roster admin,
- * resets, role assignment.
+ * resets. Role assignment is stricter — see canAssignAppRoles.
  */
 export function canManagePlatform(role: UserRole): boolean {
   return isAppAdmin(role);
 }
 
-export function canAssignAppRoles(role: UserRole): boolean {
-  return isAppAdmin(role);
+/**
+ * Assegnazione ruoli piattaforma: solo admin principale (email allowlist),
+ * non ogni User.role=ADMIN nominato.
+ */
+export function canAssignAppRoles(role: UserRole, email: string): boolean {
+  return isAppAdmin(role) && isPrimaryAdminEmail(email);
 }
 
 export function parseAppRole(value: string): UserRole | null {

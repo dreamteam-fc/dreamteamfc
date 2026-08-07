@@ -82,14 +82,25 @@ export async function assertCanManagePlatform() {
   return requireAdminAccess();
 }
 
+/**
+ * Solo admin principale (PRIMARY_ADMIN_EMAIL / dreamteamfc@proton.me):
+ * più stretto di canManagePlatform — gli ADMIN nominati sono esclusi.
+ */
 export async function assertCanAssignAppRoles() {
   const authContext = await requireAdminAccess();
 
-  if (!canAssignAppRoles(authContext.appUser.role)) {
+  if (
+    !canAssignAppRoles(authContext.appUser.role, authContext.appUser.email)
+  ) {
     denyAccess();
   }
 
   return authContext;
+}
+
+/** Alias esplicito per page /admin/permessi. */
+export async function requirePrimaryAdminAccess() {
+  return assertCanAssignAppRoles();
 }
 
 export async function getAuthenticatedAdminContext() {

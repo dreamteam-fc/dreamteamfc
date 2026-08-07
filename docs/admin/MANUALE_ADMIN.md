@@ -34,7 +34,7 @@ Esistono due livelli di “potere”:
 - **Ruolo piattaforma** (chi sei nell’app): `USER` | `MISTER` | `ADMIN`
 - **Ruolo in lega** (membership): solo `OWNER` (proprietario squadra) o `MEMBER` — **non** esiste un “admin di lega”
 
-I ruoli piattaforma si assegnano da **`/admin/permessi`** (solo Admin).
+I ruoli piattaforma si assegnano da **`/admin/permessi`** (solo **admin principale** = email `dreamteamfc@proton.me`, override env `PRIMARY_ADMIN_EMAIL`; gli altri ADMIN no).
 
 ### 1.1 Admin (super-operatore)
 
@@ -45,7 +45,7 @@ Può tutto ciò che serve a far funzionare la stagione:
 - Catalogo giocatori (upload quotazioni Excel)
 - Modifica rose anche dopo il blocco a 25
 - Wipe fine anno
-- Assegna Mister / Admin ad altri account
+- Assegna Mister / Admin ad altri account (**solo admin principale** `dreamteamfc@proton.me`)
 
 ### 1.2 Mister (operatore giornata)
 
@@ -91,7 +91,7 @@ Dopo il login con account Admin o Mister vai su **`/admin`**.
 | Hub formazioni | `/admin/lineups` | Admin (+ Mister via path) |
 | Giocatori | `/admin/players` | solo Admin (link in dashboard) |
 | Crea nuova lega | `/admin/leagues/new` | solo Admin |
-| Permessi | `/admin/permessi` | solo Admin (in alto a destra) |
+| Permessi | `/admin/permessi` | solo admin principale (dreamteamfc@proton.me) |
 
 ### 2.2 Batch multi-lega (solo Admin)
 
@@ -363,7 +363,8 @@ Zona pericolosa in basso su **`/admin`** (e richiami su `/admin/players`).
 | Invito coach / logo | ✓ | | | |
 | Pagelle XLS / voti giornata | | | ✓ | ✓ |
 | Batch multi-lega dashboard | | | | ✓ |
-| Crea leghe / tornei / permessi | | | | ✓ |
+| Crea leghe / tornei | | | | ✓ |
+| Permessi / assegna ruoli | | | | solo admin principale |
 | Catalogo giocatori / wipe | | | | ✓ |
 | CRUD rose admin | | | | ✓ |
 

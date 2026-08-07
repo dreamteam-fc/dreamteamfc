@@ -22,7 +22,7 @@ export async function AdminShell({
   const authContext = await getAuthenticatedAdminContext();
   const showPermessi =
     authContext?.appUser != null &&
-    canAssignAppRoles(authContext.appUser.role);
+    canAssignAppRoles(authContext.appUser.role, authContext.appUser.email);
 
   return (
     <main className="min-h-screen bg-brand-fog px-6 py-8">

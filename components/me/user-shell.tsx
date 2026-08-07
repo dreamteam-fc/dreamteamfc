@@ -5,7 +5,7 @@ import { BrandMark } from "@/components/brand/brand-mark";
 
 type UserShellProps = {
   children: React.ReactNode;
-  /** Platform Admin only — link to /admin. Mister/USER must not see this. */
+  /** Staff (ADMIN | MISTER) — link to /admin. Same gate as requireStaffAccess. */
   showAdminLink?: boolean;
   subtitle?: string;
   title: string;

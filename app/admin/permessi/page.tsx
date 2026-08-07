@@ -1,6 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PlatformRolesPanel } from "@/components/admin/platform-roles-panel";
-import { requireAdminAccess } from "@/lib/auth/admin.ts";
+import { requirePrimaryAdminAccess } from "@/lib/auth/admin.ts";
 import { getAdminPlatformUsersData } from "@/lib/server/admin/read-admin-data";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function AdminPermessiPage({
   searchParams
 }: AdminPermessiPageProps) {
   const { error, notice } = await searchParams;
-  await requireAdminAccess();
+  await requirePrimaryAdminAccess();
   const { users } = await getAdminPlatformUsersData();
 
   return (

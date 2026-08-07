@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { UserShell } from "@/components/me/user-shell";
-import { isAppAdmin } from "@/lib/auth/app-roles";
+import { canAccessAdminArea } from "@/lib/auth/app-roles";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export default async function MeLayout({ children }: MeLayoutProps) {
     <UserShell
       title="La mia area"
       subtitle={`${authContext.appUser.displayName ?? authContext.appUser.email} | ${authContext.appUser.email}`}
-      showAdminLink={isAppAdmin(authContext.appUser.role)}
+      showAdminLink={canAccessAdminArea(authContext.appUser.role)}
     >
       {children}
     </UserShell>
