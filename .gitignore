@@ -34,3 +34,8 @@ pnpm-debug.log*
 Thumbs.db
 
 /lib/generated/prisma
+
+# Serwist (webpack dest leftovers; turbopack serves /serwist/sw.js via route)
+public/sw.js
+public/sw.js.map
+public/swe-worker*

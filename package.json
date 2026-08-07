@@ -1,6 +1,6 @@
 {
   "name": "fantacalcetto",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -45,11 +45,14 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@serwist/turbopack": "^9.5.12",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "esbuild": "^0.28.1",
     "postcss": "^8.4.49",
+    "serwist": "^9.5.12",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.0"
   }

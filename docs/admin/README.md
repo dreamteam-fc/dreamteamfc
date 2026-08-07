@@ -9,3 +9,5 @@ Documenti per chi usa o gestisce la stagione in produzione (non per sviluppatori
 **Pagine pubbliche in app:** `/regolamento`, `/come-giocare` (e sottosezioni lega / formazioni / allenatore / tornei).
 
 I manuali spiegano **cosa fare in app**; il regolamento spiega **come funziona il gioco**.
+
+**PWA:** l’app è installabile (Aggiungi a Home / Installa app) su browser supportati.

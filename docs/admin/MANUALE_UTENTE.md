@@ -52,6 +52,8 @@ Da lì vedi tipicamente:
 
 Consiglio: usa `/me` come home dopo ogni login.
 
+**Installa l’app (PWA):** su Chrome/Edge desktop o Android usa *Installa app* / *Aggiungi a Home*; su iPhone Safari → Condividi → *Aggiungi a Home*.
+
 ---
 
 ## 3. Iscriverti a una lega e creare la squadra
