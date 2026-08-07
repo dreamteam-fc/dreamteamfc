@@ -57,6 +57,12 @@ export default async function MePage({ searchParams }: MePageProps) {
 
           <div className="flex flex-wrap gap-3">
             <Link
+              href="/regolamento"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+            >
+              Regolamento
+            </Link>
+            <Link
               href="/tournaments"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
             >

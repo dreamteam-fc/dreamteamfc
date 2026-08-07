@@ -157,6 +157,16 @@ export default function HomePage() {
               </Link>
             ))}
           </section>
+
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm text-slate-600">
+            <p>Dream Team FC</p>
+            <Link
+              href="/regolamento"
+              className="font-semibold text-brand-blue transition hover:text-[#0f4de0]"
+            >
+              Regolamento
+            </Link>
+          </footer>
         </div>
       </section>
     </main>
