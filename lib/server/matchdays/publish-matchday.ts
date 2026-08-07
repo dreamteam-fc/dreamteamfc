@@ -84,7 +84,7 @@ export async function publishMatchday(
 
     if (invalidFixture) {
       throw new Error(
-        `Matchday ${matchdayId} has fantasy fixtures that are not publishable. Expected only CALCULATED or PUBLISHED fixtures.`
+        `Matchday ${matchdayId} has fantasy fixtures that are not publishable. Expected only CALCULATED or PUBLISHED fixtures. Se gli scontri sono ancora SCHEDULED, calcola prima i risultati (Genera/aggiorna risultati scontri o ricalcola i punteggi).`
       );
     }
 

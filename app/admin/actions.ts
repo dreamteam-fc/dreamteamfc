@@ -2049,9 +2049,10 @@ export async function calculateMatchdayScoresAction(formData: FormData) {
   let errorMessage: string | undefined;
 
   try {
-    const result = await calculateMatchdayScores(matchdayId);
+    const scores = await calculateMatchdayScores(matchdayId);
+    const fixtures = await calculateFantasyFixtureResults(matchdayId);
     revalidateAdminPaths(matchdayId, leagueId);
-    notice = `Punteggi calcolati per ${result.teamsScored.length} squadre.`;
+    notice = `Punteggi calcolati per ${scores.teamsScored.length} squadre; risultati scontri: ${fixtures.calculatedCount}.`;
   } catch (error) {
     errorMessage =
       error instanceof Error ? error.message : "Calcolo punteggi non riuscito.";

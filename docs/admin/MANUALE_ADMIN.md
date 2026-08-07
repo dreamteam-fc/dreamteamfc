@@ -188,7 +188,7 @@ Risultato: 18 giornate con le partite.
 | 4 | (Opzionale) Genera formazioni random per chi manca | `/admin` o card giornata |
 | 5 | **Chiudi formazioni** | `/admin` batch o singola giornata |
 | 6 | Importa pagelle XLS | `/admin/votes` (consigliato) |
-| 7 | **Calcola punteggi e risultati** | `/admin` o da `/admin/votes` |
+| 7 | **Calcola punteggi e risultati** | `/admin` o da `/admin/votes` (calcola anche gli scontri) |
 | 8 | Controlla | `/admin/matchdays/[id]/scores` |
 | 9 | **Pubblica giornate** | `/admin` o `/admin/votes` |
 | 10 | Verifica pubblica | `/leagues/[id]/standings` e pagina giornata |
