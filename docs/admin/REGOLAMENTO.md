@@ -124,8 +124,8 @@ La stessa formula vale per **lega** e **torneo**.
 
 Alla **chiusura formazioni** (admin), se una squadra non ha schierato:
 
-1. Se esiste almeno una formazione **inserita dall’utente** in precedenza nella stessa lega / stesso torneo → viene **recuperata** (stessa XI + panchina dell’ultima inserita).
-2. Se non esiste alcuna formazione utente precedente → **forfait** (nessuna copia).
+1. Se esiste almeno una formazione **inserita dall’utente o dall’allenatore** in precedenza nella stessa lega / stesso torneo → viene **recuperata** (stessa XI + panchina dell’ultima inserita).
+2. Se non esiste alcuna formazione utente/allenatore precedente → **forfait** (nessuna copia).
 
 ### 4.1 Formazione recuperata
 
@@ -134,7 +134,7 @@ Alla **chiusura formazioni** (admin), se una squadra non ha schierato:
 - In **lega**: anche **−1 punto** in classifica (anche in caso di vittoria; la classifica può andare sotto zero).
 - In **torneo**: solo −2 fantapunti (non c’è classifica).
 - Se un giocatore recuperato **non è più in rosa**, quello slot vale **SV** (0).
-- Admin vede lo stato **RECUPERATA** (distinto da **INSERITA**).
+- Admin vede lo stato **RECUPERATA** / **INSERITA** / **MISTER** (allenatore) / **ADMIN**.
 
 Esempio: 29 fantapunti lordi → 27 netti → **1** gol (non 2). Oppure 27 → 25 → **0** gol (non 1).
 

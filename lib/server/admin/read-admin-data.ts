@@ -950,13 +950,19 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
   const teamLineupStatuses = matchday.league.fantasyTeams.map((team) => {
     const lineup = team.lineups[0] ?? null;
 
-    let formationStatus: "INSERITA" | "RECUPERATA" | "ADMIN" | "NON_INSERITA" =
-      "NON_INSERITA";
+    let formationStatus:
+      | "INSERITA"
+      | "MISTER"
+      | "RECUPERATA"
+      | "ADMIN"
+      | "NON_INSERITA" = "NON_INSERITA";
     if (lineup) {
       if (lineup.source === "AUTO_CARRIED") {
         formationStatus = "RECUPERATA";
       } else if (lineup.source === "ADMIN_RANDOM") {
         formationStatus = "ADMIN";
+      } else if (lineup.source === "COACH") {
+        formationStatus = "MISTER";
       } else {
         formationStatus = "INSERITA";
       }

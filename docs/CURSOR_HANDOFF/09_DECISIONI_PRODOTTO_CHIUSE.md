@@ -75,19 +75,21 @@ goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 
 - Upload XLS nei pannelli voti
 - Pannello unificato multi-lega: mostra **solo chi ha effettivamente giocato** dopo le sostituzioni (opzione A)
-- Admin vede per ogni squadra/giornata: formazione `INSERITA` / `RECUPERATA` / `ADMIN` / `NON_INSERITA` (`LineupSource`)
+- Admin vede per ogni squadra/giornata: formazione `INSERITA` / `MISTER` (coach) / `RECUPERATA` / `ADMIN` / `NON_INSERITA` (`LineupSource`)
 
 ### 5b. Formazione mancante alla chiusura (chiuso 2026-08-07)
 
 Alla **chiusura formazioni** (lega e torneo):
 
-1. Se manca lineup e esiste ultima formazione `source=USER` nello stesso ambito (lega / torneo) → crea `AUTO_CARRIED`
+1. Se manca lineup e esiste ultima formazione `source=USER` o `COACH` nello stesso ambito (lega / torneo) → crea `AUTO_CARRIED`
 2. `AUTO_CARRIED`: −2 fantapunti **prima** dei gol (`max(0, score−2)`); in lega anche −1 punti classifica (anche se vince; classifica può &lt; 0)
-3. Nessuna USER precedente → forfait 3–0 / 0–3 / doppio 0–0 + in lega −1 classifica (anche doppio forfait)
+3. Nessuna USER/COACH precedente → forfait 3–0 / 0–3 / doppio 0–0 + in lega −1 classifica (anche doppio forfait)
 4. Giocatore fuori rosa in copia → SV
-5. Fonte copia = solo `USER` (non `AUTO_CARRIED` né `ADMIN_RANDOM`)
+5. Fonte copia = `USER` o `COACH` (non `AUTO_CARRIED` né `ADMIN_RANDOM`)
+6. `COACH` = salvata da account allenatore (badge admin **MISTER**)
+7. Owner/coach possono eliminare la propria lineup a formazioni aperte (`/me/.../lineup`)
 
-Libs: `auto-carry-matchday-lineups.ts`, `auto-carry-tournament-round-lineups.ts`, `lineup-penalties.ts`.
+Libs: `auto-carry-matchday-lineups.ts`, `auto-carry-tournament-round-lineups.ts`, `lineup-penalties.ts`, `delete-matchday-lineup.ts`, `lineup-source.ts`.
 
 ## 6. Torneo — **FATTO** (V1 + voti XLS)
 

@@ -2,7 +2,7 @@ import { MatchdayStatus, SlotType } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { saveLineupAction } from "@/app/me/actions";
+import { deleteOwnMatchdayLineupAction, saveLineupAction } from "@/app/me/actions";
 import { requireAuthenticatedAppUser } from "@/lib/auth/app-user";
 import { getPlayerRoleLabel } from "@/lib/players/player-role";
 import { getUserLineupPageData } from "@/lib/server/me/read-user-data";
@@ -217,7 +217,22 @@ export default async function TeamMatchdayLineupPage({
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-xl font-semibold text-slate-900">Formazione attuale</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-semibold text-slate-900">Formazione attuale</h3>
+          {data.existingLineup &&
+          data.matchday.status === MatchdayStatus.LINEUPS_OPEN ? (
+            <form action={deleteOwnMatchdayLineupAction}>
+              <input type="hidden" name="teamId" value={data.team.id} />
+              <input type="hidden" name="matchdayId" value={data.matchday.id} />
+              <button
+                type="submit"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800 transition hover:bg-rose-100"
+              >
+                Elimina formazione
+              </button>
+            </form>
+          ) : null}
+        </div>
         <LineupSummary validation={data.existingLineupValidation} />
 
         {data.existingLineup ? (

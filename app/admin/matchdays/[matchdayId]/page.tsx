@@ -175,20 +175,24 @@ export default async function AdminMatchdayDetailPage({
               const badgeClass =
                 team.formationStatus === "INSERITA"
                   ? "bg-emerald-50 text-emerald-800"
-                  : team.formationStatus === "RECUPERATA"
-                    ? "bg-sky-50 text-sky-800"
-                    : team.formationStatus === "ADMIN"
-                      ? "bg-violet-50 text-violet-800"
-                      : "bg-amber-50 text-amber-800";
+                  : team.formationStatus === "MISTER"
+                    ? "bg-indigo-50 text-indigo-800"
+                    : team.formationStatus === "RECUPERATA"
+                      ? "bg-sky-50 text-sky-800"
+                      : team.formationStatus === "ADMIN"
+                        ? "bg-violet-50 text-violet-800"
+                        : "bg-amber-50 text-amber-800";
 
               const badgeLabel =
                 team.formationStatus === "INSERITA"
                   ? "INSERITA"
-                  : team.formationStatus === "RECUPERATA"
-                    ? "RECUPERATA"
-                    : team.formationStatus === "ADMIN"
-                      ? "ADMIN"
-                      : "NON INSERITA";
+                  : team.formationStatus === "MISTER"
+                    ? "MISTER"
+                    : team.formationStatus === "RECUPERATA"
+                      ? "RECUPERATA"
+                      : team.formationStatus === "ADMIN"
+                        ? "ADMIN"
+                        : "NON INSERITA";
 
               const hasLineup = team.formationStatus !== "NON_INSERITA";
 

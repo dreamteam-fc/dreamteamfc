@@ -1,7 +1,6 @@
 "use server";
 
 import {
-  LineupSource,
   LineupStatus,
   MatchdayStatus,
   Prisma,
@@ -32,6 +31,8 @@ import {
   getBenchPositionOrderByRole,
   validateLineupComposition
 } from "@/lib/server/lineups/validate-lineup-composition";
+import { deleteMatchdayLineup } from "@/lib/server/lineups/delete-matchday-lineup.ts";
+import { lineupSourceFromAccessRole } from "@/lib/server/lineups/lineup-source.ts";
 import {
   assertPlayerFreeInLeague,
   isLeaguePlayerExclusivityConflict,
@@ -824,6 +825,8 @@ export async function saveLineupAction(formData: FormData) {
         throw new Error("Giornata non modificabile.");
       }
 
+      const lineupSource = lineupSourceFromAccessRole(access.accessRole);
+
       const rosterPlayerMap = new Map(
         fullTeam.roster.map((entry) => [entry.player.id, entry.player])
       );
@@ -953,7 +956,7 @@ export async function saveLineupAction(formData: FormData) {
               id: existingLineup.id
             },
             data: {
-              source: LineupSource.USER,
+              source: lineupSource,
               status: LineupStatus.SUBMITTED,
               submittedAt: new Date()
             },
@@ -965,7 +968,7 @@ export async function saveLineupAction(formData: FormData) {
             data: {
               fantasyTeamId: fullTeam.id,
               matchdayId: matchday.id,
-              source: LineupSource.USER,
+              source: lineupSource,
               status: LineupStatus.SUBMITTED,
               submittedAt: new Date()
             },
@@ -1020,6 +1023,59 @@ export async function saveLineupAction(formData: FormData) {
         error: getActionErrorMessage(
           error,
           "Impossibile salvare la formazione."
+        )
+      })
+    );
+  }
+}
+
+export async function deleteOwnMatchdayLineupAction(formData: FormData) {
+  const rawTeamId = formData.get("teamId");
+  const rawMatchdayId = formData.get("matchdayId");
+  const teamId = typeof rawTeamId === "string" ? rawTeamId : "";
+  const matchdayId = typeof rawMatchdayId === "string" ? rawMatchdayId : "";
+
+  if (teamId.length === 0 || matchdayId.length === 0) {
+    redirect("/me");
+  }
+
+  try {
+    const access = await requireLineupAccess(teamId);
+
+    const matchday = await prisma.matchday.findUnique({
+      where: { id: matchdayId },
+      select: {
+        id: true,
+        leagueId: true,
+        status: true
+      }
+    });
+
+    if (!matchday || matchday.leagueId !== access.team.leagueId) {
+      throw new Error("Giornata non valida per questa squadra.");
+    }
+
+    if (matchday.status !== MatchdayStatus.LINEUPS_OPEN) {
+      throw new Error("Puoi eliminare la formazione solo a formazioni aperte.");
+    }
+
+    await deleteMatchdayLineup({
+      fantasyTeamId: access.team.id,
+      matchdayId: matchday.id
+    });
+
+    revalidateLineupPaths(teamId, matchdayId, access.team.leagueId);
+    redirect(
+      buildLineupRedirectPath(teamId, matchdayId, {
+        notice: "Formazione eliminata."
+      })
+    );
+  } catch (error) {
+    redirect(
+      buildLineupRedirectPath(teamId, matchdayId, {
+        error: getActionErrorMessage(
+          error,
+          "Impossibile eliminare la formazione."
         )
       })
     );

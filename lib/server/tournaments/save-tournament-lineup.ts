@@ -1,5 +1,4 @@
 import {
-  LineupSource,
   LineupStatus,
   SlotType,
   TournamentFixtureStatus,
@@ -9,6 +8,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { lineupSourceFromAccessRole } from "@/lib/server/lineups/lineup-source.ts";
 import {
   getBenchPositionOrderByRole,
   validateLineupComposition
@@ -140,6 +140,8 @@ export async function saveTournamentLineup(options: {
     throw new Error("Non autorizzato.");
   }
 
+  const lineupSource = lineupSourceFromAccessRole(accessRole);
+
   const rosterPlayerMap = new Map(
     team.roster.map((entry) => [entry.player.id, entry.player])
   );
@@ -224,13 +226,13 @@ export async function saveTournamentLineup(options: {
       },
       create: {
         fantasyTeamId: options.fantasyTeamId,
-        source: LineupSource.USER,
+        source: lineupSource,
         status: LineupStatus.SUBMITTED,
         submittedAt: new Date(),
         tournamentFixtureId: options.tournamentFixtureId
       },
       update: {
-        source: LineupSource.USER,
+        source: lineupSource,
         status: LineupStatus.SUBMITTED,
         submittedAt: new Date()
       },

@@ -19,7 +19,7 @@ type SideJob = {
 };
 
 /**
- * At tournament lineup lock: copy last USER lineup in the same tournament
+ * At tournament lineup lock: copy last USER/COACH lineup in the same tournament
  * (strictly earlier roundIndex, or same round with lower leg).
  */
 export async function autoCarryMissingTournamentRoundLineups(
@@ -84,7 +84,7 @@ export async function autoCarryMissingTournamentRoundLineups(
     const candidates = await prisma.tournamentLineup.findMany({
       where: {
         fantasyTeamId: job.fantasyTeamId,
-        source: LineupSource.USER,
+        source: { in: [LineupSource.USER, LineupSource.COACH] },
         players: { some: {} },
         tournamentFixture: {
           round: { tournamentId: round.tournamentId }

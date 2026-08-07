@@ -23,7 +23,9 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 | Batch calendari multi-lega | `generate-all-league-schedules.ts` + action admin |
 | Aprire / chiudere formazioni | `open-matchday-lineups.ts`, `lock-matchday-lineups.ts` (+ `*-all-*.ts`) |
 | Auto-carry lineup mancanti | `auto-carry-matchday-lineups.ts` (chiamato dal lock) |
-| Eliminare formazione di una squadra | `delete-matchday-lineup.ts` + action admin sulla pagina giornata |
+| Eliminare formazione di una squadra (admin) | `delete-matchday-lineup.ts` + action admin sulla pagina giornata |
+| Eliminare propria formazione (owner/coach) | `deleteOwnMatchdayLineupAction` su `/me/.../lineup` (solo OPEN) |
+| Source USER vs COACH (badge MISTER) | `lineup-source.ts` + save lineup lega/torneo |
 | Penali −2 FP / −1 classifica | `lib/scoring/lineup-penalties.ts` + `calculate-matchday-scores.ts` + `calculate-league-standings.ts` |
 | Pubblicare giornata | `lib/server/matchdays/publish-matchday.ts` |
 | Classifica | `lib/server/standings/calculate-league-standings.ts`, UI `app/leagues/` |

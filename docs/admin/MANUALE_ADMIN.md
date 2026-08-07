@@ -192,7 +192,9 @@ Risultato: 18 giornate con le partite.
 | 9 | **Pubblica giornate** | `/admin` o `/admin/votes` |
 | 10 | Verifica pubblica | `/leagues/[id]/standings` e pagina giornata |
 
-Su `/admin/matchdays/[id]`, sezione **Stato formazioni**: tasto **Elimina formazione** per squadra (disponibile in DRAFT / OPEN / LOCKED, prima di voti/punteggi).
+Su `/admin/matchdays/[id]`, sezione **Stato formazioni**: badge **INSERITA** (owner), **MISTER** (allenatore/coach), **RECUPERATA**, **ADMIN**, **NON INSERITA**; tasto **Elimina formazione** per squadra (DRAFT / OPEN / LOCKED, prima di voti/punteggi).
+
+L’owner/coach può eliminare la propria formazione da `/me/teams/.../lineup` solo a formazioni **aperte**.
 
 ### Flusso Mister (senza batch)
 

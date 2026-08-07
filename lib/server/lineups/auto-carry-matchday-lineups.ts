@@ -10,7 +10,7 @@ export type AutoCarryMatchdayLineupsResult = {
 
 /**
  * At lineup lock: for each fixture side without a lineup, copy the team's
- * most recent USER-sourced lineup in the same league (earlier matchday number).
+ * most recent USER- or COACH-sourced lineup in the same league (earlier matchday number).
  * Players no longer on the roster stay in the XI but score as SV at calculation.
  */
 export async function autoCarryMissingMatchdayLineups(
@@ -61,7 +61,7 @@ export async function autoCarryMissingMatchdayLineups(
     const previous = await prisma.lineup.findFirst({
       where: {
         fantasyTeamId,
-        source: LineupSource.USER,
+        source: { in: [LineupSource.USER, LineupSource.COACH] },
         matchday: {
           leagueId: matchday.leagueId,
           number: { lt: matchday.number }

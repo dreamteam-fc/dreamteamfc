@@ -84,11 +84,11 @@ goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 
 | Caso | Lega | Torneo |
 |------|------|--------|
-| Ultima lineup `USER` esiste | Copia (`AUTO_CARRIED`) + **−2 FP** (prima dei gol, floor 0) + **−1** classifica | Copia + **−2 FP** (no classifica) |
+| Ultima lineup `USER`/`COACH` esiste | Copia (`AUTO_CARRIED`) + **−2 FP** (prima dei gol, floor 0) + **−1** classifica | Copia + **−2 FP** (no classifica) |
 | Mai schierato in quella lega/torneo | Forfait 3–0 + **−1** classifica | Forfait 3–0 |
 | Giocatore fuori rosa in copia | Slot = **SV** | Idem |
 
-Provenienza: `LineupSource` = `USER` \| `AUTO_CARRIED` \| `ADMIN_RANDOM`.  
+Provenienza: `LineupSource` = `USER` \| `COACH` (allenatore, badge **MISTER**) \| `AUTO_CARRIED` \| `ADMIN_RANDOM`.  
 Costanti: `lib/scoring/lineup-penalties.ts`.
 
 ### Auto-sub

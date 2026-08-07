@@ -1,0 +1,1 @@
+ALTER TYPE "LineupSource" ADD VALUE 'COACH';
