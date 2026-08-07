@@ -29,11 +29,13 @@ Tipici bottoni multi-lega (implementati in actions + `lib/server/*`):
 
 1. Genera calendari (tutte le leghe senza schedule)  
 2. Genera formazioni casuali  
-3. Apri / chiudi formazioni  
+3. Apri / chiudi formazioni (alla chiusura: auto-carry lineup mancanti)  
 4. Calcola punteggi + risultati  
 5. Pubblica giornate  
 
-Concurrency limitata nei batch (proxy Railway ~60s). Path: `open-all-lineups.ts`, `lock-all-lineups.ts`, `calculate-all-scores-and-results.ts`, `publish-all-matchdays.ts`, `generate-all-league-schedules.ts`, `generate-all-random-lineups.ts`.
+Concurrency limitata nei batch (proxy Railway ~60s). Path: `open-all-lineups.ts`, `lock-all-lineups.ts` (+ `auto-carry-matchday-lineups.ts`), `calculate-all-scores-and-results.ts`, `publish-all-matchdays.ts`, `generate-all-league-schedules.ts`, `generate-all-random-lineups.ts`.
+
+**Formazioni alla chiusura:** se manca lineup → copia ultima `USER` (`AUTO_CARRIED`, −2 FP + −1 classifica) oppure forfait. Dettaglio: `REGOLAMENTO` §4 / `AI_HANDOFF/03`.
 
 ---
 

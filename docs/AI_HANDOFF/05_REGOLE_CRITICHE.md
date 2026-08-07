@@ -51,11 +51,15 @@ Sintomi storici: `42P05` prepared statements, `P1001`, `EMAXCONNSESSION`, `Trans
 - Lega **10** squadre, calendario A/R **18** giornate  
 - Gol: `score ≤ 25 → 0`, else `floor((score-25)/2)`  
 - Voti: match **`Cod.` = externalId`** sorgente Fantacalcio  
+- **Gf / Rf disgiunti e entrambi +3** (`penaltiesScored` entra in `calculate-fantavote`)  
+- Formazione mancante: auto-carry `USER` + penali; altrimenti forfait (vedi `REGOLAMENTO` §4 / `lineup-penalties.ts`)  
 
 ### DON’T
 
 - Ripristinare rosa 8 / lineup 5+3 / maxTeams 2–50 da doc drift (`CURSOR_HANDOFF/02_*`, `QA_MANUALE`)  
 - Matching voti per **nome** giocatore  
+- Trattare `Rf` come “già in Gf” / 0 punti (falso: XLS Fantacalcio li separa)  
+- Forfait su ogni lineup mancante senza tentare auto-carry  
 - Riattivare player `api-football` / `demo` come fonte voti stagione  
 - Assumere cron o mercato: non esistono  
 

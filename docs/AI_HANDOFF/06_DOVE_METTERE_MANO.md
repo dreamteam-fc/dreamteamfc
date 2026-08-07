@@ -22,6 +22,8 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 | Generare calendario round-robin | `lib/server/schedules/generate-league-schedule.ts`, `generate-round-robin-schedule.ts` |
 | Batch calendari multi-lega | `generate-all-league-schedules.ts` + action admin |
 | Aprire / chiudere formazioni | `open-matchday-lineups.ts`, `lock-matchday-lineups.ts` (+ `*-all-*.ts`) |
+| Auto-carry lineup mancanti | `auto-carry-matchday-lineups.ts` (chiamato dal lock) |
+| Penali −2 FP / −1 classifica | `lib/scoring/lineup-penalties.ts` + `calculate-matchday-scores.ts` + `calculate-league-standings.ts` |
 | Pubblicare giornata | `lib/server/matchdays/publish-matchday.ts` |
 | Classifica | `lib/server/standings/calculate-league-standings.ts`, UI `app/leagues/` |
 
@@ -50,7 +52,7 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 | Import voti lega | `lib/server/votes/import-fantacalcio-votes.ts`, shared `votes/shared.ts` |
 | UI pagelle unificate | `app/admin/votes/` (+ `maxDuration`) |
 | Lista giocatori richiesti | `lib/server/matchdays/generate-required-vote-players.ts` |
-| Fantavoto / bonus-malus | `lib/scoring/calculate-fantavote.ts`, `types.ts` |
+| Fantavoto / bonus-malus | `lib/scoring/calculate-fantavote.ts`, `types.ts` (**Gf+Rf entrambi +3**) |
 | Score squadra + auto-sub | `lib/scoring/calculate-team-score.ts` (+ path scores server) |
 | Gol da score | `lib/scoring/convert-score-to-goals.ts` |
 | Calcolo giornata + risultati fixture | `lib/server/scores/calculate-matchday-scores.ts`, `fixtures/calculate-fantasy-fixture-results.ts` |
@@ -65,6 +67,7 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 | Creare torneo / entries | `create-tournament.ts`, `tournament-entries.ts`, UI `app/admin/tournaments/` |
 | Generare bracket / seeding | `generate-tournament-bracket.ts` |
 | Apri/chiudi formazioni fase | `open-tournament-round-lineups.ts`, `lock-tournament-round-lineups.ts` |
+| Auto-carry lineup torneo | `auto-carry-tournament-round-lineups.ts` |
 | Lineup utente torneo | `save-tournament-lineup.ts`, route sotto `app/me/teams/.../tournaments/` |
 | Voti XLS torneo | `tournament-votes.ts`, `import-tournament-votes.ts` |
 | Calcolo leg + avanzamento | `calculate-tournament-round-results.ts`, `record-tournament-result.ts` |

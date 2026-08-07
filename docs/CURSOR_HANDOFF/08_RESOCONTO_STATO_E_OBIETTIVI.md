@@ -315,11 +315,12 @@ Decisioni gia chiuse (non riaprire):
 - non giocato = SV (assente da file voti, oppure voto con *)
 - gol squadra = score<=25 ? 0 : floor((score-25)/2)
 - upload XLS voti; Cod.=externalId Fantacalcio; foglio default Fantacalcio
-- eventi: gf+3 ass+1 rp+3 gs-1(solo P) rs(sbagliato)-3 rf(realizzato)0 au-2 amm-0.5 esp-1; clean sheet auto se P gs=0
+- eventi: gf+3 (gol non-rigore) ass+1 rp+3 gs-1(solo P) rs(sbagliato)-3 rf(gol da rigore)+3 **additivo a gf** au-2 amm-0.5 esp-1; clean sheet auto se P gs=0
+- formazione mancante alla chiusura: auto-carry ultima USER + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1
 - leghe 10 squadre, solo A/R = 18 giornate; password obbligatoria; LeagueRole solo OWNER/MEMBER
-- torneo V1 fatto: admin sceglie a mano; password; alto vs basso; no stessa lega in 1a fase; voti XLS per fase
+- torneo V1 fatto: admin sceglie a mano; password; alto vs basso; no stessa lega in 1a fase; voti XLS per fase; auto-carry solo da storico torneo
 - coach invitato fatto (sola formazione)
-- leggere anche docs/CURSOR_HANDOFF/09_DECISIONI_PRODOTTO_CHIUSE.md
+- leggere anche docs/CURSOR_HANDOFF/09_DECISIONI_PRODOTTO_CHIUSE.md e docs/AI_HANDOFF/
 
 Aperti prodotto Dream Team: nessuno.
 

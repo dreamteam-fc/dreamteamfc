@@ -21,9 +21,11 @@ export function calculateFantavote(
     throw new Error("baseVote is required when isSv is false.");
   }
 
+  // Gf = gol non da rigore; Rf = gol da rigore (separati nel file XLS).
   const goals = input.goals ?? 0;
   const assists = input.assists ?? 0;
   const penaltiesSaved = input.penaltiesSaved ?? 0;
+  const penaltiesScored = input.penaltiesScored ?? 0;
   const cleanSheet = input.cleanSheet ?? 0;
   const yellowCards = input.yellowCards ?? 0;
   const redCards = input.redCards ?? 0;
@@ -32,8 +34,13 @@ export function calculateFantavote(
   // gs: applicare solo ai portieri in fase di salvataggio voto; qui conta il valore già filtrato.
   const goalsConceded = input.goalsConceded ?? 0;
 
+  // Ogni gol (Gf) o rigore realizzato (Rf) vale +3; sono additivi.
   const bonusPoints = roundToTwoDecimals(
-    goals * 3 + assists * 1 + penaltiesSaved * 3 + cleanSheet * 1
+    goals * 3 +
+      penaltiesScored * 3 +
+      assists * 1 +
+      penaltiesSaved * 3 +
+      cleanSheet * 1
   );
   const malusPoints = roundToTwoDecimals(
     yellowCards * 0.5 +

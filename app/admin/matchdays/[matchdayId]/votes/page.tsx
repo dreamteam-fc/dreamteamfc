@@ -590,7 +590,7 @@ export default async function AdminMatchdayVotesPage({
                               step="1"
                               defaultValue={record.playerVote?.penaltiesScored ?? 0}
                               placeholder="Rf"
-                              title="Rigori realizzati (0 pt; gol gia in Gf)"
+                              title="Rigori realizzati (+3)"
                               className="w-full rounded-xl border border-slate-300 px-2 py-2 text-xs"
                             />
                             <input

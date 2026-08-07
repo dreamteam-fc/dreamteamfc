@@ -210,14 +210,18 @@ Risultato: 18 giornate con le partite.
 - Punteggio squadra ≤ 25 → **0 gol**  
 - Altrimenti gol = metà della parte oltre 25 (arrotondato per difetto)
 
-### Forfait senza formazione
+### Forfait / formazione recuperata
 
-Se una squadra **non ha inserito la formazione** entro la chiusura:
+Alla **chiusura formazioni**, se manca la formazione:
 
-- L’avversario vince **a tavolino** (vittoria forfait)
-- Se **entrambe** le squadre non hanno formazione → **doppio forfait 0-0** (nessun punto in classifica)
+1. Se esiste un’ultima formazione **inserita dall’utente** in quella lega → viene **recuperata** (badge admin **RECUPERATA**)
+2. Penalità: **−2 fantapunti** sulla partita (prima dei gol) e **−1** in classifica (anche se vince; classifica può essere negativa)
+3. Se **non** ha mai schierato in quella lega → **forfait 3–0** (nessun calcolo fantapunti) + **−1** classifica
+4. Entrambe senza precedente → doppio forfait 0–0 + **−1** a entrambe
 
-Per evitare forfait a raffica: usa Hub formazioni + (se serve) **Genera formazioni** prima di chiudere.
+In **torneo**: stesso recupero/forfait, ma solo **−2 FP** (niente classifica).
+
+“Genera formazioni” (random admin) resta utile in test; le formazioni `ADMIN` non contano come fonte per il recupero automatico (conta solo `USER`).
 
 ---
 
@@ -251,6 +255,7 @@ Alternativa per una sola lega: `/admin/matchdays/[id]/votes`.
 - Righe “nome squadra” senza codice numerico: vengono ignorate
 - Voto con asterisco (es. `6*`) → trattato come **SV**
 - Giocatore in lista richiesta ma assente dal file → **SV**
+- Colonne eventi: **`Gf`** = gol non da rigore (+3), **`Rf`** = gol da rigore (+3, **si somma** a Gf; non è già incluso in Gf)
 
 Se i voti “non attaccano”: quasi sempre il catalogo non è quello Fantacalcio o i `Cod.` non coincidono → ricontrolla `/admin/players`.
 
@@ -383,13 +388,13 @@ Zona pericolosa in basso su **`/admin`** (e richiami su `/admin/players`).
 
 ### Forfait / squadra senza formazione
 
-**Sintomo:** “Vittoria a tavolino” o “Doppio forfait”.  
-**Cosa fare:**
+**Sintomo:** “Vittoria a tavolino” / badge **RECUPERATA** / punti classifica strani (−1).  
+**Cosa sapere:**
 
-1. Prima di chiudere: `/admin/lineups` → chi manca
-2. Avvisa gli owner/coach
-3. Se vuoi evitare forfait “tecnici”: **Genera formazioni** (Admin) prima di **Chiudi formazioni**
-4. Dopo la chiusura non si torna indietro facilmente: meglio prevenire
+1. Alla chiusura, le formazioni mancanti vengono **recuperate** dall’ultima inserita dall’utente (se esiste) con −2 FP e −1 classifica
+2. Forfait 3–0 solo se la squadra **non ha mai** schierato in quella lega
+3. Prima di chiudere: `/admin/lineups` → chi manca (avvisa owner/coach)
+4. “Genera formazioni” random è per test: non diventa fonte del recupero automatico
 
 ### Rosa bloccata a 25
 

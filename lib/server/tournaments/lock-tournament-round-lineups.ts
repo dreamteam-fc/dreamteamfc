@@ -4,6 +4,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { autoCarryMissingTournamentRoundLineups } from "@/lib/server/tournaments/auto-carry-tournament-round-lineups.ts";
 import { syncTournamentLineupsOpenFlag } from "@/lib/server/tournaments/sync-tournament-lineups-open.ts";
 import {
   assertTournamentLineupLeg,
@@ -15,16 +16,18 @@ import {
 } from "@/lib/server/tournaments/tournament-round-leg.ts";
 
 export type LockTournamentRoundLineupsResult = {
+  autoCarriedCount: number;
   leg: TournamentVoteLeg;
   giornataLabel: string;
   roundId: string;
   roundName: string;
+  stillMissingCount: number;
   tournamentId: string;
 };
 
 /**
  * Close lineups for one leg (giornata): OPEN → LOCKED.
- * After lock, admin can generate vote lists / import XLS / calculate for that leg.
+ * Auto-carries missing sides from the last USER lineup in the same tournament.
  */
 export async function lockTournamentRoundLineups(
   roundId: string,
@@ -47,10 +50,7 @@ export async function lockTournamentRoundLineups(
           leg
         },
         select: {
-          id: true,
-          _count: {
-            select: { lineups: true }
-          }
+          id: true
         }
       }
     }
@@ -71,16 +71,13 @@ export async function lockTournamentRoundLineups(
     );
   }
 
-  const submittedLineups = round.fixtures.reduce(
-    (total, fixture) => total + fixture._count.lineups,
-    0
-  );
-
-  if (submittedLineups === 0) {
+  if (round.fixtures.length === 0) {
     throw new Error(
-      `Non puoi chiudere le formazioni di ${tournamentLegLabel(leg).toLowerCase()}: nessuna formazione inserita sulle partite READY.`
+      `Non ci sono partite READY per chiudere le formazioni di ${tournamentLegLabel(leg).toLowerCase()}.`
     );
   }
+
+  const carry = await autoCarryMissingTournamentRoundLineups(round.id, leg);
 
   const field = lineupsStatusFieldForLeg(leg);
   await prisma.tournamentRound.update({
@@ -97,10 +94,12 @@ export async function lockTournamentRoundLineups(
   });
 
   return {
+    autoCarriedCount: carry.carried,
     leg,
     giornataLabel,
     roundId: round.id,
     roundName: round.name,
+    stillMissingCount: carry.stillMissing,
     tournamentId: round.tournamentId
   };
 }

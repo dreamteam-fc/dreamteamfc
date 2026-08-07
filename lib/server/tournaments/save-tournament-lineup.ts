@@ -1,4 +1,5 @@
 import {
+  LineupSource,
   LineupStatus,
   SlotType,
   TournamentFixtureStatus,
@@ -223,11 +224,13 @@ export async function saveTournamentLineup(options: {
       },
       create: {
         fantasyTeamId: options.fantasyTeamId,
+        source: LineupSource.USER,
         status: LineupStatus.SUBMITTED,
         submittedAt: new Date(),
         tournamentFixtureId: options.tournamentFixtureId
       },
       update: {
+        source: LineupSource.USER,
         status: LineupStatus.SUBMITTED,
         submittedAt: new Date()
       },

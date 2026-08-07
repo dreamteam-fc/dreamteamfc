@@ -5,7 +5,11 @@ export type FixtureForfeitOutcome =
   | "AWAY_WIN_BY_FORFEIT";
 
 /**
- * Forfeit is derived from TeamScore presence for each side.
+ * Forfeit is derived from TeamScore / lineup presence for each side.
+ *
+ * After lineup lock, missing sides are either AUTO_CARRIED (have a score later)
+ * or true forfeit (never had a USER lineup to copy). Forfeit still means 3–0 /
+ * 0–3 / double 0–0 with no fantapunti calculation on the missing side.
  *
  * Important: FantasyFixture.homeTeamScoreId / awayTeamScoreId are only written
  * when fixture results are calculated. Before that step, callers must resolve
@@ -37,11 +41,11 @@ export function getFixtureForfeitOutcome(input: {
 export function getFixtureAdminNote(outcome: FixtureForfeitOutcome) {
   switch (outcome) {
     case "HOME_WIN_BY_FORFEIT":
-      return "Vittoria a tavolino: formazione non inserita dalla squadra ospite.";
+      return "Vittoria a tavolino: nessuna formazione utente precedente da recuperare per l'ospite.";
     case "AWAY_WIN_BY_FORFEIT":
-      return "Vittoria a tavolino: formazione non inserita dalla squadra di casa.";
+      return "Vittoria a tavolino: nessuna formazione utente precedente da recuperare per la casa.";
     case "DOUBLE_FORFEIT":
-      return "Formazione non inserita da entrambe le squadre.";
+      return "Doppio forfait: nessuna formazione recuperabile per entrambe.";
     default:
       return null;
   }

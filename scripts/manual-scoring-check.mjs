@@ -5,6 +5,7 @@ import { PlayerRole, SlotType, ScorePlayerFinalType } from "@prisma/client";
 import { calculateFantavote } from "../lib/scoring/calculate-fantavote.ts";
 import { calculateTeamScore } from "../lib/scoring/calculate-team-score.ts";
 import { convertScoreToGoals } from "../lib/scoring/convert-score-to-goals.ts";
+import { applyFantapuntiPenalty } from "../lib/scoring/lineup-penalties.ts";
 
 function player(playerId, role, slotType, positionOrder, vote) {
   return {
@@ -29,6 +30,7 @@ function validVote(baseVote, overrides = {}) {
     ownGoals: 0,
     penaltiesMissed: 0,
     penaltiesSaved: 0,
+    penaltiesScored: 0,
     redCards: 0,
     yellowCards: 0,
     ...overrides
@@ -60,8 +62,35 @@ function runChecks() {
       yellowCards: 1
     })
   );
-  // 6 +3(gf) +1(ass) +1(cs) -0.5(amm) -3(rf) -1(gs) = 6.5
+  // 6 +3(gf) +1(ass) +1(cs) -0.5(amm) -3(rs) -1(gs) = 6.5
   assert.equal(fantavote.finalFantavote, 6.5, "Fantavote with bonus and malus");
+
+  // XLS: Gf = non-penalty goals; Rf = penalty goals; each +3, additive.
+  assert.equal(
+    calculateFantavote(validVote(6, { goals: 1, penaltiesScored: 0 })).bonusPoints,
+    3,
+    "Gf=1 Rf=0 → +3 bonus"
+  );
+  assert.equal(
+    calculateFantavote(validVote(6, { goals: 0, penaltiesScored: 1 })).bonusPoints,
+    3,
+    "Gf=0 Rf=1 → +3 bonus"
+  );
+  assert.equal(
+    calculateFantavote(validVote(6, { goals: 1, penaltiesScored: 1 })).bonusPoints,
+    6,
+    "Gf=1 Rf=1 → +6 bonus"
+  );
+  assert.equal(
+    calculateFantavote(validVote(6, { penaltiesMissed: 1 })).malusPoints,
+    3,
+    "Rs still −3"
+  );
+  assert.equal(
+    calculateFantavote(validVote(6, { ownGoals: 1 })).malusPoints,
+    2,
+    "Au still −2"
+  );
 
   const allStartersValid = calculateTeamScore({
     lineupPlayers: [
@@ -228,6 +257,14 @@ function runChecks() {
     ),
     true
   );
+
+  // AUTO_CARRIED −2 fantapunti before goals, floored at 0.
+  assert.equal(applyFantapuntiPenalty(27, true).netScore, 25);
+  assert.equal(convertScoreToGoals(applyFantapuntiPenalty(27, true).netScore), 0);
+  assert.equal(applyFantapuntiPenalty(29, true).netScore, 27);
+  assert.equal(convertScoreToGoals(applyFantapuntiPenalty(29, true).netScore), 1);
+  assert.equal(applyFantapuntiPenalty(1, true).netScore, 0);
+  assert.equal(applyFantapuntiPenalty(30, false).netScore, 30);
 
   console.log("Manual scoring checks passed.");
 }

@@ -45,6 +45,8 @@ Tournament (entries cross-league)
 1. Apri formazioni (`Matchday` / batch) — `open-matchday-lineups.ts` / `open-all-lineups.ts`  
 2. Utenti/coach schierano (`app/me/...`)  
 3. Chiudi formazioni — `lock-matchday-lineups.ts` / `lock-all-lineups.ts`  
+   - Alla chiusura: auto-carry da ultima lineup `source=USER` (`auto-carry-matchday-lineups.ts`)  
+   - Recuperata → −2 FP + −1 classifica; niente da copiare → forfait 3–0 + −1  
 4. Genera lista voti richiesti — `generate-required-vote-players.ts`  
 5. Upload XLS Fantacalcio — `lib/server/votes/*` + UI `/admin/votes`  
 6. Calcola punteggi + risultati fixture — `calculate-matchday-scores.ts`, `calculate-fantasy-fixture-results.ts`  
@@ -60,11 +62,16 @@ Tournament (entries cross-league)
 ### Fantavoto giocatore
 
 `lib/scoring/calculate-fantavote.ts` — `baseVote + bonus − malus`  
-Tabella codici XLS (gf/ass/rp/gs/rs/rf/au/amm/esp + clean sheet P): vedi `09_DECISIONI`.
+Tabella completa: `09_DECISIONI` / `docs/admin/REGOLAMENTO.md` §3.
 
-- Voto con `*` (es. `6*`) → **SV**  
-- Assente dal file ma in lista richiesta → **SV**  
-- Matching: **`Cod.` = `Player.externalId`**, source canonica `fantacalcio-quotazioni`
+**XLS Gf / Rf (chiuso 2026-08-07):** disgiunti e additivi  
+- `Gf` = gol **non** da rigore → +3 ciascuno (`goals`)  
+- `Rf` = gol da rigore → +3 ciascuno (`penaltiesScored`)  
+- Esempio: Gf=1 Rf=1 → +6 (non “Rf già in Gf”)
+
+Altri: Ass +1, Rp +3, Gs −1 (solo P), Rs −3, Au −2, Amm −0.5, Esp −1; clean sheet P se Gs=0.  
+Voto con `*` → **SV**; assente dal file ma in lista → **SV**.  
+Matching: **`Cod.` = `Player.externalId`**, source `fantacalcio-quotazioni`.
 
 ### Gol da score squadra
 
@@ -72,6 +79,17 @@ Tabella codici XLS (gf/ass/rp/gs/rs/rf/au/amm/esp + clean sheet P): vedi `09_DEC
 // lib/scoring/convert-score-to-goals.ts
 goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 ```
+
+### Formazione mancante alla chiusura
+
+| Caso | Lega | Torneo |
+|------|------|--------|
+| Ultima lineup `USER` esiste | Copia (`AUTO_CARRIED`) + **−2 FP** (prima dei gol, floor 0) + **−1** classifica | Copia + **−2 FP** (no classifica) |
+| Mai schierato in quella lega/torneo | Forfait 3–0 + **−1** classifica | Forfait 3–0 |
+| Giocatore fuori rosa in copia | Slot = **SV** | Idem |
+
+Provenienza: `LineupSource` = `USER` \| `AUTO_CARRIED` \| `ADMIN_RANDOM`.  
+Costanti: `lib/scoring/lineup-penalties.ts`.
 
 ### Auto-sub
 
@@ -90,12 +108,12 @@ V1 operativa. Route admin: `/admin/tournaments/*`. User lineup: `/me/teams/[team
 | Entries | manuali (squadra + lega), password |
 | Seeding | alto ↔ basso; 1ª fase no stessa lega |
 | Serie | A/R salvo **finale** (1 leg) |
-| Formazioni | per `TournamentRound.lineupsStatus` DRAFT→OPEN→LOCKED |
+| Formazioni | per `TournamentRound.lineupsStatus` DRAFT→OPEN→LOCKED; auto-carry da ultima `USER` **nel torneo** |
 | Voti | XLS scoped a round/**leg** (andata ≠ ritorno) |
 | Pareggio aggregato | seed migliore; residuo → admin pick |
 | Libs | `lib/server/tournaments/*` — bracket, votes, calculate, pick winner, reset |
 
-Flusso per fase/leg: apri → lineup → chiudi → genera lista → XLS → calcola → (pick tie) → avanza.
+Flusso per fase/leg: apri → lineup → chiudi (auto-carry) → genera lista → XLS → calcola → (pick tie) → avanza.
 
 ---
 

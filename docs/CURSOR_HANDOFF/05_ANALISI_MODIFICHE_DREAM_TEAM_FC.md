@@ -412,7 +412,8 @@ Dal file emergono tre gruppi di lavoro molto diversi:
 - `non giocato = SV` (anche: assente dal file voti, oppure voto con `*`)
 - fasce gol: `<=25 → 0`, poi `+1` ogni 2 punti (`floor((score-25)/2)`)
 - porta inviolata automatica se portiere con `gs = 0`
-- `rs` = sbagliato (−3), `rf` = realizzato (0 pt); vedi `09`
+- `rs` = sbagliato (−3), `rf` = gol da rigore (+3, additivo a `gf`); vedi `09`
+- formazione mancante: auto-carry ultima USER + penali; else forfait; vedi `09` §5b
 - leghe da **10** squadre, solo andata/ritorno → **18** giornate
 - max **1** sostituzione automatica **per ruolo** (max **4** a partita)
 - `LeagueRole.ADMIN` rimosso

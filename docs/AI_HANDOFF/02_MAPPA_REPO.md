@@ -50,9 +50,9 @@ next.config.ts       # bodyLimit Server Actions 6mb (loghi)
 | `lib/auth/app-roles.ts` | Capacità USER/MISTER/ADMIN |
 | `lib/auth/admin.ts` | Gate require* |
 | `lib/auth/app-user.ts` | Mapping auth → `User` |
-| `lib/scoring/*` | Pure: fantavoto, team score, gol da score |
+| `lib/scoring/*` | Pure: fantavoto (Gf+Rf +3), team score, gol, penali lineup |
 | `lib/server/rosters/*` | Validazione 25, lock, esclusività, admin CRUD |
-| `lib/server/lineups/*` | Validazione 5+4, open/lock, random |
+| `lib/server/lineups/*` | Validazione 5+4, open/lock, **auto-carry**, random |
 | `lib/server/schedules/*` | Round-robin A/R, batch calendari |
 | `lib/server/matchdays/*` | Publish, required votes, status |
 | `lib/server/votes/*` | Parse/import XLS Fantacalcio lega |

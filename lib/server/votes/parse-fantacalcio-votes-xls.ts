@@ -11,7 +11,8 @@ export const FANTACALCIO_VOTES_DEFAULT_SHEET = "Fantacalcio";
  *
  * Rp = rigori parati → penaltiesSaved (+3)
  * Rs = rigori sbagliati → penaltiesMissed (−3)
- * Rf = rigori realizzati → penaltiesScored (0 pt; gol gia in Gf)
+ * Gf = gol non da rigore → goals (+3 ciascuno)
+ * Rf = gol da rigore → penaltiesScored (+3 ciascuno; additivo rispetto a Gf)
  */
 export type ParsedFantacalcioVoteRow = {
   assists: number;

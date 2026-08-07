@@ -1,4 +1,5 @@
 import {
+  LineupSource,
   SlotType,
   TournamentFixtureStatus,
   TournamentRoundLineupsStatus
@@ -14,6 +15,7 @@ import {
   DEFAULT_MAX_SUBSTITUTIONS
 } from "@/lib/scoring/calculate-team-score.ts";
 import { convertScoreToGoals } from "@/lib/scoring/convert-score-to-goals.ts";
+import { applyFantapuntiPenalty } from "@/lib/scoring/lineup-penalties.ts";
 import { getFixtureForfeitOutcome } from "@/lib/server/fixtures/fixture-forfeit.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
 import {
@@ -33,6 +35,7 @@ function buildTeamScoreInput(options: {
       role: "GOALKEEPER" | "DEFENDER" | "MIDFIELDER" | "ATTACKER";
     };
   }>;
+  rosterPlayerIds: Set<string>;
   votesByPlayerId: Map<
     string,
     {
@@ -46,6 +49,7 @@ function buildTeamScoreInput(options: {
       ownGoals: number;
       penaltiesMissed: number;
       penaltiesSaved: number;
+      penaltiesScored: number;
       redCards: number;
       yellowCards: number;
     }
@@ -53,7 +57,10 @@ function buildTeamScoreInput(options: {
 }) {
   return {
     lineupPlayers: options.lineupPlayers.map((entry) => {
-      const vote = options.votesByPlayerId.get(entry.playerId);
+      const onRoster = options.rosterPlayerIds.has(entry.playerId);
+      const vote = onRoster
+        ? options.votesByPlayerId.get(entry.playerId)
+        : undefined;
       return {
         lineupPlayerId: entry.id,
         playerId: entry.player.id,
@@ -72,6 +79,7 @@ function buildTeamScoreInput(options: {
               ownGoals: vote.ownGoals,
               penaltiesMissed: vote.penaltiesMissed,
               penaltiesSaved: vote.penaltiesSaved,
+              penaltiesScored: vote.penaltiesScored,
               playerVoteId: vote.id,
               redCards: vote.redCards,
               yellowCards: vote.yellowCards
@@ -119,6 +127,14 @@ export async function calculateTournamentRoundResultsFromVotes(
           lineups: {
             select: {
               fantasyTeamId: true,
+              source: true,
+              fantasyTeam: {
+                select: {
+                  roster: {
+                    select: { playerId: true }
+                  }
+                }
+              },
               players: {
                 orderBy: [{ slotType: "asc" }, { positionOrder: "asc" }],
                 select: {
@@ -186,6 +202,7 @@ export async function calculateTournamentRoundResultsFromVotes(
       ownGoals: true,
       penaltiesMissed: true,
       penaltiesSaved: true,
+      penaltiesScored: true,
       playerId: true,
       redCards: true,
       yellowCards: true
@@ -206,6 +223,7 @@ export async function calculateTournamentRoundResultsFromVotes(
         ownGoals: vote.ownGoals,
         penaltiesMissed: vote.penaltiesMissed,
         penaltiesSaved: vote.penaltiesSaved,
+        penaltiesScored: vote.penaltiesScored,
         redCards: vote.redCards,
         yellowCards: vote.yellowCards
       }
@@ -256,23 +274,38 @@ export async function calculateTournamentRoundResultsFromVotes(
       homeGoals = 0;
       awayGoals = 0;
     } else {
+      const homeRoster = new Set(
+        homeLineup!.fantasyTeam.roster.map((entry) => entry.playerId)
+      );
+      const awayRoster = new Set(
+        awayLineup!.fantasyTeam.roster.map((entry) => entry.playerId)
+      );
+
       const homeScore = calculateTeamScore(
         buildTeamScoreInput({
           lineupPlayers: homeLineup!.players,
+          rosterPlayerIds: homeRoster,
           votesByPlayerId
         })
       );
       const awayScore = calculateTeamScore(
         buildTeamScoreInput({
           lineupPlayers: awayLineup!.players,
+          rosterPlayerIds: awayRoster,
           votesByPlayerId
         })
       );
 
-      homeFantapunti = homeScore.totalScore;
-      awayFantapunti = awayScore.totalScore;
-      homeGoals = convertScoreToGoals(homeScore.totalScore);
-      awayGoals = convertScoreToGoals(awayScore.totalScore);
+      homeFantapunti = applyFantapuntiPenalty(
+        homeScore.totalScore,
+        homeLineup!.source === LineupSource.AUTO_CARRIED
+      ).netScore;
+      awayFantapunti = applyFantapuntiPenalty(
+        awayScore.totalScore,
+        awayLineup!.source === LineupSource.AUTO_CARRIED
+      ).netScore;
+      homeGoals = convertScoreToGoals(homeFantapunti);
+      awayGoals = convertScoreToGoals(awayFantapunti);
     }
 
     await recordTournamentFixtureResult({

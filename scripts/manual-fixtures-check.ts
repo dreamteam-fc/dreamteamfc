@@ -61,9 +61,11 @@ function runFixtureForfeitScenarioChecks() {
   const onlyHome = [createEmptyStanding("home", "Home FC"), createEmptyStanding("away", "Away FC")] as const;
   applyPublishedFixtureToStandings(onlyHome[0], onlyHome[1], {
     awayGoals: 0,
+    awayLeaguePointsPenalty: 1,
     awayTeamScoreId: null,
     awayTotalScore: 0,
     homeGoals: 3,
+    homeLeaguePointsPenalty: 0,
     homeTeamScoreId: "home-score",
     homeTotalScore: 36
   });
@@ -72,16 +74,18 @@ function runFixtureForfeitScenarioChecks() {
     "Expected home team to win 3 points by forfeit."
   );
   assert(
-    onlyHome[1].losses === 1 && onlyHome[1].leaguePoints === 0,
-    "Expected away team to lose by forfeit."
+    onlyHome[1].losses === 1 && onlyHome[1].leaguePoints === -1,
+    "Expected away team to lose by forfeit with −1 league points penalty."
   );
 
   const onlyAway = [createEmptyStanding("home", "Home FC"), createEmptyStanding("away", "Away FC")] as const;
   applyPublishedFixtureToStandings(onlyAway[0], onlyAway[1], {
     awayGoals: 3,
+    awayLeaguePointsPenalty: 0,
     awayTeamScoreId: "away-score",
     awayTotalScore: 36,
     homeGoals: 0,
+    homeLeaguePointsPenalty: 1,
     homeTeamScoreId: null,
     homeTotalScore: 0
   });
@@ -90,26 +94,51 @@ function runFixtureForfeitScenarioChecks() {
     "Expected away team to win 3 points by forfeit."
   );
   assert(
-    onlyAway[0].losses === 1 && onlyAway[0].leaguePoints === 0,
-    "Expected home team to lose by forfeit."
+    onlyAway[0].losses === 1 && onlyAway[0].leaguePoints === -1,
+    "Expected home team to lose by forfeit with −1 league points penalty."
   );
 
   const noScores = [createEmptyStanding("home", "Home FC"), createEmptyStanding("away", "Away FC")] as const;
   applyPublishedFixtureToStandings(noScores[0], noScores[1], {
     awayGoals: 0,
+    awayLeaguePointsPenalty: 1,
     awayTeamScoreId: null,
     awayTotalScore: 0,
     homeGoals: 0,
+    homeLeaguePointsPenalty: 1,
     homeTeamScoreId: null,
     homeTotalScore: 0
   });
   assert(
-    noScores[0].leaguePoints === 0 && noScores[1].leaguePoints === 0,
-    "Expected no league points on double missing lineup."
+    noScores[0].leaguePoints === -1 && noScores[1].leaguePoints === -1,
+    "Expected −1 league points each on double forfeit."
   );
   assert(
     noScores[0].losses === 1 && noScores[1].losses === 1,
     "Expected both teams to be marked as losers on double missing lineup."
+  );
+
+  const carriedWin = [
+    createEmptyStanding("home", "Home FC"),
+    createEmptyStanding("away", "Away FC")
+  ] as const;
+  applyPublishedFixtureToStandings(carriedWin[0], carriedWin[1], {
+    awayGoals: 1,
+    awayLeaguePointsPenalty: 0,
+    awayTeamScoreId: "away-score",
+    awayTotalScore: 30,
+    homeGoals: 2,
+    homeLeaguePointsPenalty: 1,
+    homeTeamScoreId: "home-score",
+    homeTotalScore: 33
+  });
+  assert(
+    carriedWin[0].leaguePoints === 2 && carriedWin[0].wins === 1,
+    "Expected AUTO_CARRIED winner to get 3−1 = 2 league points."
+  );
+  assert(
+    carriedWin[1].leaguePoints === 0 && carriedWin[1].losses === 1,
+    "Expected opponent loss with 0 league points."
   );
 
   assert(

@@ -101,6 +101,7 @@ function resolveVote(player: TeamScoreLineupPlayerInput): ResolvedVote {
       ownGoals: 0,
       penaltiesMissed: 0,
       penaltiesSaved: 0,
+      penaltiesScored: 0,
       playerVoteId: undefined,
       redCards: 0,
       yellowCards: 0
@@ -129,6 +130,7 @@ function resolveVote(player: TeamScoreLineupPlayerInput): ResolvedVote {
       ownGoals: player.vote.ownGoals ?? 0,
       penaltiesMissed: player.vote.penaltiesMissed ?? 0,
       penaltiesSaved: player.vote.penaltiesSaved ?? 0,
+      penaltiesScored: player.vote.penaltiesScored ?? 0,
       playerVoteId: player.vote.playerVoteId,
       redCards: player.vote.redCards ?? 0,
       yellowCards: player.vote.yellowCards ?? 0

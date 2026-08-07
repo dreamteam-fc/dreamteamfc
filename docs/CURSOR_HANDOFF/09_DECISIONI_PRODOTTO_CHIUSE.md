@@ -39,18 +39,18 @@ Formula: `baseVote + bonus − malus`.
 
 | Codice file | Significato | Punti | Chi |
 |-------------|-------------|-------|-----|
-| `gf` | goal fatto | +3 | tutti |
+| `gf` | goal **non da rigore** | +3 | tutti (`goals`); nel XLS `Gf` esclude i gol da rigore |
 | `ass` | assist | +1 | tutti |
 | `rp` | rigore **parato** | +3 | tipicamente P (`penaltiesSaved`) |
 | `gs` | goal subito | −1 | **solo portieri** |
 | `rs` | rigore **sbagliato** | −3 | tutti (`penaltiesMissed`) |
-| `rf` | rigore **realizzato** | **0** (tracciamento) | tutti (`penaltiesScored`); il gol e gia in `gf` |
+| `rf` | gol da rigore | **+3** | tutti (`penaltiesScored`); additivo rispetto a `gf` (Gf=1 Rf=1 → +6) |
 | `au` | autogol | −2 | tutti |
 | `amm` | ammonizione | −0.5 | tutti |
 | `esp` | espulsione | −1 | tutti |
 | porta inviolata | auto se P e `gs = 0` e ha giocato (non SV) | +1 | solo P |
 
-> Nota: una vecchia bozza del doc diceva `rs`=subito / `rf`=fallito. **Decisione chiusa 2026-08-01:** vale la tabella sopra (`RS` sbagliato, `RF` realizzato).
+> Nota: una vecchia bozza del doc diceva `rs`=subito / `rf`=fallito. **Decisione chiusa 2026-08-01:** `RS` sbagliato, `RF` realizzato. **Chiarimento XLS 2026-08-07:** `Gf` e `Rf` sono disgiunti; entrambi +3.
 
 
 Fasce gol da punteggio squadra:
@@ -75,7 +75,19 @@ goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
 
 - Upload XLS nei pannelli voti
 - Pannello unificato multi-lega: mostra **solo chi ha effettivamente giocato** dopo le sostituzioni (opzione A)
-- Admin vede per ogni squadra/giornata: formazione `INSERITA` / `NON_INSERITA`
+- Admin vede per ogni squadra/giornata: formazione `INSERITA` / `RECUPERATA` / `ADMIN` / `NON_INSERITA` (`LineupSource`)
+
+### 5b. Formazione mancante alla chiusura (chiuso 2026-08-07)
+
+Alla **chiusura formazioni** (lega e torneo):
+
+1. Se manca lineup e esiste ultima formazione `source=USER` nello stesso ambito (lega / torneo) → crea `AUTO_CARRIED`
+2. `AUTO_CARRIED`: −2 fantapunti **prima** dei gol (`max(0, score−2)`); in lega anche −1 punti classifica (anche se vince; classifica può &lt; 0)
+3. Nessuna USER precedente → forfait 3–0 / 0–3 / doppio 0–0 + in lega −1 classifica (anche doppio forfait)
+4. Giocatore fuori rosa in copia → SV
+5. Fonte copia = solo `USER` (non `AUTO_CARRIED` né `ADMIN_RANDOM`)
+
+Libs: `auto-carry-matchday-lineups.ts`, `auto-carry-tournament-round-lineups.ts`, `lineup-penalties.ts`.
 
 ## 6. Torneo — **FATTO** (V1 + voti XLS)
 
@@ -95,7 +107,7 @@ Flusso admin su `/admin/tournaments/[id]/bracket` per ogni fase (allineato alle 
 
 1. **Apri formazioni** (`DRAFT` → `OPEN`) sulle partite READY della fase
 2. Utenti schierano (solo se fase `OPEN` + fixture READY)
-3. **Chiudi formazioni** (`OPEN` → `LOCKED`)
+3. **Chiudi formazioni** (`OPEN` → `LOCKED`) — auto-carry da ultima `USER` **nel torneo** (solo −2 FP, no classifica)
 4. **Genera lista voti** → `TournamentRequiredVotePlayer` (unione giocatori in lineup READY)
 5. **Carica XLS** → stesso parser lega (`parseFantacalcioVotesBuffer`); matching `Cod.` = `externalId`; assenti → SV
 6. **Calcola partite da voti** → fantavoto + `convertScoreToGoals` → `recordTournamentFixtureResult` + avanzamento tabellone
@@ -125,10 +137,10 @@ Libs: `lib/server/tournaments/tournament-votes.ts`, `import-tournament-votes.ts`
 
 ## Aperti (deferred)
 
-Nessuna domanda aperta su `rp` / `rs` / `rf` dopo conferma utente 2026-08-01:
+Nessuna domanda aperta su `rp` / `rs` / `rf` dopo conferma utente (2026-08-01 + chiarimento XLS 2026-08-07):
 - `Rp` parati +3
 - `Rs` sbagliati −3 (anche su non-portieri)
-- `Rf` realizzati 0 pt (tracciati; gol in `Gf`)
+- `Gf` = gol non da rigore (+3 ciascuno); `Rf` = gol da rigore (+3 ciascuno, additivo; non è già in `Gf`)
 - foglio default: **Fantacalcio** (confermato in uso)
 
 Epic prodotti coach + torneo V1 (con voti XLS) **chiusi**. Nessun altro epic prodotto aperto da `Dream Team FC.txt`.

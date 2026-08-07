@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  LineupSource,
   LineupStatus,
   MatchdayStatus,
   Prisma,
@@ -952,6 +953,7 @@ export async function saveLineupAction(formData: FormData) {
               id: existingLineup.id
             },
             data: {
+              source: LineupSource.USER,
               status: LineupStatus.SUBMITTED,
               submittedAt: new Date()
             },
@@ -963,6 +965,7 @@ export async function saveLineupAction(formData: FormData) {
             data: {
               fantasyTeamId: fullTeam.id,
               matchdayId: matchday.id,
+              source: LineupSource.USER,
               status: LineupStatus.SUBMITTED,
               submittedAt: new Date()
             },

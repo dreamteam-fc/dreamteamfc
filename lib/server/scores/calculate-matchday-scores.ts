@@ -1,4 +1,5 @@
 import {
+  LineupSource,
   MatchdayStatus,
   Prisma,
   ScorePlayerFinalType,
@@ -8,6 +9,10 @@ import {
 
 import { prisma } from "../../prisma.ts";
 import { calculateTeamScore } from "../../scoring/calculate-team-score.ts";
+import {
+  applyFantapuntiPenalty,
+  AUTO_LINEUP_LEAGUE_POINTS_PENALTY
+} from "../../scoring/lineup-penalties.ts";
 import { prismaDecimalToNumber, isRequiredVoteCompletedStatus } from "../votes/shared.ts";
 
 export type CalculateMatchdayScoresResult = {
@@ -24,6 +29,8 @@ export type CalculateMatchdayScoresResult = {
 type ComputedTeamScore = {
   autoSubsUsed: number;
   fantasyTeamId: string;
+  fantapuntiPenalty: number;
+  leaguePointsPenalty: number;
   lineupId: string;
   playerRows: Array<{
     countsForScore: boolean;
@@ -42,6 +49,10 @@ type ComputedTeamScore = {
 
 function toDecimal(value: number | null): Prisma.Decimal | null {
   return value === null ? null : new Prisma.Decimal(value);
+}
+
+function toRequiredDecimal(value: number): Prisma.Decimal {
+  return new Prisma.Decimal(value);
 }
 
 /**
@@ -72,7 +83,12 @@ export async function calculateMatchdayScores(
         include: {
           fantasyTeam: {
             select: {
-              id: true
+              id: true,
+              roster: {
+                select: {
+                  playerId: true
+                }
+              }
             }
           },
           players: {
@@ -127,9 +143,17 @@ export async function calculateMatchdayScores(
   );
 
   const computed: ComputedTeamScore[] = matchday.lineups.map((lineup) => {
+    const rosterPlayerIds = new Set(
+      lineup.fantasyTeam.roster.map((entry) => entry.playerId)
+    );
+
     const calculation = calculateTeamScore({
       lineupPlayers: lineup.players.map((lineupPlayer) => {
-        const playerVote = playerVotesByPlayerId.get(lineupPlayer.playerId);
+        const onRoster = rosterPlayerIds.has(lineupPlayer.playerId);
+        // Left the rosa after the source lineup → SV (0) for that slot.
+        const playerVote = onRoster
+          ? playerVotesByPlayerId.get(lineupPlayer.playerId)
+          : undefined;
 
         return {
           lineupPlayerId: lineupPlayer.id,
@@ -149,6 +173,7 @@ export async function calculateMatchdayScores(
                 ownGoals: playerVote.ownGoals,
                 penaltiesMissed: playerVote.penaltiesMissed,
                 penaltiesSaved: playerVote.penaltiesSaved,
+                penaltiesScored: playerVote.penaltiesScored,
                 playerVoteId: playerVote.id,
                 redCards: playerVote.redCards,
                 yellowCards: playerVote.yellowCards
@@ -160,9 +185,17 @@ export async function calculateMatchdayScores(
       startersCount: matchday.league.startersCount
     });
 
+    const isAutoCarried = lineup.source === LineupSource.AUTO_CARRIED;
+    const { fantapuntiPenalty, netScore } = applyFantapuntiPenalty(
+      calculation.totalScore,
+      isAutoCarried
+    );
+
     return {
       autoSubsUsed: calculation.substitutionsCount,
       fantasyTeamId: lineup.fantasyTeam.id,
+      fantapuntiPenalty,
+      leaguePointsPenalty: isAutoCarried ? AUTO_LINEUP_LEAGUE_POINTS_PENALTY : 0,
       lineupId: lineup.id,
       playerRows: calculation.detailLines.map((detailLine) => {
         if (!detailLine.lineupPlayerId) {
@@ -185,7 +218,7 @@ export async function calculateMatchdayScores(
           slotType: detailLine.slotType
         };
       }),
-      totalScore: calculation.totalScore
+      totalScore: netScore
     };
   });
 
@@ -221,6 +254,8 @@ export async function calculateMatchdayScores(
           where: { id: teamScoreId },
           data: {
             autoSubsUsed: item.autoSubsUsed,
+            fantapuntiPenalty: toRequiredDecimal(item.fantapuntiPenalty),
+            leaguePointsPenalty: item.leaguePointsPenalty,
             lineupId: item.lineupId,
             publishedAt: null,
             status: ScoreStatus.CALCULATED,
@@ -236,6 +271,8 @@ export async function calculateMatchdayScores(
       createRows.map((item) => ({
         autoSubsUsed: item.autoSubsUsed,
         fantasyTeamId: item.fantasyTeamId,
+        fantapuntiPenalty: toRequiredDecimal(item.fantapuntiPenalty),
+        leaguePointsPenalty: item.leaguePointsPenalty,
         lineupId: item.lineupId,
         matchdayId,
         publishedAt: null,
@@ -333,6 +370,8 @@ async function createTeamScoresInChunks(
   rows: Array<{
     autoSubsUsed: number;
     fantasyTeamId: string;
+    fantapuntiPenalty: Prisma.Decimal;
+    leaguePointsPenalty: number;
     lineupId: string;
     matchdayId: string;
     publishedAt: null;

@@ -1,4 +1,5 @@
 import {
+  LineupSource,
   LineupStatus,
   PlayerRole,
   Prisma,
@@ -244,6 +245,7 @@ async function persistSubmittedLineup(
     ? await db.lineup.update({
         where: { id: options.existingLineupId },
         data: {
+          source: LineupSource.ADMIN_RANDOM,
           status: LineupStatus.SUBMITTED,
           submittedAt: new Date()
         },
@@ -253,6 +255,7 @@ async function persistSubmittedLineup(
         data: {
           fantasyTeamId: options.fantasyTeamId,
           matchdayId: options.matchdayId,
+          source: LineupSource.ADMIN_RANDOM,
           status: LineupStatus.SUBMITTED,
           submittedAt: new Date()
         },

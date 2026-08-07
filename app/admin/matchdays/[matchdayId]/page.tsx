@@ -153,8 +153,9 @@ export default async function AdminMatchdayDetailPage({
             </p>
           </div>
           <p className="text-sm text-slate-600">
-            Inserite: <strong>{matchday.insertedLineupsCount}</strong> | Non
-            inserite: <strong>{matchday.missingLineupsCount}</strong>
+            Inserite: <strong>{matchday.insertedLineupsCount}</strong> | Recuperate:{" "}
+            <strong>{matchday.autoCarriedLineupsCount}</strong> | Non inserite:{" "}
+            <strong>{matchday.missingLineupsCount}</strong>
           </p>
         </div>
 
@@ -165,7 +166,23 @@ export default async function AdminMatchdayDetailPage({
         ) : (
           <ul className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200">
             {matchday.teamLineupStatuses.map((team) => {
-              const isInserted = team.formationStatus === "INSERITA";
+              const badgeClass =
+                team.formationStatus === "INSERITA"
+                  ? "bg-emerald-50 text-emerald-800"
+                  : team.formationStatus === "RECUPERATA"
+                    ? "bg-sky-50 text-sky-800"
+                    : team.formationStatus === "ADMIN"
+                      ? "bg-violet-50 text-violet-800"
+                      : "bg-amber-50 text-amber-800";
+
+              const badgeLabel =
+                team.formationStatus === "INSERITA"
+                  ? "INSERITA"
+                  : team.formationStatus === "RECUPERATA"
+                    ? "RECUPERATA"
+                    : team.formationStatus === "ADMIN"
+                      ? "ADMIN"
+                      : "NON INSERITA";
 
               return (
                 <li
@@ -181,13 +198,9 @@ export default async function AdminMatchdayDetailPage({
                     </p>
                   </div>
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      isInserted
-                        ? "bg-emerald-50 text-emerald-800"
-                        : "bg-amber-50 text-amber-800"
-                    }`}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
                   >
-                    {isInserted ? "INSERITA" : "NON INSERITA"}
+                    {badgeLabel}
                   </span>
                 </li>
               );

@@ -1,6 +1,7 @@
 import { FantasyFixtureStatus } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
+import { AUTO_LINEUP_LEAGUE_POINTS_PENALTY } from "../../scoring/lineup-penalties.ts";
 import { getFixtureForfeitOutcome } from "../fixtures/fixture-forfeit.ts";
 import { prismaDecimalToNumber } from "../votes/shared.ts";
 
@@ -28,9 +29,12 @@ export type CalculateLeagueStandingsResult = {
 
 export type PublishedFixtureStandingInput = {
   awayGoals: number;
+  /** Extra −N league points (AUTO_CARRIED or forfeit). May drive standings below 0. */
+  awayLeaguePointsPenalty?: number;
   awayTeamScoreId: string | null;
   awayTotalScore: number;
   homeGoals: number;
+  homeLeaguePointsPenalty?: number;
   homeTeamScoreId: string | null;
   homeTotalScore: number;
 };
@@ -100,27 +104,23 @@ export function applyPublishedFixtureToStandings(
   if (forfeitOutcome === "DOUBLE_FORFEIT") {
     homeStanding.losses += 1;
     awayStanding.losses += 1;
-    return;
-  }
-
-  if (fixture.homeGoals > fixture.awayGoals) {
+  } else if (fixture.homeGoals > fixture.awayGoals) {
     homeStanding.wins += 1;
     homeStanding.leaguePoints += 3;
     awayStanding.losses += 1;
-    return;
-  }
-
-  if (fixture.homeGoals < fixture.awayGoals) {
+  } else if (fixture.homeGoals < fixture.awayGoals) {
     awayStanding.wins += 1;
     awayStanding.leaguePoints += 3;
     homeStanding.losses += 1;
-    return;
+  } else {
+    homeStanding.draws += 1;
+    awayStanding.draws += 1;
+    homeStanding.leaguePoints += 1;
+    awayStanding.leaguePoints += 1;
   }
 
-  homeStanding.draws += 1;
-  awayStanding.draws += 1;
-  homeStanding.leaguePoints += 1;
-  awayStanding.leaguePoints += 1;
+  homeStanding.leaguePoints -= fixture.homeLeaguePointsPenalty ?? 0;
+  awayStanding.leaguePoints -= fixture.awayLeaguePointsPenalty ?? 0;
 }
 
 export async function calculateLeagueStandings(
@@ -154,6 +154,7 @@ export async function calculateLeagueStandings(
         awayTeamScore: {
           select: {
             id: true,
+            leaguePointsPenalty: true,
             totalScore: true
           }
         },
@@ -166,6 +167,7 @@ export async function calculateLeagueStandings(
         homeTeamScore: {
           select: {
             id: true,
+            leaguePointsPenalty: true,
             totalScore: true
           }
         }
@@ -196,9 +198,15 @@ export async function calculateLeagueStandings(
 
     applyPublishedFixtureToStandings(homeStanding, awayStanding, {
       awayGoals: fixture.awayGoals,
+      awayLeaguePointsPenalty: fixture.awayTeamScore
+        ? fixture.awayTeamScore.leaguePointsPenalty
+        : AUTO_LINEUP_LEAGUE_POINTS_PENALTY,
       awayTeamScoreId: fixture.awayTeamScore?.id ?? null,
       awayTotalScore: prismaDecimalToNumber(fixture.awayTeamScore?.totalScore) ?? 0,
       homeGoals: fixture.homeGoals,
+      homeLeaguePointsPenalty: fixture.homeTeamScore
+        ? fixture.homeTeamScore.leaguePointsPenalty
+        : AUTO_LINEUP_LEAGUE_POINTS_PENALTY,
       homeTeamScoreId: fixture.homeTeamScore?.id ?? null,
       homeTotalScore: prismaDecimalToNumber(fixture.homeTeamScore?.totalScore) ?? 0
     });

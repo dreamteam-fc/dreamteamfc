@@ -15,7 +15,7 @@ export type SavePlayerVoteInput = {
   ownGoals?: number;
   penaltiesMissed?: number;
   penaltiesSaved?: number;
-  /** RF: tracciamento only; non entra nel fantavoto. */
+  /** Rf: gol da rigore; +3 ciascuno, additivo rispetto a Gf. */
   penaltiesScored?: number;
   playerId: string;
   redCards?: number;

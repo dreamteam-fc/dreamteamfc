@@ -65,4 +65,7 @@ Dettaglio: `lib/auth/app-roles.ts`.
 - [ ] Non reintrodurre `$transaction` interattive lunghe su path write pesanti  
 - [ ] Non mutare Next pin via `npm install` in `/app` nel Dockerfile  
 - [ ] Matching voti solo `Cod.` ↔ `externalId` (`fantacalcio-quotazioni`)  
-- [ ] Rosa 25 / lineup 5+4 / maxTeams 10 — già nel codice, non “documentare altro”
+- [ ] Rosa 25 / lineup 5+4 / maxTeams 10 — già nel codice, non “documentare altro”  
+- [ ] Gf e Rf entrambi +3 (non trattare Rf come già in Gf)  
+- [ ] Lock formazioni: auto-carry / forfait + penali — non “solo forfeit sempre”  
+- [ ] SoT regole: `docs/admin/REGOLAMENTO.md` + `09_DECISIONI` + questo pack  

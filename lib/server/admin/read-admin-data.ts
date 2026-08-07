@@ -888,6 +888,7 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
                 },
                 select: {
                   id: true,
+                  source: true,
                   status: true,
                   submittedAt: true,
                   _count: {
@@ -948,7 +949,18 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
 
   const teamLineupStatuses = matchday.league.fantasyTeams.map((team) => {
     const lineup = team.lineups[0] ?? null;
-    const isInserted = lineup != null;
+
+    let formationStatus: "INSERITA" | "RECUPERATA" | "ADMIN" | "NON_INSERITA" =
+      "NON_INSERITA";
+    if (lineup) {
+      if (lineup.source === "AUTO_CARRIED") {
+        formationStatus = "RECUPERATA";
+      } else if (lineup.source === "ADMIN_RANDOM") {
+        formationStatus = "ADMIN";
+      } else {
+        formationStatus = "INSERITA";
+      }
+    }
 
     return {
       fantasyTeamId: team.id,
@@ -957,16 +969,18 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
       ownerEmail: team.user.email,
       lineupId: lineup?.id ?? null,
       lineupPlayerCount: lineup?._count.players ?? 0,
+      lineupSource: lineup?.source ?? null,
       lineupStatus: lineup?.status ?? null,
       submittedAt: lineup?.submittedAt ?? null,
-      formationStatus: isInserted
-        ? ("INSERITA" as const)
-        : ("NON_INSERITA" as const)
+      formationStatus
     };
   });
 
   const insertedLineupsCount = teamLineupStatuses.filter(
-    (team) => team.formationStatus === "INSERITA"
+    (team) => team.formationStatus !== "NON_INSERITA"
+  ).length;
+  const autoCarriedLineupsCount = teamLineupStatuses.filter(
+    (team) => team.formationStatus === "RECUPERATA"
   ).length;
   const missingLineupsCount = teamLineupStatuses.length - insertedLineupsCount;
 
@@ -979,6 +993,7 @@ export async function getAdminMatchdayDetailData(matchdayId: string) {
     hasCalculatedFixtures,
     hasPublishedFixtures,
     hasScheduledFixtures,
+    autoCarriedLineupsCount,
     insertedLineupsCount,
     missingLineupsCount,
     missingVotesCount,

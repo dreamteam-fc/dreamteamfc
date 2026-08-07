@@ -1,16 +1,20 @@
 import { MatchdayStatus } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
+import { autoCarryMissingMatchdayLineups } from "./auto-carry-matchday-lineups.ts";
 
 export type LockMatchdayLineupsResult = {
+  autoCarriedCount: number;
   leagueId: string;
   matchdayId: string;
   matchdayNumber: number;
+  stillMissingCount: number;
 };
 
 /**
  * Close (lock) lineups for a single matchday: LINEUPS_OPEN → LINEUPS_LOCKED.
- * Requires at least one lineup already submitted.
+ * Before locking, auto-carries missing lineups from the last USER lineup in the league.
+ * Teams with nothing to copy remain without lineup → forfeit at score time.
  */
 export async function lockMatchdayLineups(
   matchdayId: string
@@ -23,12 +27,7 @@ export async function lockMatchdayLineups(
       id: true,
       leagueId: true,
       number: true,
-      status: true,
-      _count: {
-        select: {
-          lineups: true
-        }
-      }
+      status: true
     }
   });
 
@@ -40,11 +39,7 @@ export async function lockMatchdayLineups(
     throw new Error("Puoi chiudere le formazioni solo da stato LINEUPS_OPEN.");
   }
 
-  if (matchday._count.lineups === 0) {
-    throw new Error(
-      "Non puoi chiudere le formazioni: nessuna formazione inserita."
-    );
-  }
+  const carry = await autoCarryMissingMatchdayLineups(matchday.id);
 
   await prisma.matchday.update({
     where: {
@@ -56,8 +51,10 @@ export async function lockMatchdayLineups(
   });
 
   return {
+    autoCarriedCount: carry.carried,
     leagueId: matchday.leagueId,
     matchdayId: matchday.id,
-    matchdayNumber: matchday.number
+    matchdayNumber: matchday.number,
+    stillMissingCount: carry.stillMissing
   };
 }

@@ -859,7 +859,10 @@ export async function lockTournamentRoundLineupsAction(formData: FormData) {
     revalidatePath(`/tournaments/${tournamentId}`);
     revalidatePath("/me");
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
-      notice: `Formazioni chiuse per ${result.giornataLabel}. Puoi generare la lista voti.`
+      notice:
+        result.autoCarriedCount > 0 || result.stillMissingCount > 0
+          ? `Formazioni chiuse per ${result.giornataLabel}. Recuperate: ${result.autoCarriedCount}. Senza precedente (forfait): ${result.stillMissingCount}.`
+          : `Formazioni chiuse per ${result.giornataLabel}. Puoi generare la lista voti.`
     });
   } catch (error) {
     redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
@@ -1510,7 +1513,10 @@ export async function lockLineupsAction(matchdayId: string, _formData: FormData)
 
     revalidateAdminPaths(result.matchdayId, result.leagueId);
     redirectWithMessage(buildAdminMatchdayPath(result.matchdayId), {
-      notice: `Formazioni chiuse per la giornata ${result.matchdayNumber}.`
+      notice:
+        result.autoCarriedCount > 0 || result.stillMissingCount > 0
+          ? `Formazioni chiuse per la giornata ${result.matchdayNumber}. Recuperate: ${result.autoCarriedCount}. Senza precedente (forfait): ${result.stillMissingCount}.`
+          : `Formazioni chiuse per la giornata ${result.matchdayNumber}.`
     });
   } catch (error) {
     redirectWithMessage(buildAdminMatchdayPath(matchdayId), {

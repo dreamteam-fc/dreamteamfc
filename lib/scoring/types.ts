@@ -4,12 +4,15 @@ export type FantavoteInput = {
   assists?: number;
   baseVote: number | null;
   cleanSheet?: number;
+  /** Gf: gol non da rigore. */
   goals?: number;
   goalsConceded?: number;
   isSv: boolean;
   ownGoals?: number;
   penaltiesMissed?: number;
   penaltiesSaved?: number;
+  /** Rf: gol da rigore; +3 ciascuno, additivo rispetto a Gf. */
+  penaltiesScored?: number;
   redCards?: number;
   yellowCards?: number;
 };

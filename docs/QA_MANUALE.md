@@ -240,8 +240,8 @@ npm run players:import-api-football
   5. nome squadra
 
 ### Edge case
-- Doppio forfait 0-0: nessun punto classifica.
-- Vittoria a tavolino 3-0: 3 punti al vincitore.
+- Formazione **recuperata**: −2 fantapunti e −1 punto classifica (anche in vittoria; classifica può essere &lt; 0).
+- Forfait (mai schierato): 3–0 + −1 classifica al perdente; doppio forfait 0–0 + −1 a entrambe.
 - Squadre senza partite pubblicate: presenti con zeri.
 
 ## Pagine pubbliche

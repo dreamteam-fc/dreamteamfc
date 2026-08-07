@@ -1,4 +1,5 @@
 import {
+  LineupSource,
   LineupStatus,
   Prisma,
   SlotType,
@@ -81,6 +82,7 @@ async function persistSubmittedTournamentLineup(
     ? await db.tournamentLineup.update({
         where: { id: options.existingLineupId },
         data: {
+          source: LineupSource.ADMIN_RANDOM,
           status: LineupStatus.SUBMITTED,
           submittedAt: new Date()
         },
@@ -90,6 +92,7 @@ async function persistSubmittedTournamentLineup(
         data: {
           fantasyTeamId: options.fantasyTeamId,
           tournamentFixtureId: options.tournamentFixtureId,
+          source: LineupSource.ADMIN_RANDOM,
           status: LineupStatus.SUBMITTED,
           submittedAt: new Date()
         },

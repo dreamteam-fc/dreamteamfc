@@ -85,13 +85,13 @@ fantavoto = voto base + bonus − malus
 
 | Voce | Punti | Note |
 |------|-------|------|
-| Goal fatto (`gf`) | **+3** | Tutti |
+| Goal non da rigore (`gf`) | **+3** | Tutti; nel file XLS `Gf` non include i gol da rigore |
 | Assist (`ass`) | **+1** | Tutti |
 | Rigore parato (`rp`) | **+3** | Tipicamente portieri |
 | Porta inviolata | **+1** | Solo portiere, se ha giocato (non SV) e `gs = 0` |
 | Goal subito (`gs`) | **−1** | Solo portieri |
 | Rigore sbagliato (`rs`) | **−3** | Tutti |
-| Rigore realizzato (`rf`) | **0** | Solo tracciamento; il gol è già in `gf` |
+| Gol da rigore (`rf`) | **+3** | Tutti; additivo rispetto a `gf` (es. Gf=1 Rf=1 → +6) |
 | Autogol (`au`) | **−2** | Tutti |
 | Ammonizione (`amm`) | **−0,5** | Tutti |
 | Espulsione (`esp`) | **−1** | Tutti |
@@ -120,20 +120,39 @@ La stessa formula vale per **lega** e **torneo**.
 
 ---
 
-## 4. Forfait (formazione non inserita)
+## 4. Formazione mancante alla chiusura
 
-Il forfait si applica quando, al calcolo, manca la formazione / lo score di una o entrambe le squadre.
+Alla **chiusura formazioni** (admin), se una squadra non ha schierato:
+
+1. Se esiste almeno una formazione **inserita dall’utente** in precedenza nella stessa lega / stesso torneo → viene **recuperata** (stessa XI + panchina dell’ultima inserita).
+2. Se non esiste alcuna formazione utente precedente → **forfait** (nessuna copia).
+
+### 4.1 Formazione recuperata
+
+- La partita si gioca normalmente con quella formazione.
+- **−2 fantapunti** sul totale squadra **prima** della conversione in gol (il totale non scende sotto 0).
+- In **lega**: anche **−1 punto** in classifica (anche in caso di vittoria; la classifica può andare sotto zero).
+- In **torneo**: solo −2 fantapunti (non c’è classifica).
+- Se un giocatore recuperato **non è più in rosa**, quello slot vale **SV** (0).
+- Admin vede lo stato **RECUPERATA** (distinto da **INSERITA**).
+
+Esempio: 29 fantapunti lordi → 27 netti → **1** gol (non 2). Oppure 27 → 25 → **0** gol (non 1).
+
+### 4.2 Forfait (nessuna formazione mai inserita in quella lega/torneo)
+
+Nessun calcolo fantapunti sulla squadra assente. Risultato a tavolino:
 
 | Situazione | Risultato a tavolino |
 |------------|----------------------|
 | Solo la **casa** ha formazione | **3–0** per la casa |
 | Solo l’**ospite** ha formazione | **0–3** (vince l’ospite) |
-| **Entrambe** senza formazione | **0–0** (doppio forfait) |
+| **Entrambe** senza formazione copiabile | **0–0** (doppio forfait) |
 
 **Effetti in classifica (lega)**
 
-- Vittoria a tavolino 3–0 / 0–3: **3 punti** alla squadra che ha schierato, sconfitta all’altra.
-- Doppio forfait 0–0: **nessun punto** a entrambe; entrambe contano come **sconfitta**.
+- Vittoria a tavolino: **3 punti** a chi ha schierato (o ha formazione recuperata).
+- Chi è in forfait: **0** dalla partita + **−1** penale classifica.
+- Doppio forfait 0–0: **0** punti partita a entrambe (entrambe sconfitte) + **−1** classifica a entrambe.
 
 ---
 
@@ -146,7 +165,8 @@ Si considerano solo le partite in stato **PUBLISHED**.
 - Vittoria: **3** punti  
 - Pareggio: **1** punto ciascuna  
 - Sconfitta: **0** punti  
-- Doppio forfait: **0** punti (vedi §4)
+- Doppio forfait: **0** punti dalla partita (vedi §4)
+- Penali formazione (recuperata o forfait): **−1** aggiuntivo (vedi §4); la classifica **può** andare sotto zero
 
 ### 5.2 Criteri di ordinamento (tie-break)
 
@@ -208,9 +228,10 @@ Non è possibile aprire le formazioni della **giornata / leg successiva** se:
 
 In pratica: **prima i vincitori di tutte le serie**, poi si apre la giornata successiva.
 
-### 6.6 Forfait e scoring in torneo
+### 6.6 Formazione mancante e scoring in torneo
 
-Valgono le stesse regole di forfait (§4) e di conversione fantapunti → gol (§3).  
+Valgono le regole di §4 (recupero ultima formazione **USER** dello stesso torneo, oppure forfait).  
+In torneo si applicano solo **−2 fantapunti** sulla formazione recuperata (niente −1 classifica).  
 Il risultato manuale Admin resta un override alternativo al calcolo da voti.
 
 ---
@@ -232,9 +253,9 @@ Il risultato manuale Admin resta un override alternativo al calcolo da voti.
 | Formazione | 5+4; panchina 1 per ruolo |
 | Auto-sub | Stesso ruolo; max 1/ruolo (max 4); senza sub → 0 |
 | Gol | `≤25 → 0`, poi `floor((score−25)/2)` |
-| Forfait | 3–0 / 0–3; doppio 0–0 senza punti |
-| Classifica | Punti → DR → gol fatti → fantapunti |
-| Torneo | 4/8/16/32/64; A/R tranne finale; gol→FP→seed→Admin |
+| Formazione mancante | Recupero ultima USER + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1 |
+| Classifica | Punti (anche <0) → DR → gol fatti → fantapunti |
+| Torneo | 4/8/16/32/64; A/R tranne finale; gol→FP→seed→Admin; solo −2 FP su recupero |
 | Coach | Solo formazioni |
 
 ---
