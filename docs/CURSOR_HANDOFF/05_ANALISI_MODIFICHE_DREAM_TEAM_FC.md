@@ -1,5 +1,7 @@
 # Analisi Modifiche Dream Team FC
 
+> **Storico.** Dove questo doc contraddice le regole shipping, vale [`09_DECISIONI_PRODOTTO_CHIUSE.md`](./09_DECISIONI_PRODOTTO_CHIUSE.md) (Gf/Rf +3 disgiunti; auto-carry `USER`|`COACH`; badge `INSERITA`/`MISTER`/`RECUPERATA`/`ADMIN`/`NON INSERITA`).
+
 Questo documento traduce il file `Dream Team FC.txt` in richieste leggibili per sviluppo, tenendo conto di come Fantacalcetto funziona oggi.
 
 ## Nota iniziale su dati sensibili
@@ -218,37 +220,25 @@ Codici evento richiesti nel pannello voti / file import:
 
 | Codice | Significato | Impatto fantavoto (se noto) | Campo attuale / target |
 |--------|-------------|-----------------------------|-------------------------|
-| `gf` | goal fatto | `+3` ciascuno | `goals` |
-| `gs` | goal subito | `-1` ciascuno | **manca** → `goalsConceded` |
+| `gf` | goal **non da rigore** | `+3` ciascuno | `goals` (XLS `Gf` esclude i gol da rigore) |
+| `gs` | goal subito | `-1` ciascuno | `goalsConceded` (**solo P**) |
 | `rp` | rigore parato | `+3` ciascuno | `penaltiesSaved` |
-| `rf` | rigore **fallito** | `-3` ciascuno | `penaltiesMissed` (chiuso) |
-| `rs` | rigore subito | **TBD punti** | **solo portieri**; nel file XLS puo comparire anche su non-P → da confermare se ignorare |
-
+| `rs` | rigore **sbagliato** | `-3` ciascuno | `penaltiesMissed` |
+| `rf` | gol da rigore | `+3` ciascuno | `penaltiesScored` (additivo a `gf`; Gf=1 Rf=1 → +6) |
 | `au` | autogol | `-2` ciascuno | `ownGoals` |
 | `amm` | ammonizione | `-0.5` ciascuna | `yellowCards` |
 | `esp` | espulsione | `-1` ciascuna | `redCards` |
 | `ass` | assist | `+1` ciascuno | `assists` |
 | porta inviolata | auto se portiere con `gs = 0` | `+1` | `cleanSheet` |
 
-Nota: il vecchio malus "rigore sbagliato `-3`" (`penaltiesMissed`) resta nel motore finche non si decide se coincide con `rs`/`rf` o resta distinto.
+> Bozza storica aveva `rf`=fallito / `rs`=subito. **Chiuso in `09`:** `RS` sbagliato (−3), `RF` gol da rigore (+3, disgiunto da `Gf`).
 
 Regola automatica porta inviolata (decisa):
 
 - se il giocatore e portiere e `gs == 0`, il sistema assegna `cleanSheet = 1` (+1)
 - non richiedere inserimento manuale del bonus se la regola e soddisfatta
 
-Impatto sul progetto attuale:
-
-- quasi tutto e gia allineato in `calculate-fantavote.ts`
-- manca `goalsConceded` (-1)
-- manca automazione clean sheet da `gs = 0` per portieri
-- `rs` / `rf`: punti e semantica da formalizzare al primo implement (se `rf` conta gia in `gf`, non doppiarlo)
-
-Come applicarla al progetto:
-
-- schema: aggiungere `goalsConceded` (e eventuali campi `rs`/`rf` se distinti)
-- scoring + UI admin voti + parser file voti
-- dopo import file: ricalcolare clean sheet per i portieri con `gs = 0`
+Stato shipping: implementato (vedi `09`); XLS `Gf`/`Rf` disgiunti entrambi +3.
 
 ### 10. Le leghe non sono create dagli utenti ma dal super admin — **FATTO**
 
@@ -349,7 +339,7 @@ Impatto sul progetto attuale:
 Come applicarla al progetto:
 
 - estendere reader admin matchday (e/o dashboard lega) con stato lineup per ogni `FantasyTeam`
-- stati minimi: `NON_INSERITA` | `INSERITA` (eventualmente anche bozza vs definitiva se esiste)
+- stati admin (chiusi in `09`): `INSERITA` | `MISTER` | `RECUPERATA` | `ADMIN` | `NON INSERITA`
 - UI in `/admin/matchdays/[matchdayId]` o sezione dedicata
 
 ### 15. Import file voti per compilare le pagelle — NUOVA 2026-08-01
@@ -413,7 +403,7 @@ Dal file emergono tre gruppi di lavoro molto diversi:
 - fasce gol: `<=25 → 0`, poi `+1` ogni 2 punti (`floor((score-25)/2)`)
 - porta inviolata automatica se portiere con `gs = 0`
 - `rs` = sbagliato (−3), `rf` = gol da rigore (+3, additivo a `gf`); vedi `09`
-- formazione mancante: auto-carry ultima USER + penali; else forfait; vedi `09` §5b
+- formazione mancante: auto-carry ultima USER o COACH + penali; else forfait; vedi `09` §5b
 - leghe da **10** squadre, solo andata/ritorno → **18** giornate
 - max **1** sostituzione automatica **per ruolo** (max **4** a partita)
 - `LeagueRole.ADMIN` rimosso

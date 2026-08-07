@@ -1,5 +1,7 @@
 # Resoconto stato attuale e obiettivi — Fantacalcetto
 
+> **Storico (2026-08-01).** Per regole prodotto shipping vale [`09_DECISIONI_PRODOTTO_CHIUSE.md`](./09_DECISIONI_PRODOTTO_CHIUSE.md) (Gf/Rf +3 disgiunti; auto-carry `USER`|`COACH`; badge completi).
+
 Documento autocontenuto per handoff a un'altra AI / sessione Cursor.
 Data: 2026-08-01.
 
@@ -158,11 +160,11 @@ Matching: colonna `Cod.` = `externalId` Fantacalcio.
 
 | Codice | Significato | Punti | Note |
 |--------|-------------|-------|------|
-| `gf` | goal fatto | +3 | |
+| `gf` | goal **non da rigore** | +3 | XLS `Gf` esclude i gol da rigore |
 | `gs` | goal subito | -1 | **solo portieri** |
 | `rp` | rigore parato | +3 | |
-| `rs` | rigore subito | **TBD** | **solo portieri** |
-| `rf` | rigore **fallito** | -3 | = `penaltiesMissed` |
+| `rs` | rigore **sbagliato** | -3 | = `penaltiesMissed` |
+| `rf` | gol da rigore | +3 | = `penaltiesScored`; additivo a `gf` |
 | `au` | autogol | -2 | |
 | `amm` | ammonizione | -0.5 | |
 | `esp` | espulsione | -1 | |
@@ -175,7 +177,7 @@ Pannello unificato: mostra solo chi ha **effettivamente giocato** dopo le sub.
 
 ### 5.5 Admin vede se la formazione e stata messa — NUOVO 2026-08-01
 
-Per ogni squadra/giornata: `INSERITA` / `NON_INSERITA`.
+Per ogni squadra/giornata: `INSERITA` / `MISTER` / `RECUPERATA` / `ADMIN` / `NON INSERITA` (vedi `09`).
 
 ### 5.6 Lega 10 squadre / 18 giornate — DECISO 2026-08-01 sera
 
@@ -316,7 +318,7 @@ Decisioni gia chiuse (non riaprire):
 - gol squadra = score<=25 ? 0 : floor((score-25)/2)
 - upload XLS voti; Cod.=externalId Fantacalcio; foglio default Fantacalcio
 - eventi: gf+3 (gol non-rigore) ass+1 rp+3 gs-1(solo P) rs(sbagliato)-3 rf(gol da rigore)+3 **additivo a gf** au-2 amm-0.5 esp-1; clean sheet auto se P gs=0
-- formazione mancante alla chiusura: auto-carry ultima USER + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1
+- formazione mancante alla chiusura: auto-carry ultima USER o COACH + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1
 - leghe 10 squadre, solo A/R = 18 giornate; password obbligatoria; LeagueRole solo OWNER/MEMBER
 - torneo V1 fatto: admin sceglie a mano; password; alto vs basso; no stessa lega in 1a fase; voti XLS per fase; auto-carry solo da storico torneo
 - coach invitato fatto (sola formazione)

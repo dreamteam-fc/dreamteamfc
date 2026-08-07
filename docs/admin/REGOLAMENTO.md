@@ -125,8 +125,8 @@ La stessa formula vale per **lega** e **torneo**.
 
 Alla **chiusura formazioni** (admin), se una squadra non ha schierato:
 
-1. Se esiste almeno una formazione **inserita dall’utente o dall’allenatore** in precedenza nella stessa lega / stesso torneo → viene **recuperata** (stessa XI + panchina dell’ultima inserita).
-2. Se non esiste alcuna formazione utente/allenatore precedente → **forfait** (nessuna copia).
+1. Se esiste almeno una formazione **USER o COACH** in precedenza nella stessa lega / stesso torneo → viene **recuperata** (stessa XI + panchina dell’ultima inserita). Non si copia da `AUTO_CARRIED` né da `ADMIN_RANDOM`.
+2. Se non esiste alcuna formazione USER/COACH precedente → **forfait** (nessuna copia).
 
 ### 4.1 Formazione recuperata
 
@@ -135,7 +135,7 @@ Alla **chiusura formazioni** (admin), se una squadra non ha schierato:
 - In **lega**: anche **−1 punto** in classifica (anche in caso di vittoria; la classifica può andare sotto zero).
 - In **torneo**: solo −2 fantapunti (non c’è classifica).
 - Se un giocatore recuperato **non è più in rosa**, quello slot vale **SV** (0).
-- Admin vede lo stato **RECUPERATA** / **INSERITA** / **MISTER** (allenatore) / **ADMIN**.
+- Admin vede lo stato **INSERITA** / **MISTER** (allenatore) / **RECUPERATA** / **ADMIN** / **NON INSERITA**.
 
 Esempio: 29 fantapunti lordi → 27 netti → **1** gol (non 2). Oppure 27 → 25 → **0** gol (non 1).
 
@@ -231,7 +231,7 @@ In pratica: **prima i vincitori di tutte le serie**, poi si apre la giornata suc
 
 ### 6.6 Formazione mancante e scoring in torneo
 
-Valgono le regole di §4 (recupero ultima formazione **USER** dello stesso torneo, oppure forfait).  
+Valgono le regole di §4 (recupero ultima formazione **USER o COACH** dello stesso torneo, oppure forfait).  
 In torneo si applicano solo **−2 fantapunti** sulla formazione recuperata (niente −1 classifica).  
 Il risultato manuale Admin resta un override alternativo al calcolo da voti.
 
@@ -254,7 +254,7 @@ Il risultato manuale Admin resta un override alternativo al calcolo da voti.
 | Formazione | 5+4; panchina 1 per ruolo |
 | Auto-sub | Stesso ruolo; max 1/ruolo (max 4); senza sub → 0 |
 | Gol | `≤25 → 0`, poi `floor((score−25)/2)` |
-| Formazione mancante | Recupero ultima USER + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1 |
+| Formazione mancante | Recupero ultima USER o COACH + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1 |
 | Classifica | Punti (anche <0) → DR → gol fatti → fantapunti |
 | Torneo | 4/8/16/32/64; A/R tranne finale; gol→FP→seed→Admin; solo −2 FP su recupero |
 | Coach | Solo formazioni |

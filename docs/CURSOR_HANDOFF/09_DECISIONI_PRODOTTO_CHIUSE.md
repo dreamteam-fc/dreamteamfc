@@ -109,7 +109,7 @@ Flusso admin su `/admin/tournaments/[id]/bracket` per ogni fase (allineato alle 
 
 1. **Apri formazioni** (`DRAFT` → `OPEN`) sulle partite READY della fase
 2. Utenti schierano (solo se fase `OPEN` + fixture READY)
-3. **Chiudi formazioni** (`OPEN` → `LOCKED`) — auto-carry da ultima `USER` **nel torneo** (solo −2 FP, no classifica)
+3. **Chiudi formazioni** (`OPEN` → `LOCKED`) — auto-carry da ultima `USER` o `COACH` **nel torneo** (solo −2 FP, no classifica)
 4. **Genera lista voti** → `TournamentRequiredVotePlayer` (unione giocatori in lineup READY)
 5. **Carica XLS** → stesso parser lega (`parseFantacalcioVotesBuffer`); matching `Cod.` = `externalId`; assenti → SV
 6. **Calcola partite da voti** → fantavoto + `convertScoreToGoals` → `recordTournamentFixtureResult` + avanzamento tabellone

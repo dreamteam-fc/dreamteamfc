@@ -1,5 +1,7 @@
 # Piano Di Applicazione Al Progetto
 
+> **Storico.** Piano di applicazione iniziale: regole prodotto shipping in [`09_DECISIONI_PRODOTTO_CHIUSE.md`](./09_DECISIONI_PRODOTTO_CHIUSE.md).
+
 Questo documento spiega come trasformare le richieste di `Dream Team FC.txt` in task reali dentro l'architettura attuale di Fantacalcetto.
 
 ## Obiettivo
@@ -129,7 +131,7 @@ File/aree da toccare:
 
 Approccio corretto:
 
-- per ogni squadra della lega nella giornata: `INSERITA` se esiste lineup valida, altrimenti `NON_INSERITA`
+- per ogni squadra della lega nella giornata: badge `INSERITA` / `MISTER` / `RECUPERATA` / `ADMIN` / `NON INSERITA` (vedi `09`)
 
 ### E. Upload file voti → pagelle — NUOVA
 
@@ -204,7 +206,7 @@ Modifiche richieste:
 - aggiungere `goalsConceded` (`gs`, -1 ciascuno)
 - applicare automazione: portiere con `gs = 0` → `cleanSheet = 1` (+1)
 - mappare nel pannello/import i codici `gf gs rp rs rf au amm esp ass`
-- chiarire punti di `rs` / `rf` prima di chiudere lo scoring
+- `rs`/`rf` chiusi in `09`: sbagliato −3 / gol da rigore +3 (additivo a `gf`)
 
 File/aree da toccare:
 

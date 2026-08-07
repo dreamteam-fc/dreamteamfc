@@ -240,8 +240,8 @@ npm run players:import-api-football
   5. nome squadra
 
 ### Edge case
-- Formazione **recuperata**: −2 fantapunti e −1 punto classifica (anche in vittoria; classifica può essere &lt; 0).
-- Forfait (mai schierato): 3–0 + −1 classifica al perdente; doppio forfait 0–0 + −1 a entrambe.
+- Formazione **recuperata** (copia ultima `USER` o `COACH`; mai da `AUTO_CARRIED`/`ADMIN_RANDOM`): −2 fantapunti e −1 punto classifica (anche in vittoria; classifica può essere &lt; 0). In torneo: solo −2 FP.
+- Forfait (mai schierato USER/COACH in quell’ambito): 3–0 + −1 classifica al perdente (lega); doppio forfait 0–0 + −1 a entrambe. In torneo: forfait senza −1 classifica.
 - Squadre senza partite pubblicate: presenti con zeri.
 
 ## Pagine pubbliche

@@ -45,7 +45,7 @@ Tournament (entries cross-league)
 1. Apri formazioni (`Matchday` / batch) — `open-matchday-lineups.ts` / `open-all-lineups.ts`  
 2. Utenti/coach schierano (`app/me/...`)  
 3. Chiudi formazioni — `lock-matchday-lineups.ts` / `lock-all-lineups.ts`  
-   - Alla chiusura: auto-carry da ultima lineup `source=USER` (`auto-carry-matchday-lineups.ts`)  
+   - Alla chiusura: auto-carry da ultima lineup `source=USER|COACH` (`auto-carry-matchday-lineups.ts`)  
    - Recuperata → −2 FP + −1 classifica; niente da copiare → forfait 3–0 + −1  
 4. Genera lista voti richiesti — `generate-required-vote-players.ts`  
 5. Upload XLS Fantacalcio — `lib/server/votes/*` + UI `/admin/votes`  
@@ -108,7 +108,7 @@ V1 operativa. Route admin: `/admin/tournaments/*`. User lineup: `/me/teams/[team
 | Entries | manuali (squadra + lega), password |
 | Seeding | alto ↔ basso; 1ª fase no stessa lega |
 | Serie | A/R salvo **finale** (1 leg) |
-| Formazioni | per `TournamentRound.lineupsStatus` DRAFT→OPEN→LOCKED; auto-carry da ultima `USER` **nel torneo** |
+| Formazioni | per `TournamentRound.lineupsStatus` DRAFT→OPEN→LOCKED; auto-carry da ultima `USER|COACH` **nel torneo** |
 | Voti | XLS scoped a round/**leg** (andata ≠ ritorno) |
 | Pareggio aggregato | seed migliore; residuo → admin pick |
 | Libs | `lib/server/tournaments/*` — bracket, votes, calculate, pick winner, reset |

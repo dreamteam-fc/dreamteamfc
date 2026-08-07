@@ -2,7 +2,7 @@
  * Penalties when a team has no user-submitted lineup at lock time.
  *
  * - AUTO_CARRIED lineup: −2 fantapunti (before goals, floored at 0) + −1 league points
- * - No copyable USER lineup: forfeit 3–0 (no fantapunti) + −1 league points
+ * - No copyable USER/COACH lineup: forfeit 3–0 (no fantapunti) + −1 league points
  * - Tournament: same fantapunti/forfeit rules, no league-points penalty
  */
 

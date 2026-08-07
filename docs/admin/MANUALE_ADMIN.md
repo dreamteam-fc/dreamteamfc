@@ -219,14 +219,14 @@ L’owner/coach può eliminare la propria formazione da `/me/teams/.../lineup` s
 
 Alla **chiusura formazioni**, se manca la formazione:
 
-1. Se esiste un’ultima formazione **inserita dall’utente** in quella lega → viene **recuperata** (badge admin **RECUPERATA**)
+1. Se esiste un’ultima formazione **USER o COACH** in quella lega → viene **recuperata** (badge admin **RECUPERATA**)
 2. Penalità: **−2 fantapunti** sulla partita (prima dei gol) e **−1** in classifica (anche se vince; classifica può essere negativa)
 3. Se **non** ha mai schierato in quella lega → **forfait 3–0** (nessun calcolo fantapunti) + **−1** classifica
 4. Entrambe senza precedente → doppio forfait 0–0 + **−1** a entrambe
 
 In **torneo**: stesso recupero/forfait, ma solo **−2 FP** (niente classifica).
 
-“Genera formazioni” (random admin) resta utile in test; le formazioni `ADMIN` non contano come fonte per il recupero automatico (conta solo `USER`).
+“Genera formazioni” (random admin) resta utile in test; fonte del recupero automatico = solo `USER` o `COACH` (non `AUTO_CARRIED` né `ADMIN_RANDOM`).
 
 ---
 
@@ -396,10 +396,10 @@ Zona pericolosa in basso su **`/admin`** (e richiami su `/admin/players`).
 **Sintomo:** “Vittoria a tavolino” / badge **RECUPERATA** / punti classifica strani (−1).  
 **Cosa sapere:**
 
-1. Alla chiusura, le formazioni mancanti vengono **recuperate** dall’ultima inserita dall’utente (se esiste) con −2 FP e −1 classifica
+1. Alla chiusura, le formazioni mancanti vengono **recuperate** dall’ultima `USER` o `COACH` (se esiste) con −2 FP e −1 classifica
 2. Forfait 3–0 solo se la squadra **non ha mai** schierato in quella lega
 3. Prima di chiudere: `/admin/lineups` → chi manca (avvisa owner/coach)
-4. “Genera formazioni” random è per test: non diventa fonte del recupero automatico
+4. “Genera formazioni” random è per test: non diventa fonte del recupero automatico (`AUTO_CARRIED` / `ADMIN_RANDOM` esclusi)
 
 ### Rosa bloccata a 25
 

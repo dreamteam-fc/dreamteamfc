@@ -19,10 +19,10 @@ Questa cartella serve per ripartire da zero con nuovi account, mantenendo il cod
 6. [06_PIANO_APPLICAZIONE_AL_PROGETTO.md](./06_PIANO_APPLICAZIONE_AL_PROGETTO.md)
 7. [07_PROMPT_CURSOR_PER_MODIFICHE_DREAM_TEAM_FC.md](./07_PROMPT_CURSOR_PER_MODIFICHE_DREAM_TEAM_FC.md)
 8. [08_RESOCONTO_STATO_E_OBIETTIVI.md](./08_RESOCONTO_STATO_E_OBIETTIVI.md) — documento unico da dare in pasto a un'AI
-9. [09_DECISIONI_PRODOTTO_CHIUSE.md](./09_DECISIONI_PRODOTTO_CHIUSE.md) — **decisioni chiuse aggiornate (leggere per ultimo stato prodotto)**
+9. [09_DECISIONI_PRODOTTO_CHIUSE.md](./09_DECISIONI_PRODOTTO_CHIUSE.md) — **fonte di verità decisioni prodotto (leggere per ultimo stato shipping)**
 10. [GUIDA_DEPLOY_RAILWAY.md](./GUIDA_DEPLOY_RAILWAY.md) — deploy produzione Railway + Supabase
 
-Ultimo aggiornamento requisiti prodotto: **2026-08-01 sera** (risposte utente + file voti XLS esempio).
+I pack `05`–`08` sono storici: se contraddicono `09`, vale `09`. Ultimo chiarimento XLS/auto-carry: **2026-08-07**.
 
 ## Documenti gia presenti da tenere come riferimento
 

@@ -35,7 +35,7 @@ Tipici bottoni multi-lega (implementati in actions + `lib/server/*`):
 
 Concurrency limitata nei batch (proxy Railway ~60s). Path: `open-all-lineups.ts`, `lock-all-lineups.ts` (+ `auto-carry-matchday-lineups.ts`), `calculate-all-scores-and-results.ts`, `publish-all-matchdays.ts`, `generate-all-league-schedules.ts`, `generate-all-random-lineups.ts`.
 
-**Formazioni alla chiusura:** se manca lineup → copia ultima `USER` (`AUTO_CARRIED`, −2 FP + −1 classifica) oppure forfait. Dettaglio: `REGOLAMENTO` §4 / `AI_HANDOFF/03`.
+**Formazioni alla chiusura:** se manca lineup → copia ultima `USER` o `COACH` (`AUTO_CARRIED`, −2 FP + −1 classifica) oppure forfait. Dettaglio: `REGOLAMENTO` §4 / `AI_HANDOFF/03`.
 
 ---
 

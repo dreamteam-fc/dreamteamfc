@@ -52,7 +52,7 @@ Sintomi storici: `42P05` prepared statements, `P1001`, `EMAXCONNSESSION`, `Trans
 - Gol: `score ≤ 25 → 0`, else `floor((score-25)/2)`  
 - Voti: match **`Cod.` = externalId`** sorgente Fantacalcio  
 - **Gf / Rf disgiunti e entrambi +3** (`penaltiesScored` entra in `calculate-fantavote`)  
-- Formazione mancante: auto-carry `USER` + penali; altrimenti forfait (vedi `REGOLAMENTO` §4 / `lineup-penalties.ts`)  
+- Formazione mancante: auto-carry `USER|COACH` + penali; altrimenti forfait (vedi `REGOLAMENTO` §4 / `lineup-penalties.ts`)  
 
 ### DON’T
 
