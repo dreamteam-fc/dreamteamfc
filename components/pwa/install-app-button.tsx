@@ -1,125 +1,75 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+import {
+  consumeDeferredInstallPrompt,
+  ensureInstallPromptCapture,
+  getDeferredInstallPrompt,
+  isAppInstalled,
+  isIosDevice,
+  subscribeInstallPrompt
+} from "@/lib/pwa/install-prompt";
+
+/** Stable snapshot for useSyncExternalStore (must be referentially stable when unchanged). */
+let cachedSnapshot = {
+  canPrompt: false,
+  installed: false
 };
 
-function isStandaloneDisplay(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  if (window.matchMedia("(display-mode: standalone)").matches) {
-    return true;
-  }
-
-  // iOS Safari when launched from Home Screen
-  const safariNav = window.navigator as Navigator & { standalone?: boolean };
-  return safariNav.standalone === true;
-}
-
-function isIosDevice(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const ua = window.navigator.userAgent;
-  const classicIos = /iPad|iPhone|iPod/.test(ua);
-  const ipadOs =
-    window.navigator.platform === "MacIntel" &&
-    window.navigator.maxTouchPoints > 1;
-
-  return classicIos || ipadOs;
-}
-
-async function hasInstalledRelatedApps(): Promise<boolean> {
-  const nav = navigator as Navigator & {
-    getInstalledRelatedApps?: () => Promise<unknown[]>;
+function readInstallSnapshot() {
+  const next = {
+    canPrompt: getDeferredInstallPrompt() !== null,
+    installed: isAppInstalled()
   };
 
-  if (typeof nav.getInstalledRelatedApps !== "function") {
-    return false;
+  if (
+    next.canPrompt === cachedSnapshot.canPrompt &&
+    next.installed === cachedSnapshot.installed
+  ) {
+    return cachedSnapshot;
   }
 
-  try {
-    const apps = await nav.getInstalledRelatedApps();
-    return apps.length > 0;
-  } catch {
-    return false;
-  }
+  cachedSnapshot = next;
+  return cachedSnapshot;
 }
 
+function subscribe(onStoreChange: () => void) {
+  return subscribeInstallPrompt(onStoreChange);
+}
+
+const serverSnapshot = { canPrompt: false, installed: false };
+
 export function InstallAppButton() {
-  const [installed, setInstalled] = useState(false);
-  const [canPrompt, setCanPrompt] = useState(false);
+  const { canPrompt, installed } = useSyncExternalStore(
+    subscribe,
+    readInstallSnapshot,
+    () => serverSnapshot
+  );
   const [isIos, setIsIos] = useState(false);
-  const [iosHintOpen, setIosHintOpen] = useState(false);
-  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const [hintOpen, setHintOpen] = useState(false);
   const tipRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
+    ensureInstallPromptCapture();
     setIsIos(isIosDevice());
-
-    async function detectInstalled() {
-      if (isStandaloneDisplay()) {
-        if (!cancelled) {
-          setInstalled(true);
-        }
-        return;
-      }
-
-      if (await hasInstalledRelatedApps()) {
-        if (!cancelled) {
-          setInstalled(true);
-        }
-      }
-    }
-
-    void detectInstalled();
-
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      deferredPromptRef.current = event as BeforeInstallPromptEvent;
-      setCanPrompt(true);
-    };
-
-    const onAppInstalled = () => {
-      deferredPromptRef.current = null;
-      setCanPrompt(false);
-      setInstalled(true);
-      setIosHintOpen(false);
-    };
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    window.addEventListener("appinstalled", onAppInstalled);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", onAppInstalled);
-    };
   }, []);
 
   useEffect(() => {
-    if (!iosHintOpen) {
+    if (!hintOpen) {
       return;
     }
 
     function onPointerDown(event: MouseEvent | TouchEvent) {
       const target = event.target as Node | null;
       if (tipRef.current && target && !tipRef.current.contains(target)) {
-        setIosHintOpen(false);
+        setHintOpen(false);
       }
     }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIosHintOpen(false);
+        setHintOpen(false);
       }
     }
 
@@ -132,32 +82,29 @@ export function InstallAppButton() {
       document.removeEventListener("touchstart", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [iosHintOpen]);
+  }, [hintOpen]);
 
   if (installed) {
     return null;
   }
 
-  const showIosHint = isIos && !canPrompt;
-
-  if (!canPrompt && !showIosHint) {
-    return null;
-  }
+  // Always show when not installed: BIP may arrive late (or never on Firefox /
+  // in-app browsers). Native prompt when available; otherwise platform instructions.
+  const needsManualHint = !canPrompt;
 
   async function handleInstallClick() {
-    if (showIosHint) {
-      setIosHintOpen((open) => !open);
+    if (needsManualHint) {
+      setHintOpen((open) => !open);
       return;
     }
 
-    const deferred = deferredPromptRef.current;
+    const deferred = consumeDeferredInstallPrompt();
     if (!deferred) {
+      setHintOpen(true);
       return;
     }
 
-    deferredPromptRef.current = null;
-    setCanPrompt(false);
-
+    setHintOpen(false);
     await deferred.prompt();
     try {
       await deferred.userChoice;
@@ -174,23 +121,37 @@ export function InstallAppButton() {
           void handleInstallClick();
         }}
         className="btn-brand-secondary w-full text-center sm:w-auto"
-        aria-expanded={showIosHint ? iosHintOpen : undefined}
-        aria-controls={showIosHint ? "install-app-ios-hint" : undefined}
+        aria-expanded={needsManualHint ? hintOpen : undefined}
+        aria-controls={needsManualHint ? "install-app-hint" : undefined}
       >
         Installa app
       </button>
 
-      {showIosHint && iosHintOpen ? (
+      {needsManualHint && hintOpen ? (
         <div
-          id="install-app-ios-hint"
+          id="install-app-hint"
           role="status"
           className="absolute left-1/2 top-full z-20 mt-2 w-[min(18rem,calc(100vw-2.5rem))] -translate-x-1/2 rounded-xl border border-white/25 bg-brand-void/95 px-4 py-3 text-left text-sm leading-6 text-brand-mute shadow-lg backdrop-blur"
         >
-          <p className="font-medium text-white">Su iPhone</p>
-          <p className="mt-1">
-            Tocca <span className="text-white">Condividi</span> e poi{" "}
-            <span className="text-white">Aggiungi a Home</span>.
-          </p>
+          {isIos ? (
+            <>
+              <p className="font-medium text-white">Su iPhone / iPad</p>
+              <p className="mt-1">
+                Tocca <span className="text-white">Condividi</span> e poi{" "}
+                <span className="text-white">Aggiungi a Home</span>.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-white">Dal browser</p>
+              <p className="mt-1">
+                Apri il menu <span className="text-white">⋮</span> o{" "}
+                <span className="text-white">⋯</span> e scegli{" "}
+                <span className="text-white">Installa app</span> oppure{" "}
+                <span className="text-white">Aggiungi a schermata Home</span>.
+              </p>
+            </>
+          )}
         </div>
       ) : null}
     </div>
