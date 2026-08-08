@@ -351,6 +351,22 @@ export async function getPublicMatchdayDetailData(
                   name: true
                 }
               },
+              playerVote: {
+                select: {
+                  assists: true,
+                  baseVote: true,
+                  cleanSheet: true,
+                  goals: true,
+                  goalsConceded: true,
+                  isSv: true,
+                  ownGoals: true,
+                  penaltiesMissed: true,
+                  penaltiesSaved: true,
+                  penaltiesScored: true,
+                  redCards: true,
+                  yellowCards: true
+                }
+              },
               replacedLineupPlayer: {
                 select: {
                   id: true,
@@ -447,7 +463,25 @@ export async function getPublicMatchdayDetailData(
                     player: player.replacedLineupPlayer.player
                   }
                 : null,
-              slotType: player.slotType
+              slotType: player.slotType,
+              vote: player.playerVote
+                ? {
+                    assists: player.playerVote.assists,
+                    baseVote: prismaDecimalToNumber(player.playerVote.baseVote),
+                    cleanSheet: player.playerVote.cleanSheet,
+                    goals: player.playerVote.goals,
+                    goalsConceded: player.playerVote.goalsConceded,
+                    isSv: player.playerVote.isSv,
+                    ownGoals: player.playerVote.ownGoals,
+                    penaltiesMissed: player.playerVote.penaltiesMissed,
+                    penaltiesSaved: player.playerVote.penaltiesSaved,
+                    penaltiesScored: player.playerVote.penaltiesScored,
+                    redCards: player.playerVote.redCards,
+                    yellowCards: player.playerVote.yellowCards
+                  }
+                : player.isSv
+                  ? { baseVote: null, isSv: true }
+                  : null
             })),
             publishedAt: teamScore.publishedAt,
             status: teamScore.status,

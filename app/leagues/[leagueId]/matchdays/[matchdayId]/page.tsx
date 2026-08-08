@@ -1,11 +1,11 @@
 import {
   FantasyFixtureStatus,
-  MatchdayStatus,
-  ScorePlayerFinalType
+  MatchdayStatus
 } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { TeamScorePlayersTable } from "@/components/scores/team-score-players-table";
 import {
   getFixtureAdminNote,
   getFixtureForfeitOutcome
@@ -20,19 +20,6 @@ type PublicMatchdayPageProps = {
     matchdayId: string;
   }>;
 };
-
-const DETAIL_LABELS: Record<ScorePlayerFinalType, string> = {
-  AUTO_SUB_IN: "Entrato dalla panchina",
-  BENCH_UNUSED: "Panchina non usata",
-  REPLACED_BY_BENCH: "Sostituito",
-  STARTER_PLAYED: "Titolare",
-  SV_NOT_REPLACED: "SV non sostituito"
-};
-
-const SLOT_LABELS = {
-  BENCH: "Panchina",
-  STARTER: "Titolare"
-} as const;
 
 const MATCHDAY_STATUS_LABELS: Record<MatchdayStatus, string> = {
   DRAFT: "Bozza",
@@ -58,49 +45,6 @@ function formatScore(value: number | null) {
   }
 
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
-}
-
-function getDetailDescription(player: {
-  finalType: ScorePlayerFinalType;
-  replacedLineupPlayer: {
-    id: string;
-    player: {
-      id: string;
-      name: string;
-    };
-  } | null;
-}) {
-  if (
-    player.finalType === ScorePlayerFinalType.AUTO_SUB_IN &&
-    player.replacedLineupPlayer
-  ) {
-    return `Entra al posto di ${player.replacedLineupPlayer.player.name}`;
-  }
-
-  if (
-    player.finalType === ScorePlayerFinalType.REPLACED_BY_BENCH &&
-    player.replacedLineupPlayer
-  ) {
-    return `Sostituisce ${player.replacedLineupPlayer.player.name}`;
-  }
-
-  if (player.finalType === ScorePlayerFinalType.REPLACED_BY_BENCH) {
-    return "Il titolare viene sostituito da un panchinaro valido.";
-  }
-
-  if (player.finalType === ScorePlayerFinalType.SV_NOT_REPLACED) {
-    return "Il giocatore vale 0 per mancanza di sostituto valido.";
-  }
-
-  if (player.finalType === ScorePlayerFinalType.BENCH_UNUSED) {
-    return "Rimasto in panchina senza entrare.";
-  }
-
-  if (player.finalType === ScorePlayerFinalType.STARTER_PLAYED) {
-    return "Titolare con voto valido.";
-  }
-
-  return null;
 }
 
 function getFixtureResultLabel(input: {
@@ -131,7 +75,10 @@ export default async function PublicMatchdayPage({
   }
 
   const teamScoresByTeamId = new Map(
-    data.matchday.teamScores.map((teamScore) => [teamScore.fantasyTeam.id, teamScore])
+    data.matchday.teamScores.map((teamScore) => [
+      teamScore.fantasyTeam.id,
+      teamScore
+    ])
   );
 
   return (
@@ -147,13 +94,19 @@ export default async function PublicMatchdayPage({
             </h2>
             <p className="mt-2 text-sm text-slate-600">
               Stato:{" "}
-              <strong>{MATCHDAY_STATUS_LABELS[data.matchday.status]}</strong> | Squadre:{" "}
-              <strong>{data.matchday.league.fantasyTeamsCount}</strong> /{" "}
-              <strong>{data.matchday.league.maxTeams}</strong>
+              <strong>{MATCHDAY_STATUS_LABELS[data.matchday.status]}</strong> |
+              Squadre: <strong>{data.matchday.league.fantasyTeamsCount}</strong>{" "}
+              / <strong>{data.matchday.league.maxTeams}</strong>
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Link
+              href="/me"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+            >
+              Torna alla dashboard
+            </Link>
             <Link
               href={`/leagues/${data.matchday.league.id}`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
@@ -183,10 +136,12 @@ export default async function PublicMatchdayPage({
       ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-900">Scontri della giornata</h2>
+        <h2 className="text-xl font-semibold text-slate-900">
+          Scontri della giornata
+        </h2>
         <p className="mt-2 text-sm text-slate-600">
           {data.isPublished
-            ? "Risultati pubblicati con eventuali fantapunti e note di tavolino."
+            ? "Risultati con fantapunti, bonus/malus e note di tavolino."
             : "Sono visibili gli accoppiamenti, ma risultati e dettagli restano nascosti fino alla pubblicazione."}
         </p>
 
@@ -210,8 +165,10 @@ export default async function PublicMatchdayPage({
                     homeTeamScoreId: fixture.homeTeamScore?.id ?? null
                   })
                 : null;
-              const homeTeamScore = teamScoresByTeamId.get(fixture.homeTeam.id) ?? null;
-              const awayTeamScore = teamScoresByTeamId.get(fixture.awayTeam.id) ?? null;
+              const homeTeamScore =
+                teamScoresByTeamId.get(fixture.homeTeam.id) ?? null;
+              const awayTeamScore =
+                teamScoresByTeamId.get(fixture.awayTeam.id) ?? null;
 
               return (
                 <article
@@ -252,11 +209,14 @@ export default async function PublicMatchdayPage({
                           {fixture.homeTeam.name}
                         </p>
                         <p className="mt-2 text-sm text-slate-600">
-                          Fantasy gol: <strong>{fixture.homeGoals ?? "-"}</strong>
+                          Fantasy gol:{" "}
+                          <strong>{fixture.homeGoals ?? "-"}</strong>
                         </p>
                         <p className="mt-1 text-sm text-slate-600">
                           Punteggio totale:{" "}
-                          <strong>{formatScore(homeTeamScore?.totalScore ?? null)}</strong>
+                          <strong>
+                            {formatScore(homeTeamScore?.totalScore ?? null)}
+                          </strong>
                         </p>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -264,11 +224,14 @@ export default async function PublicMatchdayPage({
                           {fixture.awayTeam.name}
                         </p>
                         <p className="mt-2 text-sm text-slate-600">
-                          Fantasy gol: <strong>{fixture.awayGoals ?? "-"}</strong>
+                          Fantasy gol:{" "}
+                          <strong>{fixture.awayGoals ?? "-"}</strong>
                         </p>
                         <p className="mt-1 text-sm text-slate-600">
                           Punteggio totale:{" "}
-                          <strong>{formatScore(awayTeamScore?.totalScore ?? null)}</strong>
+                          <strong>
+                            {formatScore(awayTeamScore?.totalScore ?? null)}
+                          </strong>
                         </p>
                       </div>
                     </div>
@@ -288,69 +251,12 @@ export default async function PublicMatchdayPage({
                         const teamScore = teamScoresByTeamId.get(team.id);
 
                         return (
-                          <section
+                          <TeamScorePlayersTable
                             key={team.id}
-                            className="rounded-xl border border-slate-200 bg-white p-4"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                                {team.name}
-                              </h3>
-                              <span className="text-sm text-slate-600">
-                                Totale:{" "}
-                                <strong>{formatScore(teamScore?.totalScore ?? null)}</strong>
-                              </span>
-                            </div>
-
-                            {!teamScore ? (
-                              <p className="mt-4 text-sm text-slate-600">
-                                Nessun dettaglio giocatori pubblicato per questa squadra.
-                              </p>
-                            ) : (
-                              <div className="mt-4 overflow-x-auto">
-                                <table className="min-w-full divide-y divide-slate-200 text-sm">
-                                  <thead>
-                                    <tr className="text-left text-slate-500">
-                                      <th className="px-3 py-2 font-medium">Giocatore</th>
-                                      <th className="px-3 py-2 font-medium">Tipo</th>
-                                      <th className="px-3 py-2 font-medium">Dettaglio</th>
-                                      <th className="px-3 py-2 font-medium">Slot</th>
-                                      <th className="px-3 py-2 font-medium">Ordine</th>
-                                      <th className="px-3 py-2 font-medium">Conta</th>
-                                      <th className="px-3 py-2 font-medium">Fantavoto</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100">
-                                    {teamScore.players.map((player) => (
-                                      <tr key={player.id}>
-                                        <td className="px-3 py-2 text-slate-900">
-                                          {player.player.name}
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-900">
-                                          {DETAIL_LABELS[player.finalType]}
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-600">
-                                          {getDetailDescription(player) ?? "-"}
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-600">
-                                          {SLOT_LABELS[player.slotType]}
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-600">
-                                          {player.positionOrder}
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-600">
-                                          {player.countsForScore ? "Si" : "No"}
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-900">
-                                          {formatScore(player.finalFantavote)}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </section>
+                            teamName={team.name}
+                            totalScore={teamScore?.totalScore ?? null}
+                            players={teamScore?.players ?? []}
+                          />
                         );
                       })}
                     </div>
