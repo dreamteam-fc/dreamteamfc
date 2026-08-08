@@ -3,9 +3,10 @@ export function convertScoreToGoals(score: number): number {
     throw new Error("score must be a finite number.");
   }
 
-  if (score <= 25) {
+  if (score < 25) {
     return 0;
   }
 
-  return Math.floor((score - 25) / 2);
+  // Da 25 in poi: 1 gol, poi +1 ogni 2 fantapunti.
+  return 1 + Math.floor((score - 25) / 2);
 }

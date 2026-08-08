@@ -97,7 +97,16 @@ export default function ComeGiocarePage() {
             </>,
             <>
               Dopo la pubblicazione della giornata, controlla risultato e{" "}
-              <strong>classifica</strong> dalle pagine della lega.
+              <strong>classifica</strong> dalle pagine della lega. I gol
+              dipendono dai fantapunti: da 25 in poi è già 1 gol, poi +1 ogni 2
+              punti (vedi{" "}
+              <Link
+                href="/regolamento#fantavoto"
+                className="font-semibold text-brand-blue"
+              >
+                Regolamento
+              </Link>
+              ).
             </>
           ]}
         />

@@ -304,8 +304,12 @@ export default function RegolamentoPage() {
           <div className="space-y-3">
             <Subheading>Da fantapunti a gol</Subheading>
             <p>
-              Con 25 fantapunti o meno → <strong>0 gol</strong>. Oltre 25:{" "}
-              <strong>gol = parte intera di (punteggio − 25) / 2</strong>.
+              Sotto 25 fantapunti → <strong>0 gol</strong>. Da 25 in poi:{" "}
+              <strong>1 gol</strong>, poi <strong>+1 gol ogni 2 fantapunti</strong>{" "}
+              (<code className="rounded bg-brand-fog px-1.5 py-0.5 text-xs">
+                1 + parte intera di (punteggio − 25) / 2
+              </code>
+              ).
             </p>
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
               <table className="min-w-full text-left text-sm">
@@ -317,11 +321,11 @@ export default function RegolamentoPage() {
                 </thead>
                 <tbody className="bg-white text-slate-600">
                   {[
-                    ["25 o meno", "0"],
-                    ["26–26,9", "0"],
-                    ["27–28,9", "1"],
-                    ["29–30,9", "2"],
-                    ["31–32,9", "3"]
+                    ["meno di 25", "0"],
+                    ["25–26,9", "1"],
+                    ["27–28,9", "2"],
+                    ["29–30,9", "3"],
+                    ["31–32,9", "4"]
                   ].map(([fp, gol]) => (
                     <tr key={fp} className="border-t border-slate-200">
                       <td className="px-4 py-3">{fp}</td>
@@ -382,8 +386,8 @@ export default function RegolamentoPage() {
               ]}
             />
             <p>
-              Esempio: 29 fantapunti → 27 netti → 1 gol (non 2). Oppure 27 → 25
-              → 0 gol (non 1).
+              Esempio: 29 fantapunti → 27 netti → 2 gol (non 3). Oppure 27 → 25
+              → 1 gol (non 2).
             </p>
           </div>
 
@@ -596,7 +600,7 @@ export default function RegolamentoPage() {
                     "Auto-sub",
                     "Stesso ruolo; max 1/ruolo; senza sub → 0"
                   ],
-                  ["Gol", "≤25 → 0, poi parte intera di (score−25)/2"],
+                  ["Gol", "<25 → 0; da 25: 1 + parte intera di (score−25)/2"],
                   [
                     "Formazione mancante",
                     "Recupero ultima formazione + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1"

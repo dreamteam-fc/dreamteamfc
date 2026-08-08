@@ -56,8 +56,10 @@ Formula: `baseVote + bonus − malus`.
 Fasce gol da punteggio squadra:
 
 ```text
-goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
+goals = score < 25 ? 0 : 1 + Math.floor((score - 25) / 2)
 ```
+
+Da 25 in poi è già 1 gol; poi +1 ogni 2 fantapunti.
 
 ## 4. Import voti XLS
 

@@ -45,12 +45,13 @@ function svVote() {
 }
 
 function runChecks() {
-  assert.equal(convertScoreToGoals(25), 0, "25 -> 0 goals");
-  assert.equal(convertScoreToGoals(26.9), 0, "26.9 -> 0 goals");
-  assert.equal(convertScoreToGoals(27), 1, "27 -> 1 goal");
-  assert.equal(convertScoreToGoals(28.9), 1, "28.9 -> 1 goal");
-  assert.equal(convertScoreToGoals(29), 2, "29 -> 2 goals");
-  assert.equal(convertScoreToGoals(31), 3, "31 -> 3 goals");
+  assert.equal(convertScoreToGoals(24.9), 0, "24.9 -> 0 goals");
+  assert.equal(convertScoreToGoals(25), 1, "25 -> 1 goal");
+  assert.equal(convertScoreToGoals(26.9), 1, "26.9 -> 1 goal");
+  assert.equal(convertScoreToGoals(27), 2, "27 -> 2 goals");
+  assert.equal(convertScoreToGoals(28.9), 2, "28.9 -> 2 goals");
+  assert.equal(convertScoreToGoals(29), 3, "29 -> 3 goals");
+  assert.equal(convertScoreToGoals(31), 4, "31 -> 4 goals");
 
   const fantavote = calculateFantavote(
     validVote(6, {
@@ -260,9 +261,9 @@ function runChecks() {
 
   // AUTO_CARRIED −2 fantapunti before goals, floored at 0.
   assert.equal(applyFantapuntiPenalty(27, true).netScore, 25);
-  assert.equal(convertScoreToGoals(applyFantapuntiPenalty(27, true).netScore), 0);
+  assert.equal(convertScoreToGoals(applyFantapuntiPenalty(27, true).netScore), 1);
   assert.equal(applyFantapuntiPenalty(29, true).netScore, 27);
-  assert.equal(convertScoreToGoals(applyFantapuntiPenalty(29, true).netScore), 1);
+  assert.equal(convertScoreToGoals(applyFantapuntiPenalty(29, true).netScore), 2);
   assert.equal(applyFantapuntiPenalty(1, true).netScore, 0);
   assert.equal(applyFantapuntiPenalty(30, false).netScore, 30);
 

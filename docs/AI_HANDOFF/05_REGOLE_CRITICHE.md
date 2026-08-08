@@ -49,7 +49,7 @@ Sintomi storici: `42P05` prepared statements, `P1001`, `EMAXCONNSESSION`, `Trans
 - Rosa **25** = 3P+8D+8C+6A  
 - Lineup **5+4** (panchina 1 per ruolo)  
 - Lega **10** squadre, calendario A/R **18** giornate  
-- Gol: `score ≤ 25 → 0`, else `floor((score-25)/2)`  
+- Gol: `score < 25 → 0`, else `1 + floor((score-25)/2)` (da 25 = già 1 gol)  
 - Voti: match **`Cod.` = externalId`** sorgente Fantacalcio  
 - **Gf / Rf disgiunti e entrambi +3** (`penaltiesScored` entra in `calculate-fantavote`)  
 - Formazione mancante: auto-carry `USER|COACH` + penali; altrimenti forfait (vedi `REGOLAMENTO` §4 / `lineup-penalties.ts`)  

@@ -189,24 +189,24 @@ Osservazione importante:
 - questa e una modifica strutturale al motore punteggio
 - va fatta insieme alla nuova regola panchina a 4
 
-### 8. Nuove fasce gol da punteggio — DECISA
+### 8. Fasce gol da punteggio — aggiornata 2026-08-08
 
-Decisione prodotto (2026-08-01):
+Decisione prodotto:
 
-- `score <= 25` → 0 gol
-- oltre 25: +1 gol ogni 2 punti
+- `score < 25` → 0 gol
+- da 25 in poi: già 1 gol, poi +1 ogni 2 punti
 
 Formula:
 
 ```text
-goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
+goals = score < 25 ? 0 : 1 + Math.floor((score - 25) / 2)
 ```
 
-Esempi: 25→0, 26.9→0, 27→1, 29→2, 31→3
+Esempi: 24.9→0, 25→1, 26.9→1, 27→2, 29→3, 31→4
 
 Impatto sul progetto attuale:
 
-- oggi esiste una conversione diversa in `convert-score-to-goals.ts` (soglia 30, step 5)
+- implementata in `convert-score-to-goals.ts` (prima: `<=25 → 0`, poi solo `floor((score-25)/2)`)
 
 Come applicarla al progetto:
 
@@ -400,7 +400,7 @@ Dal file emergono tre gruppi di lavoro molto diversi:
 
 - rosa da **25** (`3 + 8 + 8 + 6`)
 - `non giocato = SV` (anche: assente dal file voti, oppure voto con `*`)
-- fasce gol: `<=25 → 0`, poi `+1` ogni 2 punti (`floor((score-25)/2)`)
+- fasce gol: `<25 → 0`; da 25: `1 + floor((score-25)/2)` (già 1 gol a 25)
 - porta inviolata automatica se portiere con `gs = 0`
 - `rs` = sbagliato (−3), `rf` = gol da rigore (+3, additivo a `gf`); vedi `09`
 - formazione mancante: auto-carry ultima USER o COACH + penali; else forfait; vedi `09` §5b

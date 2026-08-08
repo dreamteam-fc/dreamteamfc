@@ -131,26 +131,27 @@ Queste NON vanno riaperte salvo richiesta esplicita del proprietario.
   - giocatore assente dal file voti → SV
   - voto con asterisco (es. `6*`) → SV
 
-### 5.3 Fasce gol nuove
+### 5.3 Fasce gol
 
 Regola formale:
 
 ```text
-goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
+goals = score < 25 ? 0 : 1 + Math.floor((score - 25) / 2)
 ```
 
 Esempi:
 
 | Score | Gol |
 |-------|-----|
-| 25.0  | 0   |
-| 26.9  | 0   |
-| 27.0  | 1   |
-| 28.9  | 1   |
-| 29.0  | 2   |
-| 31.0  | 3   |
+| 24.9  | 0   |
+| 25.0  | 1   |
+| 26.9  | 1   |
+| 27.0  | 2   |
+| 28.9  | 2   |
+| 29.0  | 3   |
+| 31.0  | 4   |
 
-File da aggiornare quando si implementa: `lib/scoring/convert-score-to-goals.ts` + check script + testi UI.
+File: `lib/scoring/convert-score-to-goals.ts` + check script + testi UI / regolamento.
 
 ### 5.4 Voti: upload file, eventi, porta inviolata — AGGIORNATO 2026-08-01 sera
 
@@ -287,7 +288,7 @@ npm run check:all
 | 5 | Rosa 25 (3/8/8/6) | **FATTO** | |
 | 6 | Formazione 5+4 con vincoli ruolo | **FATTO** | |
 | 7 | Sub automatiche stesso ruolo | **FATTO** | max 1/ruolo (max 4) |
-| 8 | Fasce gol ≤25 / +1 ogni 2 | **FATTO** | `convertScoreToGoals` |
+| 8 | Fasce gol: da 25 = 1, poi +1 ogni 2 | **FATTO** | `convertScoreToGoals` |
 | 9 | Bonus/malus + clean sheet auto | **FATTO** | `rs`/`rf` chiusi in `09` |
 | 10 | Solo super admin crea leghe | **FATTO** | `LeagueRole.ADMIN` rimosso |
 | 11 | Password di lega | **FATTO** | |

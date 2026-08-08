@@ -103,19 +103,21 @@ fantavoto = voto base + bonus − malus
 ### 3.2 Da fantapunti squadra a gol
 
 ```text
-gol = se punteggio ≤ 25 → 0
-     altrimenti → floor((punteggio − 25) / 2)
+gol = se punteggio < 25 → 0
+     altrimenti → 1 + floor((punteggio − 25) / 2)
 ```
+
+Da **25** fantapunti in poi si parte già da **1 gol**; poi **+1 gol ogni 2 fantapunti**.
 
 Esempi:
 
 | Fantapunti squadra | Gol |
 |--------------------|-----|
-| 25 o meno | 0 |
-| 26–26,9 | 0 |
-| 27–28,9 | 1 |
-| 29–30,9 | 2 |
-| 31–32,9 | 3 |
+| meno di 25 | 0 |
+| 25–26,9 | 1 |
+| 27–28,9 | 2 |
+| 29–30,9 | 3 |
+| 31–32,9 | 4 |
 
 La stessa formula vale per **lega** e **torneo**.
 
@@ -137,7 +139,7 @@ Alla **chiusura formazioni** (admin), se una squadra non ha schierato:
 - Se un giocatore recuperato **non è più in rosa**, quello slot vale **SV** (0).
 - Admin vede lo stato **INSERITA** / **MISTER** (allenatore) / **RECUPERATA** / **ADMIN** / **NON INSERITA**.
 
-Esempio: 29 fantapunti lordi → 27 netti → **1** gol (non 2). Oppure 27 → 25 → **0** gol (non 1).
+Esempio: 29 fantapunti lordi → 27 netti → **2** gol (non 3). Oppure 27 → 25 → **1** gol (non 2).
 
 ### 4.2 Forfait (nessuna formazione mai inserita in quella lega/torneo)
 
@@ -253,7 +255,7 @@ Il risultato manuale Admin resta un override alternativo al calcolo da voti.
 | Esclusività | 1 giocatore → 1 sola squadra per lega |
 | Formazione | 5+4; panchina 1 per ruolo |
 | Auto-sub | Stesso ruolo; max 1/ruolo (max 4); senza sub → 0 |
-| Gol | `≤25 → 0`, poi `floor((score−25)/2)` |
+| Gol | `<25 → 0`; da 25: `1 + floor((score−25)/2)` |
 | Formazione mancante | Recupero ultima USER o COACH + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1 |
 | Classifica | Punti (anche <0) → DR → gol fatti → fantapunti |
 | Torneo | 4/8/16/32/64; A/R tranne finale; gol→FP→seed→Admin; solo −2 FP su recupero |

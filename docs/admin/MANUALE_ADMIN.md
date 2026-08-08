@@ -219,8 +219,9 @@ L’owner/coach può eliminare la propria formazione da `/me/teams/.../lineup` s
 
 ### Gol da fantapunti (utile in chat)
 
-- Punteggio squadra ≤ 25 → **0 gol**  
-- Altrimenti gol = metà della parte oltre 25 (arrotondato per difetto)
+- Punteggio squadra **< 25** → **0 gol**
+- Da **25** in poi: **1 gol**, poi **+1 ogni 2 fantapunti**  
+  (`1 + floor((score − 25) / 2)`)
 
 ### Forfait / formazione recuperata
 

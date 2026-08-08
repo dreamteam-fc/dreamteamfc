@@ -235,6 +235,18 @@ export default function ComeGiocareLegaPage() {
           aperte” / “Formazioni chiuse”) ma non il risultato definitivo.
         </p>
         <p>
+          I gol della partita fantasy si calcolano dai fantapunti squadra: sotto
+          25 → 0 gol; da 25 in poi già 1 gol, poi +1 ogni 2 fantapunti. Dettaglio
+          e tabella:{" "}
+          <Link
+            href="/regolamento#fantavoto"
+            className="font-semibold text-brand-blue"
+          >
+            Regolamento § Fantavoto e gol
+          </Link>
+          .
+        </p>
+        <p>
           Per le regole su punti, forfait e scontri a parità:{" "}
           <Link href="/regolamento" className="font-semibold text-brand-blue">
             Regolamento

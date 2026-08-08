@@ -77,7 +77,7 @@ Matching: **`Cod.` = `Player.externalId`**, source `fantacalcio-quotazioni`.
 
 ```ts
 // lib/scoring/convert-score-to-goals.ts
-goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
+goals = score < 25 ? 0 : 1 + Math.floor((score - 25) / 2)
 ```
 
 ### Formazione mancante alla chiusura

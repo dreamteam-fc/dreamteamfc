@@ -32,7 +32,7 @@ Regole prodotto attive nel codice (non solo nei doc):
 | Esclusività | stesso player non in due rose della stessa lega | `FantasyRoster @@unique([leagueId, playerId])` |
 | Lineup | 5 titolari + 4 panchina (1 per ruolo) | `lib/server/lineups/validate-lineup-composition.ts` |
 | Sub auto | max 1 per ruolo (max 4) | `League.maxAutoSubs` default 4 |
-| Gol da score | `score ≤ 25 → 0`, altrimenti `floor((score-25)/2)` | `lib/scoring/convert-score-to-goals.ts` |
+| Gol da score | `score < 25 → 0`, altrimenti `1 + floor((score-25)/2)` | `lib/scoring/convert-score-to-goals.ts` |
 | Gf / Rf XLS | disgiunti, **entrambi +3** | `calculate-fantavote.ts` + `09_DECISIONI` |
 | Formazione mancante | auto-carry ultima USER o COACH + −2 FP (−1 classifica); else forfait | `auto-carry-*.ts`, `lineup-penalties.ts` |
 | Voti | XLS Fantacalcio, match `Cod.` = `externalId` | `lib/server/votes/*` |

@@ -30,30 +30,31 @@ Totale: 25. Il riferimento a "22" nel file sorgente era un errore.
 
 `non giocato = SV`. Nessuno stato nuovo. Si riusa `isSv` e la logica sostituzione gia esistente.
 
-### 3. Fasce gol nuove — DECISA
+### 3. Fasce gol — aggiornata 2026-08-08
 
 Regola formale:
 
-- `score <= 25` → 0 gol
-- oltre 25: +1 gol ogni 2 punti di fantavoto
+- `score < 25` → 0 gol
+- da 25 in poi: già 1 gol, poi +1 ogni 2 fantapunti
 
 Formula:
 
 ```text
-goals = score <= 25 ? 0 : Math.floor((score - 25) / 2)
+goals = score < 25 ? 0 : 1 + Math.floor((score - 25) / 2)
 ```
 
 Esempi:
 
 | Score | Gol |
 |-------|-----|
-| 25.0  | 0   |
-| 25.5  | 0   |
-| 26.0  | 0   |
-| 27.0  | 1   |
-| 28.9  | 1   |
-| 29.0  | 2   |
-| 31.0  | 3   |
+| 24.9  | 0   |
+| 25.0  | 1   |
+| 25.5  | 1   |
+| 26.9  | 1   |
+| 27.0  | 2   |
+| 28.9  | 2   |
+| 29.0  | 3   |
+| 31.0  | 4   |
 
 ## Fase 2 - Modifiche consigliate per prime
 
