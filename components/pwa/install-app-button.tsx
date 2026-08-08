@@ -114,13 +114,13 @@ export function InstallAppButton() {
   }
 
   return (
-    <div className="relative" ref={tipRef}>
+    <div className="relative sm:hidden" ref={tipRef}>
       <button
         type="button"
         onClick={() => {
           void handleInstallClick();
         }}
-        className="btn-brand-secondary w-full text-center sm:w-auto"
+        className="btn-brand-secondary w-full text-center"
         aria-expanded={needsManualHint ? hintOpen : undefined}
         aria-controls={needsManualHint ? "install-app-hint" : undefined}
       >
