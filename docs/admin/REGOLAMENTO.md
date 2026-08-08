@@ -176,10 +176,11 @@ Si considerano solo le partite in stato **PUBLISHED**.
 In caso di parità, l’ordine è:
 
 1. **Punti** di classifica (maggiori → meglio)
-2. **Differenza reti** (gol fatti − gol subiti)
-3. **Gol fatti**
-4. **Fantapunti totali** (somma dei punteggi squadra nelle partite pubblicate)
-5. In ultima istanza: nome squadra (ordine alfabetico italiano)
+2. **Fantapunti totali** (somma dei punteggi squadra nelle partite pubblicate)
+3. **Differenza reti** (gol fatti − gol subiti)
+4. **Scelta dell’Admin** (priorità impostata su `/admin/leagues/[id]/standings`)
+
+Finché l’Admin non risolve una parità residua, la classifica pubblica usa un ordine stabile temporaneo per nome; l’Admin vede il badge **Parità** e può scegliere chi sta sopra.
 
 ---
 
@@ -257,7 +258,7 @@ Il risultato manuale Admin resta un override alternativo al calcolo da voti.
 | Auto-sub | Stesso ruolo; max 1/ruolo (max 4); senza sub → 0 |
 | Gol | `<25 → 0`; da 25: `1 + floor((score−25)/2)` |
 | Formazione mancante | Recupero ultima USER o COACH + −2 FP (−1 classifica in lega); altrimenti forfait 3–0 + −1 |
-| Classifica | Punti (anche <0) → DR → gol fatti → fantapunti |
+| Classifica | Punti (anche <0) → fantapunti → DR → scelta Admin |
 | Torneo | 4/8/16/32/64; A/R tranne finale; gol→FP→seed→Admin; solo −2 FP su recupero |
 | Coach | Solo formazioni |
 

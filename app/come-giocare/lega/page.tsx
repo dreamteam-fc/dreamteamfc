@@ -235,6 +235,19 @@ export default function ComeGiocareLegaPage() {
           aperte” / “Formazioni chiuse”) ma non il risultato definitivo.
         </p>
         <p>
+          A parità in classifica: prima i{" "}
+          <strong>fantapunti totali</strong>, poi la{" "}
+          <strong>differenza reti</strong>; se resta parità decide
+          l&apos;admin. Dettaglio:{" "}
+          <Link
+            href="/regolamento#classifica"
+            className="font-semibold text-brand-blue"
+          >
+            Regolamento § Classifica
+          </Link>
+          .
+        </p>
+        <p>
           I gol della partita fantasy si calcolano dai fantapunti squadra: sotto
           25 → 0 gol; da 25 in poi già 1 gol, poi +1 ogni 2 fantapunti. Dettaglio
           e tabella:{" "}

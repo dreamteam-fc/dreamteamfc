@@ -53,6 +53,7 @@ Sintomi storici: `42P05` prepared statements, `P1001`, `EMAXCONNSESSION`, `Trans
 - Voti: match **`Cod.` = externalId`** sorgente Fantacalcio  
 - **Gf / Rf disgiunti e entrambi +3** (`penaltiesScored` entra in `calculate-fantavote`)  
 - Formazione mancante: auto-carry `USER|COACH` + penali; altrimenti forfait (vedi `REGOLAMENTO` §4 / `lineup-penalties.ts`)  
+- Classifica lega: punti → fantapunti → DR → scelta Admin (`standingsTieBreakRank`)  
 
 ### DON’T
 

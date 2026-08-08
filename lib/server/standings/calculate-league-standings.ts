@@ -4,6 +4,11 @@ import { prisma } from "../../prisma.ts";
 import { AUTO_LINEUP_LEAGUE_POINTS_PENALTY } from "../../scoring/lineup-penalties.ts";
 import { getFixtureForfeitOutcome } from "../fixtures/fixture-forfeit.ts";
 import { prismaDecimalToNumber } from "../votes/shared.ts";
+import {
+  compareLeagueStandingRows,
+  findStandingTieGroups,
+  standingTieGroupNeedsAdmin
+} from "./compare-league-standings.ts";
 
 export type LeagueStandingRow = {
   bestFantasyScore: number;
@@ -15,7 +20,10 @@ export type LeagueStandingRow = {
   logoPath: string | null;
   logoUpdatedAt: Date | null;
   losses: number;
+  /** True when this row is in a points/FP/GD tie still unresolved by admin. */
+  needsAdminTieBreak: boolean;
   played: number;
+  standingsTieBreakRank: number | null;
   teamId: string;
   teamName: string;
   wins: number;
@@ -24,6 +32,10 @@ export type LeagueStandingRow = {
 
 export type CalculateLeagueStandingsResult = {
   leagueId: string;
+  pendingTieGroups: Array<{
+    teamIds: string[];
+    teamNames: string[];
+  }>;
   standings: LeagueStandingRow[];
 };
 
@@ -43,6 +55,7 @@ function createEmptyStanding(team: {
   id: string;
   logoPath: string | null;
   name: string;
+  standingsTieBreakRank: number | null;
   updatedAt: Date;
 }): LeagueStandingRow {
   return {
@@ -56,7 +69,9 @@ function createEmptyStanding(team: {
     logoPath: team.logoPath,
     logoUpdatedAt: team.logoPath ? team.updatedAt : null,
     losses: 0,
+    needsAdminTieBreak: false,
     played: 0,
+    standingsTieBreakRank: team.standingsTieBreakRank,
     teamId: team.id,
     teamName: team.name,
     wins: 0
@@ -134,6 +149,7 @@ export async function calculateLeagueStandings(
         id: true,
         logoPath: true,
         name: true,
+        standingsTieBreakRank: true,
         updatedAt: true
       }
     }),
@@ -217,28 +233,26 @@ export async function calculateLeagueStandings(
     goalDifference: standing.goalsFor - standing.goalsAgainst
   }));
 
-  rows.sort((left, right) => {
-    if (right.leaguePoints !== left.leaguePoints) {
-      return right.leaguePoints - left.leaguePoints;
-    }
+  rows.sort(compareLeagueStandingRows);
 
-    if (right.goalDifference !== left.goalDifference) {
-      return right.goalDifference - left.goalDifference;
-    }
+  const pendingTieGroups = findStandingTieGroups(rows)
+    .filter((group) => standingTieGroupNeedsAdmin(group))
+    .map((group) => ({
+      teamIds: group.map((row) => row.teamId),
+      teamNames: group.map((row) => row.teamName)
+    }));
 
-    if (right.goalsFor !== left.goalsFor) {
-      return right.goalsFor - left.goalsFor;
-    }
+  const pendingTeamIds = new Set(
+    pendingTieGroups.flatMap((group) => group.teamIds)
+  );
 
-    if (right.fantasyPointsTotal !== left.fantasyPointsTotal) {
-      return right.fantasyPointsTotal - left.fantasyPointsTotal;
-    }
-
-    return left.teamName.localeCompare(right.teamName, "it");
-  });
+  for (const row of rows) {
+    row.needsAdminTieBreak = pendingTeamIds.has(row.teamId);
+  }
 
   return {
     leagueId,
+    pendingTieGroups,
     standings: rows
   };
 }

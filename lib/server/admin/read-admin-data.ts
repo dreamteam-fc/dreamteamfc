@@ -589,6 +589,7 @@ export async function getAdminLeagueStandingsData(leagueId: string) {
 
   return {
     league,
+    pendingTieGroups: standingsResult.pendingTieGroups,
     standings: standingsResult.standings
   };
 }

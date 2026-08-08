@@ -38,6 +38,10 @@ import {
 import { autoResolveCompletedSeriesWinners } from "@/lib/server/tournaments/auto-resolve-series-winners.ts";
 import { listPendingTournamentSeriesTies } from "@/lib/server/tournaments/pending-series-ties.ts";
 import { pickTournamentSeriesWinner } from "@/lib/server/tournaments/pick-tournament-series-winner.ts";
+import {
+  clearLeagueStandingsTieBreakOrder,
+  setLeagueStandingsTieBreakOrder
+} from "@/lib/server/standings/set-standings-tiebreak.ts";
 import { recordTournamentFixtureResult } from "@/lib/server/tournaments/record-tournament-result.ts";
 import { saveTournamentEntries } from "@/lib/server/tournaments/tournament-entries.ts";
 import {
@@ -820,6 +824,60 @@ export async function pickTournamentSeriesWinnerAction(formData: FormData) {
         error instanceof Error
           ? error.message
           : "Selezione vincitore serie non riuscita."
+    });
+  }
+}
+
+export async function setLeagueStandingsTieBreakOrderAction(formData: FormData) {
+  await assertAdminAction();
+  const leagueId = readRequiredString(formData, "leagueId");
+  const orderedTeamIds = formData
+    .getAll("orderedTeamIds")
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => value.length > 0);
+
+  try {
+    await setLeagueStandingsTieBreakOrder({ leagueId, orderedTeamIds });
+    revalidatePath(`/admin/leagues/${leagueId}/standings`);
+    revalidatePath(`/leagues/${leagueId}/standings`);
+    revalidatePath(`/leagues/${leagueId}`);
+    redirectWithMessage(`/admin/leagues/${leagueId}/standings`, {
+      notice: "Parità di classifica risolta dall'admin."
+    });
+  } catch (error) {
+    redirectWithMessage(`/admin/leagues/${leagueId}/standings`, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Salvataggio ordine classifica non riuscito."
+    });
+  }
+}
+
+export async function clearLeagueStandingsTieBreakOrderAction(
+  formData: FormData
+) {
+  await assertAdminAction();
+  const leagueId = readRequiredString(formData, "leagueId");
+  const teamIds = formData
+    .getAll("teamIds")
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => value.length > 0);
+
+  try {
+    await clearLeagueStandingsTieBreakOrder({ leagueId, teamIds });
+    revalidatePath(`/admin/leagues/${leagueId}/standings`);
+    revalidatePath(`/leagues/${leagueId}/standings`);
+    revalidatePath(`/leagues/${leagueId}`);
+    redirectWithMessage(`/admin/leagues/${leagueId}/standings`, {
+      notice: "Scelta admin sulla parità resettata."
+    });
+  } catch (error) {
+    redirectWithMessage(`/admin/leagues/${leagueId}/standings`, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Reset ordine classifica non riuscito."
     });
   }
 }

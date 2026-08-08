@@ -27,6 +27,7 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 | Eliminare propria formazione (owner/coach) | `deleteOwnMatchdayLineupAction` su `/me/.../lineup` (solo OPEN) |
 | Source USER vs COACH (badge MISTER) | `lineup-source.ts` + save lineup lega/torneo |
 | Penali −2 FP / −1 classifica | `lib/scoring/lineup-penalties.ts` + `calculate-matchday-scores.ts` + `calculate-league-standings.ts` |
+| Tie-break classifica lega | `compare-league-standings.ts` + `set-standings-tiebreak.ts` + admin standings page |
 | Pubblicare giornata | `lib/server/matchdays/publish-matchday.ts` |
 | Classifica | `lib/server/standings/calculate-league-standings.ts`, UI `app/leagues/` |
 

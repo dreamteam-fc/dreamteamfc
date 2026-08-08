@@ -13,6 +13,11 @@ import {
   applyPublishedFixtureToStandings,
   type LeagueStandingRow
 } from "../lib/server/standings/calculate-league-standings.ts";
+import {
+  compareLeagueStandingRows,
+  findStandingTieGroups,
+  standingTieGroupNeedsAdmin
+} from "../lib/server/standings/compare-league-standings.ts";
 import { publishMatchday } from "../lib/server/matchdays/publish-matchday.ts";
 
 const DEMO_LEAGUE_NAME = "Lega Fantacalcetto Demo";
@@ -29,7 +34,9 @@ function createEmptyStanding(teamId: string, teamName: string): LeagueStandingRo
     logoPath: null,
     logoUpdatedAt: null,
     losses: 0,
+    needsAdminTieBreak: false,
     played: 0,
+    standingsTieBreakRank: null,
     teamId,
     teamName,
     wins: 0
@@ -40,6 +47,76 @@ function assert(condition: unknown, message: string) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function runStandingTieBreakChecks() {
+  const a = {
+    fantasyPointsTotal: 100,
+    goalDifference: 5,
+    leaguePoints: 20,
+    standingsTieBreakRank: null as number | null,
+    teamId: "a",
+    teamName: "Alpha"
+  };
+  const b = {
+    fantasyPointsTotal: 110,
+    goalDifference: 1,
+    leaguePoints: 20,
+    standingsTieBreakRank: null as number | null,
+    teamId: "b",
+    teamName: "Beta"
+  };
+  const c = {
+    fantasyPointsTotal: 100,
+    goalDifference: 5,
+    leaguePoints: 20,
+    standingsTieBreakRank: 2 as number | null,
+    teamId: "c",
+    teamName: "Charlie"
+  };
+  const d = {
+    fantasyPointsTotal: 100,
+    goalDifference: 5,
+    leaguePoints: 20,
+    standingsTieBreakRank: 1 as number | null,
+    teamId: "d",
+    teamName: "Delta"
+  };
+
+  assert(
+    compareLeagueStandingRows(b, a) < 0,
+    "Expected more fantapunti to rank above equal points."
+  );
+  assert(
+    compareLeagueStandingRows(d, c) < 0,
+    "Expected admin rank 1 above rank 2 on full auto tie."
+  );
+
+  const sorted = [a, b, c, d].sort(compareLeagueStandingRows);
+  assert(sorted[0]?.teamId === "b", "Expected Beta first on fantapunti.");
+  assert(
+    sorted[1]?.teamId === "d" && sorted[2]?.teamId === "c",
+    "Expected admin order Delta then Charlie."
+  );
+
+  const groups = findStandingTieGroups(
+    [
+      { ...b, goalDifference: 1 },
+      { ...d, goalDifference: 5 },
+      { ...c, goalDifference: 5 },
+      { ...a, goalDifference: 5 }
+    ].sort(compareLeagueStandingRows)
+  );
+  assert(groups.length === 1, "Expected one auto-criteria tie group of 3.");
+  assert(groups[0]?.length === 3, "Expected Alpha/Charlie/Delta tied on auto.");
+  assert(
+    standingTieGroupNeedsAdmin([a, { ...a, teamName: "Zed" }]),
+    "Expected unresolved group without ranks."
+  );
+  assert(
+    !standingTieGroupNeedsAdmin([d, c]),
+    "Expected resolved group with ranks 1 and 2."
+  );
 }
 
 function runFixtureForfeitScenarioChecks() {
@@ -201,6 +278,7 @@ function runFixtureForfeitScenarioChecks() {
 }
 
 async function main() {
+  runStandingTieBreakChecks();
   runFixtureForfeitScenarioChecks();
   try {
     const matchday = await prisma.matchday.findFirst({

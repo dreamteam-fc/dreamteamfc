@@ -209,27 +209,29 @@ model LeagueBlockedPlayer {
 }
 
 model FantasyTeam {
-  id           String           @id @default(cuid())
-  leagueId     String
-  userId       String
-  name         String
-  logoPath     String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  league       League           @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roster       FantasyRoster[]
-  lineups      Lineup[]
-  teamScores   TeamScore[]
-  homeFixtures FantasyFixture[] @relation("FantasyFixtureHomeTeam")
-  awayFixtures FantasyFixture[] @relation("FantasyFixtureAwayTeam")
-  coachInvites TeamCoachInvite[]
-  coaches      TeamCoach[]
-  tournamentEntries TournamentTeamEntry[]
+  id                     String           @id @default(cuid())
+  leagueId               String
+  userId                 String
+  name                   String
+  logoPath               String?
+  /// Priorità admin su parità di classifica (punti=FP=DR): valore più basso = posto migliore. Null = non deciso.
+  standingsTieBreakRank  Int?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  league                 League           @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roster                 FantasyRoster[]
+  lineups                Lineup[]
+  teamScores             TeamScore[]
+  homeFixtures           FantasyFixture[] @relation("FantasyFixtureHomeTeam")
+  awayFixtures           FantasyFixture[] @relation("FantasyFixtureAwayTeam")
+  coachInvites           TeamCoachInvite[]
+  coaches                TeamCoach[]
+  tournamentEntries      TournamentTeamEntry[]
   tournamentHomeFixtures TournamentFixture[] @relation("TournamentFixtureHomeTeam")
   tournamentAwayFixtures TournamentFixture[] @relation("TournamentFixtureAwayTeam")
-  tournamentSeriesWins TournamentFixture[] @relation("TournamentFixtureSeriesWinner")
-  tournamentLineups TournamentLineup[]
+  tournamentSeriesWins   TournamentFixture[] @relation("TournamentFixtureSeriesWinner")
+  tournamentLineups      TournamentLineup[]
 
   @@unique([leagueId, userId])
   @@index([userId])

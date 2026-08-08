@@ -234,10 +234,10 @@ npm run players:import-api-football
 ### Risultato atteso
 - Ordinamento per:
   1. punti
-  2. differenza reti
-  3. gol fatti
-  4. fantapunti totali
-  5. nome squadra
+  2. fantapunti totali
+  3. differenza reti
+  4. scelta admin (`standingsTieBreakRank`)
+- Su `/admin/leagues/[id]/standings`: badge **Parità** e bottoni per risolvere i gruppi ancora pari.
 
 ### Edge case
 - Formazione **recuperata** (copia ultima `USER` o `COACH`; mai da `AUTO_CARRIED`/`ADMIN_RANDOM`): −2 fantapunti e −1 punto classifica (anche in vittoria; classifica può essere &lt; 0). In torneo: solo −2 FP.

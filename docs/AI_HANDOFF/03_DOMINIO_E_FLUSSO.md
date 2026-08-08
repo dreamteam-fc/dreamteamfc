@@ -96,6 +96,18 @@ Costanti: `lib/scoring/lineup-penalties.ts`.
 Dopo lock: titolare SV → entra panchina **stesso ruolo** (max 1 per ruolo).  
 Manca panchina stesso ruolo → titolare resta 0.
 
+### Classifica lega (tie-break)
+
+```text
+1) punti
+2) fantapunti totali
+3) differenza reti
+4) scelta Admin (FantasyTeam.standingsTieBreakRank; più basso = meglio)
+```
+
+UI: `/admin/leagues/[id]/standings` — gruppi in parità con **Metti 1°**.  
+Libs: `compare-league-standings.ts`, `set-standings-tiebreak.ts`, `calculate-league-standings.ts`.
+
 ---
 
 ## Torneo (cross-league)

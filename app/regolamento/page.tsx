@@ -470,10 +470,9 @@ export default function RegolamentoPage() {
             <Subheading>In caso di parità</Subheading>
             <ol className="list-decimal space-y-2 pl-5">
               <li>Punti di classifica</li>
-              <li>Differenza reti</li>
-              <li>Gol fatti</li>
               <li>Fantapunti totali</li>
-              <li>Nome squadra (ordine alfabetico)</li>
+              <li>Differenza reti</li>
+              <li>Scelta dell&apos;admin</li>
             </ol>
           </div>
         </Section>
@@ -607,7 +606,7 @@ export default function RegolamentoPage() {
                   ],
                   [
                     "Classifica",
-                    "Punti (anche <0) → DR → gol fatti → fantapunti"
+                    "Punti (anche <0) → fantapunti → DR → scelta admin"
                   ],
                   [
                     "Torneo",

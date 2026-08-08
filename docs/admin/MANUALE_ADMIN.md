@@ -223,6 +223,12 @@ L’owner/coach può eliminare la propria formazione da `/me/teams/.../lineup` s
 - Da **25** in poi: **1 gol**, poi **+1 ogni 2 fantapunti**  
   (`1 + floor((score − 25) / 2)`)
 
+### Classifica (tie-break)
+
+Ordine: **punti → fantapunti totali → differenza reti → scelta Admin**.
+
+Se resta parità dopo i primi 3 criteri: su **`/admin/leagues/[id]/standings`** usa **Metti 1°** sul gruppo evidenziato (campo `standingsTieBreakRank`).
+
 ### Forfait / formazione recuperata
 
 Alla **chiusura formazioni**, se manca la formazione:
