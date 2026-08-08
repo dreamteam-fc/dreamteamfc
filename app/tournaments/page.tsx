@@ -20,16 +20,26 @@ export default async function TournamentsPage() {
         <header className="overflow-hidden rounded-3xl bg-brand-void text-white shadow-brand">
           <div className="brand-spectrum-bar" />
           <div className="bg-brand-aurora px-6 py-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-mute">
-              Dream Team FC
-            </p>
-            <h1 className="mt-3 font-display text-3xl font-bold uppercase tracking-wide sm:text-4xl">
-              Tornei
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm text-brand-mute sm:text-base">
-              Tornei cross-lega a eliminazione. Se sei stato selezionato,
-              sblocca l&apos;accesso con la password e schiera le formazioni.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-mute">
+                  Dream Team FC
+                </p>
+                <h1 className="mt-3 font-display text-3xl font-bold uppercase tracking-wide sm:text-4xl">
+                  Tornei
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm text-brand-mute sm:text-base">
+                  Tornei cross-lega a eliminazione. Se sei stato selezionato,
+                  sblocca l&apos;accesso con la password e schiera le formazioni.
+                </p>
+              </div>
+              <Link
+                href="/me"
+                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                Torna alla dashboard
+              </Link>
+            </div>
           </div>
         </header>
 

@@ -95,6 +95,7 @@ Reset lega meno distruttivo (script/admin): `lib/server/admin/reset-league-data.
 | `/admin/tournaments` | Lista / new |
 | `.../entries` | Squadre + lega + password |
 | `.../bracket` | Apri/chiudi formazioni fase, voti XLS per leg, calcola, pick tie, reset |
+| `.../rounds/[roundId]/votes?leg=` | Pagelle singole torneo (come matchday votes) |
 
 Libs tipiche: `generate-tournament-bracket.ts`, `open/lock-tournament-round-lineups.ts`, `import-tournament-votes.ts`, `calculate-tournament-round-results.ts`, `pick-tournament-series-winner.ts`, `reset-tournament-round-results.ts`, `reset-tournament-to-entries.ts`.
 

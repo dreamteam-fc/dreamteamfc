@@ -1,11 +1,17 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
+
+const headerActionClassName =
+  "rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20";
 
 type BrandHeaderProps = {
   actions?: ReactNode;
   children?: ReactNode;
   description?: string;
+  /** Link to /me. Default true for user-facing pages. */
+  showDashboardLink?: boolean;
   title: string;
 };
 
@@ -13,8 +19,11 @@ export function BrandHeader({
   actions,
   children,
   description,
+  showDashboardLink = true,
   title
 }: BrandHeaderProps) {
+  const hasActions = showDashboardLink || actions != null;
+
   return (
     <header className="overflow-hidden rounded-3xl bg-brand-void text-white shadow-brand">
       <div className="brand-spectrum-bar" />
@@ -34,11 +43,20 @@ export function BrandHeader({
               {children}
             </div>
           </div>
-          {actions ? (
-            <div className="flex flex-wrap items-center gap-3">{actions}</div>
+          {hasActions ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {showDashboardLink ? (
+                <Link href="/me" className={headerActionClassName}>
+                  Torna alla dashboard
+                </Link>
+              ) : null}
+              {actions}
+            </div>
           ) : null}
         </div>
       </div>
     </header>
   );
 }
+
+export { headerActionClassName as brandHeaderActionClassName };

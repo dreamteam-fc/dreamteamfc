@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BrandHeader } from "@/components/brand/brand-header";
+import { BrandHeader, brandHeaderActionClassName } from "@/components/brand/brand-header";
 
 export const metadata: Metadata = {
   title: "Regolamento | Dream Team FC",
@@ -68,15 +68,12 @@ export default function RegolamentoPage() {
           description="Le regole ufficiali di Dream Team FC: come funziona la rosa, la formazione, i fantavoti, la classifica e i tornei."
           actions={
             <>
-              <Link
-                href="/"
-                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-              >
+              <Link href="/" className={brandHeaderActionClassName}>
                 Home
               </Link>
               <Link
                 href="/come-giocare"
-                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+                className={brandHeaderActionClassName}
               >
                 Come giocare
               </Link>

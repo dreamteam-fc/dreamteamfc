@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-import { BrandHeader } from "@/components/brand/brand-header";
+import {
+  BrandHeader,
+  brandHeaderActionClassName
+} from "@/components/brand/brand-header";
 
 export const guideSections = [
   {
@@ -37,9 +40,6 @@ type GuideShellProps = {
   title: string;
 };
 
-const headerActionClassName =
-  "rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20";
-
 export function GuideShell({
   children,
   currentHref,
@@ -63,14 +63,11 @@ export function GuideShell({
           description={description}
           actions={
             <>
-              <Link href="/" className={headerActionClassName}>
+              <Link href="/" className={brandHeaderActionClassName}>
                 Home
               </Link>
-              <Link href="/regolamento" className={headerActionClassName}>
+              <Link href="/regolamento" className={brandHeaderActionClassName}>
                 Regolamento
-              </Link>
-              <Link href="/me" className={headerActionClassName}>
-                La mia area
               </Link>
             </>
           }

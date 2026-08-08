@@ -1401,3 +1401,182 @@ export async function getAdminLeagueTeamsData(leagueId: string) {
     teamsWithCompleteRoster
   };
 }
+
+export async function getAdminTournamentRoundVotesData(
+  tournamentId: string,
+  roundId: string,
+  options: {
+    leg: 1 | 2;
+    roleFilter?: PlayerRoleFilter;
+    searchQuery?: string;
+    statusFilter?: AdminVoteStatusFilter;
+  }
+) {
+  const roleFilter = options.roleFilter ?? "ALL";
+  const statusFilter = options.statusFilter ?? "ALL";
+  const normalizedSearchQuery = options.searchQuery?.trim() ?? "";
+  const leg = options.leg;
+
+  const round = await prisma.tournamentRound.findFirst({
+    where: {
+      id: roundId,
+      tournamentId
+    },
+    select: {
+      id: true,
+      isFinal: true,
+      name: true,
+      lineupsStatusLeg1: true,
+      lineupsStatusLeg2: true,
+      tournament: {
+        select: {
+          id: true,
+          name: true,
+          status: true
+        }
+      },
+      requiredVotes: {
+        where: { leg },
+        include: {
+          player: {
+            select: {
+              id: true,
+              isActive: true,
+              name: true,
+              role: true,
+              teamName: true
+            }
+          }
+        }
+      },
+      playerVotes: {
+        where: { leg },
+        select: {
+          assists: true,
+          baseVote: true,
+          cleanSheet: true,
+          finalFantavote: true,
+          goals: true,
+          goalsConceded: true,
+          id: true,
+          isSv: true,
+          notes: true,
+          ownGoals: true,
+          penaltiesMissed: true,
+          penaltiesSaved: true,
+          penaltiesScored: true,
+          playerId: true,
+          redCards: true,
+          status: true,
+          yellowCards: true
+        }
+      }
+    }
+  });
+
+  if (!round) {
+    return null;
+  }
+
+  if (round.isFinal && leg !== 1) {
+    return null;
+  }
+
+  const votesByPlayerId = new Map(
+    round.playerVotes.map((vote) => [vote.playerId, vote])
+  );
+  const pendingCount = round.requiredVotes.filter(
+    (record) => record.status === "PENDING"
+  ).length;
+  const completedStatusCount = round.requiredVotes.filter(
+    (record) => record.status === "COMPLETED"
+  ).length;
+  const svCount = round.requiredVotes.filter(
+    (record) => record.status === "SV"
+  ).length;
+  const ignoredCount = round.requiredVotes.filter(
+    (record) => record.status === "IGNORED"
+  ).length;
+  const completedCount = round.requiredVotes.filter(
+    (record) => record.status !== "PENDING"
+  ).length;
+  const missingCount = round.requiredVotes.length - completedCount;
+
+  const allRequiredVotePlayers = round.requiredVotes
+    .map((requiredVotePlayer) => {
+      const playerVote = votesByPlayerId.get(requiredVotePlayer.playerId);
+
+      return {
+        player: {
+          ...requiredVotePlayer.player,
+          isUnavailable: !requiredVotePlayer.player.isActive
+        },
+        playerVote: playerVote
+          ? {
+              ...playerVote,
+              baseVote: prismaDecimalToNumber(playerVote.baseVote),
+              finalFantavote: prismaDecimalToNumber(playerVote.finalFantavote)
+            }
+          : null,
+        status: requiredVotePlayer.status,
+        usageCount: requiredVotePlayer.usageCount
+      };
+    })
+    .sort((left, right) => {
+      const statusDiff =
+        REQUIRED_VOTE_STATUS_ORDER[left.status] -
+        REQUIRED_VOTE_STATUS_ORDER[right.status];
+
+      if (statusDiff !== 0) {
+        return statusDiff;
+      }
+
+      return left.player.name.localeCompare(right.player.name, "it");
+    });
+
+  const filteredRequiredVotePlayers = allRequiredVotePlayers.filter((record) => {
+    const matchesSearch =
+      normalizedSearchQuery.length === 0 ||
+      record.player.name
+        .toLocaleLowerCase("it")
+        .includes(normalizedSearchQuery.toLocaleLowerCase("it"));
+    const matchesRole =
+      roleFilter === "ALL" || record.player.role === roleFilter;
+    const matchesStatus =
+      statusFilter === "ALL" || record.status === statusFilter;
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  return {
+    completion: {
+      completedCount,
+      completedStatusCount,
+      ignoredCount,
+      isComplete: round.requiredVotes.length > 0 && missingCount === 0,
+      missingCount,
+      pendingCount,
+      svCount,
+      totalRequired: round.requiredVotes.length
+    },
+    filters: {
+      leg,
+      roleFilter,
+      searchQuery: normalizedSearchQuery,
+      statusFilter
+    },
+    round: {
+      id: round.id,
+      isFinal: round.isFinal,
+      lineupsStatus:
+        leg === 2 ? round.lineupsStatusLeg2 : round.lineupsStatusLeg1,
+      name: round.name,
+      requiredVotePlayers: filteredRequiredVotePlayers,
+      tournament: round.tournament
+    },
+    totals: {
+      filteredCount: filteredRequiredVotePlayers.length,
+      totalCount: allRequiredVotePlayers.length
+    }
+  };
+}

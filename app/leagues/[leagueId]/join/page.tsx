@@ -50,7 +50,16 @@ export default async function JoinLeaguePage({
         <BrandPanel
           title="Entra nella lega"
           description={`Lega ${data.league.name} | Membri ${data.league._count.members} | Squadre ${data.league._count.fantasyTeams}/${data.league.maxTeams}`}
-        />
+        >
+          <div className="mt-5">
+            <Link
+              href="/me"
+              className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+            >
+              Torna alla dashboard
+            </Link>
+          </div>
+        </BrandPanel>
 
         <Feedback error={error} />
 

@@ -59,7 +59,7 @@ export default async function TournamentPublicPage({
                 Tutti i tornei
               </Link>
               <Link href="/me" className="btn-brand-secondary">
-                Area utente
+                Torna alla dashboard
               </Link>
             </div>
           </div>

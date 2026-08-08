@@ -33,6 +33,7 @@ import {
 } from "@/lib/server/tournaments/generate-random-tournament-lineups-for-round.ts";
 import {
   generateTournamentRequiredVotes,
+  saveTournamentPlayerVote,
   tournamentVoteLegLabel
 } from "@/lib/server/tournaments/tournament-votes.ts";
 import { autoResolveCompletedSeriesWinners } from "@/lib/server/tournaments/auto-resolve-series-winners.ts";
@@ -605,6 +606,46 @@ function buildBulkVoteInput(formData: FormData, matchdayId: string, playerId: st
   };
 }
 
+function buildBulkTournamentVoteInput(
+  formData: FormData,
+  tournamentRoundId: string,
+  leg: 1 | 2,
+  playerId: string
+) {
+  const parsed = buildBulkVoteInput(formData, tournamentRoundId, playerId);
+  if (parsed.kind !== "save") {
+    return parsed;
+  }
+
+  const { matchdayId: _matchdayId, cleanSheet: _cleanSheet, ...rest } =
+    parsed.input;
+
+  return {
+    kind: "save" as const,
+    input: {
+      ...rest,
+      leg,
+      tournamentRoundId
+    }
+  };
+}
+
+function revalidateTournamentVotePaths(
+  tournamentId: string,
+  roundId: string,
+  leg: 1 | 2
+) {
+  revalidatePath("/admin/tournaments");
+  revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
+  revalidatePath(
+    `/admin/tournaments/${tournamentId}/rounds/${roundId}/votes`
+  );
+  revalidatePath(
+    `/admin/tournaments/${tournamentId}/rounds/${roundId}/votes?leg=${leg}`
+  );
+  revalidatePath(`/tournaments/${tournamentId}`);
+}
+
 export async function generateRequiredVotePlayersAction(formData: FormData) {
   await assertVotesAction();
   const matchdayId = readRequiredString(formData, "matchdayId");
@@ -998,7 +1039,9 @@ export async function importTournamentRoundVotesAction(formData: FormData) {
   const roundId = readRequiredString(formData, "roundId");
   const sheetNameRaw = readOptionalString(formData, "sheetName");
   const fileValue = formData.get("votesFile");
-  const redirectPath = `/admin/tournaments/${tournamentId}/bracket`;
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ??
+    `/admin/tournaments/${tournamentId}/bracket`;
 
   let notice: string | undefined;
   let errorMessage: string | undefined;
@@ -1022,7 +1065,7 @@ export async function importTournamentRoundVotesAction(formData: FormData) {
       sheetName: sheetNameRaw || undefined
     });
 
-    revalidatePath(redirectPath);
+    revalidateTournamentVotePaths(tournamentId, roundId, leg);
     const unmatchedPreview =
       result.skippedUnmatchedCodes.length > 0
         ? ` Codici non in DB: ${result.skippedUnmatchedCodes.slice(0, 8).join(", ")}${result.skippedUnmatchedCodes.length > 8 ? "…" : ""}.`
@@ -1078,22 +1121,132 @@ export async function generateTournamentRoundRequiredVotesAction(
   await assertAdminAction();
   const tournamentId = readRequiredString(formData, "tournamentId");
   const roundId = readRequiredString(formData, "roundId");
+  const redirectPath =
+    readOptionalString(formData, "redirectPath") ??
+    `/admin/tournaments/${tournamentId}/bracket`;
 
   try {
     const leg = readTournamentVoteLeg(formData);
     const result = await generateTournamentRequiredVotes(roundId, leg);
-    revalidatePath(`/admin/tournaments/${tournamentId}/bracket`);
-    redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
+    revalidateTournamentVotePaths(tournamentId, roundId, leg);
+    redirectWithMessage(redirectPath, {
       notice: `Lista voti ${tournamentVoteLegLabel(result.leg)} generata per ${result.roundName}: ${result.playerCount} giocatori.`
     });
   } catch (error) {
-    redirectWithMessage(`/admin/tournaments/${tournamentId}/bracket`, {
+    redirectWithMessage(redirectPath, {
       error:
         error instanceof Error
           ? error.message
           : "Generazione lista voti torneo non riuscita."
     });
   }
+}
+
+export async function saveBulkTournamentPlayerVotesAction(formData: FormData) {
+  await assertAdminAction();
+  const tournamentId = readRequiredString(formData, "tournamentId");
+  const roundId = readRequiredString(formData, "roundId");
+  const leg = readTournamentVoteLeg(formData);
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  const playerIds = Array.from(
+    new Set(
+      formData
+        .getAll("playerIds")
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => value.length > 0)
+    )
+  );
+
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const savedPlayerIds: string[] = [];
+    const invalidRows: string[] = [];
+    let skippedCount = 0;
+
+    for (const playerId of playerIds) {
+      const playerLabel = readVotePlayerLabel(formData, playerId);
+      const parsedVote = buildBulkTournamentVoteInput(
+        formData,
+        roundId,
+        leg,
+        playerId
+      );
+
+      if (parsedVote.kind === "skip") {
+        skippedCount += 1;
+        continue;
+      }
+
+      if (parsedVote.kind === "invalid") {
+        invalidRows.push(`${playerLabel}: ${parsedVote.reason}`);
+        continue;
+      }
+
+      await saveTournamentPlayerVote(parsedVote.input);
+      savedPlayerIds.push(playerId);
+    }
+
+    revalidateTournamentVotePaths(tournamentId, roundId, leg);
+
+    if (savedPlayerIds.length === 0 && invalidRows.length === 0) {
+      notice =
+        "Nessuna riga compilata da salvare. Le righe vuote sono state ignorate.";
+    } else if (invalidRows.length > 0) {
+      errorMessage = `Salvati ${savedPlayerIds.length} voti. Righe vuote ignorate: ${skippedCount}. Righe non valide: ${invalidRows.join(" | ")}.`;
+    } else {
+      notice = `Salvati ${savedPlayerIds.length} voti. Righe vuote ignorate: ${skippedCount}.`;
+    }
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Salvataggio bulk voti torneo non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
+}
+
+export async function saveSingleTournamentPlayerVoteFromBulkAction(
+  playerId: string,
+  formData: FormData
+) {
+  await assertAdminAction();
+  const tournamentId = readRequiredString(formData, "tournamentId");
+  const roundId = readRequiredString(formData, "roundId");
+  const leg = readTournamentVoteLeg(formData);
+  const redirectPath = readRequiredString(formData, "redirectPath");
+  let notice: string | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const parsedVote = buildBulkTournamentVoteInput(
+      formData,
+      roundId,
+      leg,
+      playerId
+    );
+
+    if (parsedVote.kind === "skip") {
+      throw new Error("Nessun dato da salvare per questo giocatore.");
+    }
+
+    if (parsedVote.kind === "invalid") {
+      throw new Error(`Riga non valida: ${parsedVote.reason}.`);
+    }
+
+    await saveTournamentPlayerVote(parsedVote.input);
+    revalidateTournamentVotePaths(tournamentId, roundId, leg);
+    notice = `Voto salvato per ${playerId}.`;
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Salvataggio voto torneo non riuscito.";
+  }
+
+  redirectWithMessage(redirectPath, { error: errorMessage, notice });
 }
 
 export async function blockPlayerInLeagueAction(formData: FormData) {

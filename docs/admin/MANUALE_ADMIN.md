@@ -309,7 +309,9 @@ Per ogni fase (e per ogni gamba andata/ritorno):
    `/me/teams/[teamId]/tournaments/fixtures/.../lineup`
 3. **Chiudi formazioni**
 4. **Genera lista voti** (per la gamba corretta: andata ≠ ritorno)
-5. **Carica XLS** di quella giornata Serie A / di quella gamba
+5. **Carica XLS** di quella giornata Serie A / di quella gamba  
+   oppure apri **Verifica / modifica voti singoli**  
+   (`/admin/tournaments/[id]/rounds/[roundId]/votes?leg=1|2`) per controllare e correggere i voti come in lega
 6. **Calcola** i risultati da voti
 7. Controlla avanzamento serie sul tabellone
 
@@ -506,6 +508,7 @@ Devi prima completare **WIPE TORNEO**. Ordine: tornei → leghe → lista giocat
 | `/admin/tournaments/new` | Crea torneo |
 | `/admin/tournaments/[id]/entries` | Iscrizioni / seeding |
 | `/admin/tournaments/[id]/bracket` | Tabellone operativo |
+| `/admin/tournaments/[id]/rounds/[roundId]/votes?leg=` | Pagelle torneo (singoli voti, andata/ritorno) |
 | `/leagues/[id]/standings` | Classifica pubblica |
 | `/me/teams/[id]` | Area owner (rosa, coach, logo) |
 | `/me/coach-invites/[token]` | Accettazione coach |

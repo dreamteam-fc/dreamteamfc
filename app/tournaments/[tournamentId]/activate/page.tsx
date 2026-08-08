@@ -36,14 +36,24 @@ export default async function ActivateTournamentPage({
         <section className="overflow-hidden rounded-3xl bg-brand-void text-white shadow-brand">
           <div className="brand-spectrum-bar" />
           <div className="bg-brand-aurora px-6 py-8">
-            <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
-              Sblocca accesso
-            </h1>
-            <p className="mt-3 text-sm text-brand-mute">
-              Torneo <strong className="text-white">{tournament.name}</strong>.
-              Solo le squadre selezionate dall&apos;admin possono entrare, con
-              la password del torneo.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
+                  Sblocca accesso
+                </h1>
+                <p className="mt-3 text-sm text-brand-mute">
+                  Torneo <strong className="text-white">{tournament.name}</strong>.
+                  Solo le squadre selezionate dall&apos;admin possono entrare, con
+                  la password del torneo.
+                </p>
+              </div>
+              <Link
+                href="/me"
+                className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                Torna alla dashboard
+              </Link>
+            </div>
           </div>
         </section>
 

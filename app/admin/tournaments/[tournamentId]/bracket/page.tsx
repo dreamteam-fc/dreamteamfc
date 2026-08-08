@@ -187,6 +187,14 @@ function VoteLegActions({
           {isFinal ? "." : ` per ${legLabel.toLowerCase()}.`}
         </p>
       )}
+      <div className="mt-3">
+        <Link
+          href={`/admin/tournaments/${tournamentId}/rounds/${roundId}/votes?leg=${leg}`}
+          className="inline-flex rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+        >
+          Verifica / modifica voti singoli
+        </Link>
+      </div>
     </div>
   );
 }

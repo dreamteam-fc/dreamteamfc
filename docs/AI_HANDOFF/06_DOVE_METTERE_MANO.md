@@ -74,6 +74,7 @@ Formato: **se vuoi X → tocca Y**. Preferisci `lib/server/*` per logica; `app/*
 | Auto-carry lineup torneo | `auto-carry-tournament-round-lineups.ts` |
 | Lineup utente torneo | `save-tournament-lineup.ts`, route sotto `app/me/teams/.../tournaments/` |
 | Voti XLS torneo | `tournament-votes.ts`, `import-tournament-votes.ts` |
+| UI pagelle torneo (singoli) | `app/admin/tournaments/[tournamentId]/rounds/[roundId]/votes/` |
 | Calcolo leg + avanzamento | `calculate-tournament-round-results.ts`, `record-tournament-result.ts` |
 | Tie admin pick | `pick-tournament-series-winner.ts`, `pending-series-ties.ts` |
 | Reset round / a entries | `reset-tournament-round-results.ts`, `reset-tournament-to-entries.ts` |
