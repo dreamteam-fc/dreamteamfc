@@ -105,10 +105,16 @@ async function countPlayerReferences() {
 }
 
 /**
- * L'import può girare solo a stagione ferma: nessuna giornata di lega tra
- * LINEUPS_OPEN e SCORES_CALCULATED, nessuna gamba di torneo aperta o lockata.
- * Cambiare la lista a giornata in corso sposterebbe il terreno sotto formazioni
- * già salvate e voti già importati.
+ * L'import può girare solo quando nessuno sta schierando: nessuna giornata di
+ * lega tra LINEUPS_OPEN e SCORES_CALCULATED, nessuna gamba di torneo OPEN.
+ *
+ * Il torneo attraversa il mercato di gennaio, quindi la lista *deve* poter
+ * cambiare a tabellone in corso. Una gamba LOCKED non blocca: le formazioni
+ * sono congelate e chi esce dalla lista prende SV automatico all'import voti
+ * (import-tournament-votes.ts), poi la panchina lo sostituisce.
+ * Una gamba OPEN invece sì: saveTournamentLineup valida l'intera rosa, quindi
+ * un giocatore disattivato a finestra aperta paralizza l'utente, che non
+ * riuscirebbe a salvare nemmeno una formazione che non lo contiene.
  */
 async function assertNoGamesInProgress() {
   const [matchdays, openRounds] = await Promise.all([
@@ -127,22 +133,8 @@ async function assertNoGamesInProgress() {
           }
         },
         OR: [
-          {
-            lineupsStatusLeg1: {
-              in: [
-                TournamentRoundLineupsStatus.OPEN,
-                TournamentRoundLineupsStatus.LOCKED
-              ]
-            }
-          },
-          {
-            lineupsStatusLeg2: {
-              in: [
-                TournamentRoundLineupsStatus.OPEN,
-                TournamentRoundLineupsStatus.LOCKED
-              ]
-            }
-          }
+          { lineupsStatusLeg1: TournamentRoundLineupsStatus.OPEN },
+          { lineupsStatusLeg2: TournamentRoundLineupsStatus.OPEN }
         ]
       }
     })
@@ -168,7 +160,7 @@ async function assertNoGamesInProgress() {
 
   if (openRounds > 0) {
     throw new Error(
-      `Import bloccato: ${openRounds} giornate di torneo hanno le formazioni aperte o chiuse ma non concluse. Completa il torneo prima di aggiornare la lista giocatori.`
+      `Import bloccato: ${openRounds} giornate di torneo hanno le formazioni aperte. Chiudi le formazioni del torneo prima di aggiornare la lista giocatori.`
     );
   }
 }

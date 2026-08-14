@@ -201,8 +201,10 @@ export default async function AdminPlayersPage({
               prima di poter riaprire le formazioni.
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              L&apos;upload è possibile solo a stagione ferma: nessuna giornata
-              di lega in corso e nessuna giornata di torneo aperta.
+              L&apos;upload è possibile solo quando nessuno sta schierando:
+              nessuna giornata di lega in corso e nessuna giornata di torneo con
+              le formazioni aperte. A formazioni di torneo già chiuse si può
+              caricare: chi esce dalla lista prende SV.
             </p>
           </div>
           <div

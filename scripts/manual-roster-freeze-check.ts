@@ -60,6 +60,16 @@ function checkLineupSwapSelection() {
   );
 
   assert.deepEqual(selectLineupPlayerIdsToSwap([], ["lineup-a"]), []);
+
+  // Stessa funzione per lega e torneo: i due domini hanno id di formazione
+  // distinti, quindi un conflitto di torneo non deve filtrare righe di lega.
+  const misti = [
+    { id: "lp-lega", lineupId: "lineup-lega" },
+    { id: "lp-torneo", lineupId: "lineup-torneo" }
+  ];
+  assert.deepEqual(selectLineupPlayerIdsToSwap(misti, ["lineup-torneo"]), [
+    "lp-lega"
+  ]);
 }
 
 checkMatchdayInProgress();

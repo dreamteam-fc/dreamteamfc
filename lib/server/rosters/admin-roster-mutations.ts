@@ -1,6 +1,7 @@
 import {
   MatchdayStatus,
   Prisma,
+  TournamentFixtureStatus,
   type PlayerRole,
   type PrismaClient
 } from "@prisma/client";
@@ -71,25 +72,15 @@ const CALCULATED_MATCHDAY_STATUSES = [
   MatchdayStatus.LOCKED
 ];
 
-/**
- * Riporta le formazioni non ancora calcolate sull'entrante.
- *
- * Senza questo l'auto-carry ricopia l'uscente a ogni giornata e la squadra
- * prende SV con la rosa ormai sana. Il ruolo è identico per il vincolo in
- * adminReplacePlayerInRoster, quindi slotType/positionOrder restano validi.
- *
- * ponytail: solo formazioni di lega. Le TournamentLineupPlayer non sono
- * toccate perché il torneo parte dopo il mercato, quindi la lista giocatori
- * non cambia a torneo in corso. Se il calendario slitta, duplicare qui su
- * tournamentLineupPlayer filtrando su tournamentFixture.status != COMPLETED.
- */
-async function swapPlayerInPendingLineups(
+type PendingLineupSwap = {
+  fantasyTeamId: string;
+  incomingPlayerId: string;
+  outgoingPlayerId: string;
+};
+
+async function swapInPendingMatchdayLineups(
   db: DbClient,
-  options: {
-    fantasyTeamId: string;
-    incomingPlayerId: string;
-    outgoingPlayerId: string;
-  }
+  options: PendingLineupSwap
 ) {
   const lineupIdsWithIncoming = (
     await db.lineupPlayer.findMany({
@@ -123,6 +114,66 @@ async function swapPlayerInPendingLineups(
   });
 
   return ids.length;
+}
+
+async function swapInPendingTournamentLineups(
+  db: DbClient,
+  options: PendingLineupSwap
+) {
+  const lineupIdsWithIncoming = (
+    await db.tournamentLineupPlayer.findMany({
+      where: { playerId: options.incomingPlayerId },
+      select: { lineupId: true }
+    })
+  ).map((row) => row.lineupId);
+
+  const targets = await db.tournamentLineupPlayer.findMany({
+    where: {
+      playerId: options.outgoingPlayerId,
+      lineup: {
+        fantasyTeamId: options.fantasyTeamId,
+        tournamentFixture: {
+          status: { not: TournamentFixtureStatus.COMPLETED }
+        }
+      }
+    },
+    select: { id: true, lineupId: true }
+  });
+
+  const ids = selectLineupPlayerIdsToSwap(targets, lineupIdsWithIncoming);
+
+  if (ids.length === 0) {
+    return 0;
+  }
+
+  await db.tournamentLineupPlayer.updateMany({
+    where: { id: { in: ids } },
+    data: { playerId: options.incomingPlayerId }
+  });
+
+  return ids.length;
+}
+
+/**
+ * Riporta sull'entrante tutte le formazioni non ancora calcolate, di lega e di
+ * torneo.
+ *
+ * Senza questo l'auto-carry ricopia l'uscente a ogni giornata e la squadra
+ * prende SV con la rosa ormai sana — nel torneo peggio, perché la copia parte
+ * da round precedenti e il fantasma si propaga fino alla finale.
+ * Il ruolo è identico per il vincolo in adminReplacePlayerInRoster, quindi
+ * slotType/positionOrder restano validi in entrambi i domini.
+ */
+async function swapPlayerInPendingLineups(
+  db: DbClient,
+  options: PendingLineupSwap
+) {
+  const [matchdayLineups, tournamentLineups] = await Promise.all([
+    swapInPendingMatchdayLineups(db, options),
+    swapInPendingTournamentLineups(db, options)
+  ]);
+
+  return matchdayLineups + tournamentLineups;
 }
 
 export async function adminAddPlayerToRoster(options: {
