@@ -1,6 +1,12 @@
-import { Prisma, type PlayerRole, type PrismaClient } from "@prisma/client";
+import {
+  MatchdayStatus,
+  Prisma,
+  type PlayerRole,
+  type PrismaClient
+} from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
+import { selectLineupPlayerIdsToSwap } from "./roster-alignment.ts";
 import {
   assertPlayerFreeInLeague,
   getRosteredPlayerIdsForLeague,
@@ -56,6 +62,67 @@ async function assertPlayerAssignable(
   }
 
   return player;
+}
+
+/** Giornate già chiuse: le formazioni storiche non si toccano. */
+const CALCULATED_MATCHDAY_STATUSES = [
+  MatchdayStatus.SCORES_CALCULATED,
+  MatchdayStatus.PUBLISHED,
+  MatchdayStatus.LOCKED
+];
+
+/**
+ * Riporta le formazioni non ancora calcolate sull'entrante.
+ *
+ * Senza questo l'auto-carry ricopia l'uscente a ogni giornata e la squadra
+ * prende SV con la rosa ormai sana. Il ruolo è identico per il vincolo in
+ * adminReplacePlayerInRoster, quindi slotType/positionOrder restano validi.
+ *
+ * ponytail: solo formazioni di lega. Le TournamentLineupPlayer non sono
+ * toccate perché il torneo parte dopo il mercato, quindi la lista giocatori
+ * non cambia a torneo in corso. Se il calendario slitta, duplicare qui su
+ * tournamentLineupPlayer filtrando su tournamentFixture.status != COMPLETED.
+ */
+async function swapPlayerInPendingLineups(
+  db: DbClient,
+  options: {
+    fantasyTeamId: string;
+    incomingPlayerId: string;
+    outgoingPlayerId: string;
+  }
+) {
+  const lineupIdsWithIncoming = (
+    await db.lineupPlayer.findMany({
+      where: { playerId: options.incomingPlayerId },
+      select: { lineupId: true }
+    })
+  ).map((row) => row.lineupId);
+
+  const targets = await db.lineupPlayer.findMany({
+    where: {
+      playerId: options.outgoingPlayerId,
+      lineup: {
+        fantasyTeamId: options.fantasyTeamId,
+        matchday: {
+          status: { notIn: CALCULATED_MATCHDAY_STATUSES }
+        }
+      }
+    },
+    select: { id: true, lineupId: true }
+  });
+
+  const ids = selectLineupPlayerIdsToSwap(targets, lineupIdsWithIncoming);
+
+  if (ids.length === 0) {
+    return 0;
+  }
+
+  await db.lineupPlayer.updateMany({
+    where: { id: { in: ids } },
+    data: { playerId: options.incomingPlayerId }
+  });
+
+  return ids.length;
 }
 
 export async function adminAddPlayerToRoster(options: {
@@ -271,6 +338,12 @@ export async function adminReplacePlayerInRoster(options: {
           leagueId: team.leagueId,
           playerId: incoming.id
         }
+      });
+
+      await swapPlayerInPendingLineups(tx, {
+        fantasyTeamId: team.id,
+        incomingPlayerId: incoming.id,
+        outgoingPlayerId: outgoing.playerId
       });
 
       return {

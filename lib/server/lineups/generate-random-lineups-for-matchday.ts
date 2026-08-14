@@ -9,6 +9,7 @@ import {
 
 import { getBenchPositionOrderByRole } from "../../lineups/bench-position-order.ts";
 import { prisma as defaultPrisma } from "../../prisma.ts";
+import { assertRostersAligned } from "../rosters/roster-alignment.ts";
 import {
   REQUIRED_TOTAL_LINEUP_PLAYERS,
   validateLineupComposition
@@ -297,6 +298,10 @@ async function persistSubmittedLineup(
 export async function generateRandomLineupsForMatchday(
   options: GenerateRandomLineupsOptions
 ): Promise<GenerateRandomLineupsResult> {
+  // Scrive formazioni senza passare da openMatchdayLineups: il freeze va qui,
+  // altrimenti l'admin popola una giornata mai aperta a rose non allineate.
+  await assertRostersAligned();
+
   const db = options.db ?? defaultPrisma;
   const force = options.force ?? true;
 

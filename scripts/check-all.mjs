@@ -6,6 +6,7 @@ const commands = [
   "npm run scoring:check",
   "npm run fixtures:check",
   "npm run schedule:check",
+  "npm run roster-freeze:check",
   "npm run build",
 ];
 

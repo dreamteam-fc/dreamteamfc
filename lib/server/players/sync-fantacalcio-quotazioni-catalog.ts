@@ -1,3 +1,9 @@
+import {
+  TournamentRoundLineupsStatus,
+  TournamentStatus
+} from "@prisma/client";
+
+import { isMatchdayInProgress } from "../../matchdays/next-useful-matchday.ts";
 import { prisma } from "../../prisma.ts";
 
 import type { ImportedPlayerInput } from "./import-player-list.ts";
@@ -11,6 +17,7 @@ export type PlayerCatalogImportMode = "wipe" | "sync";
 
 export type SyncFantacalcioQuotazioniCatalogResult = {
   createdCount: number;
+  /** Usciti dal file: disattivati (mode=sync). Innescano il freeze rose. */
   inDbNotInFileCount: number;
   mode: PlayerCatalogImportMode;
   otherSourceDeactivatedCount: number;
@@ -95,6 +102,75 @@ async function countPlayerReferences() {
     tournamentVoteCount,
     voteCount
   };
+}
+
+/**
+ * L'import può girare solo a stagione ferma: nessuna giornata di lega tra
+ * LINEUPS_OPEN e SCORES_CALCULATED, nessuna gamba di torneo aperta o lockata.
+ * Cambiare la lista a giornata in corso sposterebbe il terreno sotto formazioni
+ * già salvate e voti già importati.
+ */
+async function assertNoGamesInProgress() {
+  const [matchdays, openRounds] = await Promise.all([
+    prisma.matchday.findMany({
+      select: {
+        number: true,
+        status: true,
+        league: { select: { name: true } }
+      }
+    }),
+    prisma.tournamentRound.count({
+      where: {
+        tournament: {
+          status: {
+            in: [TournamentStatus.BRACKET_GENERATED, TournamentStatus.IN_PROGRESS]
+          }
+        },
+        OR: [
+          {
+            lineupsStatusLeg1: {
+              in: [
+                TournamentRoundLineupsStatus.OPEN,
+                TournamentRoundLineupsStatus.LOCKED
+              ]
+            }
+          },
+          {
+            lineupsStatusLeg2: {
+              in: [
+                TournamentRoundLineupsStatus.OPEN,
+                TournamentRoundLineupsStatus.LOCKED
+              ]
+            }
+          }
+        ]
+      }
+    })
+  ]);
+
+  const inProgress = matchdays.filter((matchday) =>
+    isMatchdayInProgress(matchday.status)
+  );
+
+  if (inProgress.length > 0) {
+    const preview = inProgress
+      .slice(0, 3)
+      .map(
+        (matchday) =>
+          `${matchday.league.name} g${matchday.number} (${matchday.status})`
+      )
+      .join(", ");
+
+    throw new Error(
+      `Import bloccato: ci sono ${inProgress.length} giornate in corso (${preview}). Pubblica o chiudi le giornate prima di aggiornare la lista giocatori.`
+    );
+  }
+
+  if (openRounds > 0) {
+    throw new Error(
+      `Import bloccato: ${openRounds} giornate di torneo hanno le formazioni aperte o chiuse ma non concluse. Completa il torneo prima di aggiornare la lista giocatori.`
+    );
+  }
 }
 
 async function assertPlayersSafeToWipe() {
@@ -262,10 +338,24 @@ async function syncPlayers(players: ImportedPlayerInput[]) {
     updatedCount += 1;
   }
 
-  const inDbNotInFileCount = existing.filter(
-    (player) =>
-      player.externalId != null && !fileExternalIds.has(player.externalId)
-  ).length;
+  // Usciti dalla lista: disattivati, non cancellati (restano referenziati da
+  // rose, formazioni e voti storici). Da qui parte il freeze: le rose che li
+  // contengono vanno sanate dall'admin prima di aprire nuove formazioni.
+  const outOfFileIds = existing
+    .filter(
+      (player) =>
+        player.externalId != null && !fileExternalIds.has(player.externalId)
+    )
+    .map((player) => player.id);
+
+  if (outOfFileIds.length > 0) {
+    await prisma.player.updateMany({
+      where: { id: { in: outOfFileIds } },
+      data: { isActive: false }
+    });
+  }
+
+  const inDbNotInFileCount = outOfFileIds.length;
 
   const otherSources = await deactivateOrDeleteOtherSources();
 
@@ -286,7 +376,12 @@ export function formatSyncFantacalcioQuotazioniNotice(
     return `Wipe lista completato (mode=wipe). Inseriti: ${result.createdCount} da file (${result.parsedCount} parsed).`;
   }
 
-  return `Sync lista completato (mode=sync). Creati: ${result.createdCount}, aggiornati: ${result.updatedCount}, invariati: ${result.unchangedCount}, inDbNotInFile: ${result.inDbNotInFileCount}. Altre sorgenti: disattivati ${result.otherSourceDeactivatedCount}, eliminati ${result.otherSourceDeletedCount}.`;
+  const freezeHint =
+    result.inDbNotInFileCount > 0
+      ? " Controlla /admin/rose-da-sanare: le formazioni restano chiuse finché le rose non sono allineate."
+      : "";
+
+  return `Sync lista completato (mode=sync). Creati: ${result.createdCount}, aggiornati: ${result.updatedCount}, invariati: ${result.unchangedCount}, disattivati perché fuori lista: ${result.inDbNotInFileCount}. Altre sorgenti: disattivati ${result.otherSourceDeactivatedCount}, eliminati ${result.otherSourceDeletedCount}.${freezeHint}`;
 }
 
 export async function syncFantacalcioQuotazioniCatalogFromBuffer(
@@ -294,6 +389,7 @@ export async function syncFantacalcioQuotazioniCatalogFromBuffer(
 ): Promise<SyncFantacalcioQuotazioniCatalogResult> {
   const parsed: ParsedFantacalcioQuotazioni =
     parseFantacalcioQuotazioniBuffer(buffer);
+  await assertNoGamesInProgress();
   const { mode } = await getCatalogImportMode();
 
   const counts =

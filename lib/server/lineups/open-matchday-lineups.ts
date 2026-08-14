@@ -1,6 +1,7 @@
 import { MatchdayStatus } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
+import { assertRostersAligned } from "../rosters/roster-alignment.ts";
 
 export type OpenMatchdayLineupsResult = {
   leagueId: string;
@@ -15,6 +16,8 @@ export type OpenMatchdayLineupsResult = {
 export async function openMatchdayLineups(
   matchdayId: string
 ): Promise<OpenMatchdayLineupsResult> {
+  await assertRostersAligned();
+
   const matchday = await prisma.matchday.findUnique({
     where: {
       id: matchdayId

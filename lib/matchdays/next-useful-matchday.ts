@@ -23,3 +23,12 @@ export function getNextUsefulMatchday<
 export function isMatchdayPublishedLike(status: MatchdayStatus): boolean {
   return PUBLISHED_LIKE_STATUSES.has(status);
 }
+
+/**
+ * Giornata "in corso": aperta o in lavorazione, non ancora chiusa.
+ * DRAFT = non iniziata, PUBLISHED/LOCKED = finita, tutto il resto è in corso.
+ * Usata per bloccare l'import della lista giocatori a stagione in movimento.
+ */
+export function isMatchdayInProgress(status: MatchdayStatus): boolean {
+  return status !== MatchdayStatus.DRAFT && !isMatchdayPublishedLike(status);
+}

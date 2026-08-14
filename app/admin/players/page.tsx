@@ -192,8 +192,17 @@ export default async function AdminPlayersPage({
             </p>
             <p className="mt-2 text-sm text-slate-600">
               Fine anno: WIPE TORNEO → WIPE LEGHE → upload XLS (wipe lista). Con
-              leghe/tornei presenti l&apos;upload fa sync (upsert, mai delete dei
-              Cod mancanti).
+              leghe/tornei presenti l&apos;upload fa sync: i Cod mancanti non
+              vengono cancellati ma disattivati, e le rose che li contengono
+              vanno sanate da{" "}
+              <Link href="/admin/rose-da-sanare" className="underline">
+                /admin/rose-da-sanare
+              </Link>{" "}
+              prima di poter riaprire le formazioni.
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              L&apos;upload è possibile solo a stagione ferma: nessuna giornata
+              di lega in corso e nessuna giornata di torneo aperta.
             </p>
           </div>
           <div

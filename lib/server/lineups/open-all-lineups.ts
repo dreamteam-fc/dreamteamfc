@@ -2,6 +2,7 @@ import { MatchdayStatus } from "@prisma/client";
 
 import { getNextUsefulMatchday } from "../../matchdays/next-useful-matchday.ts";
 import { prisma } from "../../prisma.ts";
+import { assertRostersAligned } from "../rosters/roster-alignment.ts";
 import {
   openMatchdayLineups,
   type OpenMatchdayLineupsResult
@@ -24,6 +25,10 @@ export type OpenAllLineupsResult = {
  * dashboard / lock-all batch). Opens only when status is DRAFT.
  */
 export async function openAllLineups(): Promise<OpenAllLineupsResult> {
+  // Fail fast: senza questo il freeze scatterebbe una volta per lega,
+  // seppellendo il messaggio in N errori identici.
+  await assertRostersAligned();
+
   const leagues = await prisma.league.findMany({
     orderBy: [{ createdAt: "asc" }, { name: "asc" }],
     select: {

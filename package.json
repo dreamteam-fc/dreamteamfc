@@ -19,6 +19,7 @@
     "players:import-fantacalcio": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/import-fantacalcio-quotazioni.ts",
     "players:import-api-football": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/import-api-football-serie-a-players.ts",
     "schedule:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/manual-schedule-check.ts",
+    "roster-freeze:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/manual-roster-freeze-check.ts",
     "scores:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/manual-scores-check.ts",
     "scoring:check": "node --experimental-strip-types --experimental-default-type=module --experimental-specifier-resolution=node scripts/manual-scoring-check.mjs",
     "prisma:generate": "prisma generate",

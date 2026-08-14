@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma.ts";
+import { assertRostersAligned } from "@/lib/server/rosters/roster-alignment.ts";
 import { autoResolveCompletedSeriesWinners } from "@/lib/server/tournaments/auto-resolve-series-winners.ts";
 import { assertNoPendingTournamentSeriesTies } from "@/lib/server/tournaments/pending-series-ties.ts";
 import { syncTournamentLineupsOpenFlag } from "@/lib/server/tournaments/sync-tournament-lineups-open.ts";
@@ -35,6 +36,7 @@ export async function openTournamentRoundLineups(
   leg: number
 ): Promise<OpenTournamentRoundLineupsResult> {
   assertTournamentLineupLeg(leg);
+  await assertRostersAligned();
 
   const round = await prisma.tournamentRound.findUnique({
     where: { id: roundId },

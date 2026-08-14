@@ -15,6 +15,7 @@ import {
   type RosterPlayerForLineup
 } from "../lineups/generate-random-lineups-for-matchday.ts";
 import { REQUIRED_TOTAL_LINEUP_PLAYERS } from "../lineups/validate-lineup-composition.ts";
+import { assertRostersAligned } from "../rosters/roster-alignment.ts";
 import {
   countReadyPlayableFixturesForLeg,
   getNextUsefulTournamentLeg
@@ -134,6 +135,8 @@ async function persistSubmittedTournamentLineup(
 export async function generateRandomTournamentLineupsForRound(
   options: GenerateRandomTournamentLineupsOptions
 ): Promise<GenerateRandomTournamentLineupsResult> {
+  await assertRostersAligned();
+
   const db = options.db ?? defaultPrisma;
   const force = options.force ?? true;
 
