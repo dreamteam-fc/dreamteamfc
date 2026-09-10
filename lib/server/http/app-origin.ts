@@ -70,6 +70,15 @@ export async function buildAbsoluteAppUrl(pathname: string): Promise<string> {
   return new URL(pathname, await getAppOrigin()).toString();
 }
 
+/**
+ * Builds auth callback URLs from the request host first. This keeps links correct
+ * on localhost, Vercel production and preview deployments without stale app URLs.
+ */
+export async function buildAbsoluteAuthUrl(pathname: string): Promise<string> {
+  const origin = (await getRequestOrigin()) ?? (await getAppOrigin());
+  return new URL(pathname, origin).toString();
+}
+
 export function buildTeamCoachInvitePath(token: string): string {
   return `/me/coach-invites/${token}`;
 }

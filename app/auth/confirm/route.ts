@@ -15,30 +15,58 @@ const SUPPORTED_CONFIRMATION_TYPES = new Set<EmailOtpType>([
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
-  const defaultNextPath = type === "recovery" ? "/reset-password" : "/me";
+  const requestedNextPath = requestUrl.searchParams.get("next");
+  const isRecovery =
+    type === "recovery" || requestedNextPath?.startsWith("/reset-password");
+  const defaultNextPath = isRecovery ? "/reset-password" : "/me";
   const nextPath = getSafeNextPath(
-    requestUrl.searchParams.get("next"),
+    requestedNextPath,
     defaultNextPath
   );
+  const authError =
+    requestUrl.searchParams.get("error_description") ??
+    requestUrl.searchParams.get("error");
 
-  if (!tokenHash || !type || !SUPPORTED_CONFIRMATION_TYPES.has(type as EmailOtpType)) {
+  if (authError) {
     return NextResponse.redirect(
-      new URL(buildLoginPath({ error: "Link non valido o scaduto." }), request.url)
+      new URL(
+        isRecovery
+          ? buildForgotPasswordPath({
+              error: "Link di recupero non valido o scaduto. Richiedine uno nuovo."
+            })
+          : buildLoginPath({ error: "Link di conferma non valido o scaduto." }),
+        request.url
+      )
     );
   }
 
   const { getResponse, supabase } = createSupabaseRouteHandlerClient(request);
-  const { error } = await supabase.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: type as EmailOtpType
-  });
+  let confirmationError: Error | null = null;
 
-  const destinationPath = error
-    ? type === "recovery"
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    confirmationError = error;
+  } else if (
+    tokenHash &&
+    type &&
+    SUPPORTED_CONFIRMATION_TYPES.has(type as EmailOtpType)
+  ) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as EmailOtpType
+    });
+    confirmationError = error;
+  } else {
+    confirmationError = new Error("Missing or unsupported confirmation parameters.");
+  }
+
+  const destinationPath = confirmationError
+    ? isRecovery
       ? buildForgotPasswordPath({
-          error: "Link di recupero non valido o scaduto."
+          error: "Link di recupero non valido o scaduto. Richiedine uno nuovo."
         })
       : buildLoginPath({ error: "Link di conferma non valido o scaduto." })
     : nextPath;

@@ -10,7 +10,7 @@ import {
   ensureAppUserForAuthUser,
   getSafeNextPath
 } from "@/lib/auth/app-user";
-import { buildAbsoluteAppUrl } from "@/lib/server/http/app-origin.ts";
+import { buildAbsoluteAuthUrl } from "@/lib/server/http/app-origin.ts";
 import { createSupabaseServerClient } from "@/lib/supabase/server.ts";
 
 function redirectToLogin(
@@ -179,7 +179,7 @@ export async function signupAction(formData: FormData) {
   );
 
   const supabase = await createSupabaseServerClient();
-  const emailRedirectTo = await buildAbsoluteAppUrl(
+  const emailRedirectTo = await buildAbsoluteAuthUrl(
     `/auth/confirm?next=${encodeURIComponent(nextPath)}`
   );
   const metadata =
@@ -273,14 +273,20 @@ export async function forgotPasswordAction(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const resetNextPath = buildResetPasswordPath({ next: nextPath });
-  const redirectTo = await buildAbsoluteAppUrl(
-    `/auth/confirm?next=${encodeURIComponent(resetNextPath)}`
+  const redirectTo = await buildAbsoluteAuthUrl(
+    `/auth/confirm?next=${encodeURIComponent("/reset-password")}`
   );
 
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo
   });
+
+  if (error) {
+    redirectToForgotPassword({
+      error: "Impossibile inviare il link di recupero. Riprova tra qualche minuto.",
+      next: nextPath
+    });
+  }
 
   redirectToForgotPassword({
     notice: "Se l'email esiste, riceverai le istruzioni.",
