@@ -95,6 +95,7 @@ import {
   openAllLineups
 } from "@/lib/server/lineups/open-all-lineups.ts";
 import { openMatchdayLineups } from "@/lib/server/lineups/open-matchday-lineups.ts";
+import { reopenMatchdayLineups } from "@/lib/server/lineups/reopen-matchday-lineups.ts";
 
 const VOTE_FIELD_NAMES = [
   "assists",
@@ -1736,6 +1737,27 @@ export async function lockLineupsAction(matchdayId: string, _formData: FormData)
         error instanceof Error
           ? error.message
           : "Chiusura formazioni non riuscita."
+    });
+  }
+}
+
+export async function reopenLineupsAction(formData: FormData) {
+  await assertAdminAction();
+  const matchdayId = readRequiredString(formData, "matchdayId");
+
+  try {
+    const result = await reopenMatchdayLineups(matchdayId);
+
+    revalidateAdminPaths(result.matchdayId, result.leagueId);
+    redirectWithMessage(buildAdminMatchdayPath(result.matchdayId), {
+      notice: `Formazioni riaperte per la giornata ${result.matchdayNumber}.`
+    });
+  } catch (error) {
+    redirectWithMessage(buildAdminMatchdayPath(matchdayId), {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Riapertura formazioni non riuscita."
     });
   }
 }

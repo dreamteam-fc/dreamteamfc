@@ -19,6 +19,8 @@ export function SerwistProvider({ children }: SerwistProviderProps) {
   return (
     <Provider
       swUrl="/serwist/sw.js"
+      // SW + HMR in `next dev` causes endless full reloads; PWA only in production.
+      disable={process.env.NODE_ENV === "development"}
       // Avoid caching navigations of authenticated App Router pages.
       cacheOnNavigation={false}
       reloadOnOnline

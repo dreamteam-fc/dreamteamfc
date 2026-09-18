@@ -1,23 +1,20 @@
 import { MatchdayStatus } from "@prisma/client";
 
 import { prisma } from "../../prisma.ts";
-import { assertRostersAligned } from "../rosters/roster-alignment.ts";
 
-export type OpenMatchdayLineupsResult = {
+export type ReopenMatchdayLineupsResult = {
   leagueId: string;
   matchdayId: string;
   matchdayNumber: number;
 };
 
 /**
- * Open lineups for a single matchday: DRAFT → LINEUPS_OPEN.
- * Controlled reopen from LINEUPS_LOCKED uses reopenMatchdayLineups instead.
+ * Controlled rollback of lineup status only: LINEUPS_LOCKED → LINEUPS_OPEN.
+ * Does not delete lineups, votes, scores, fixtures, or standings.
  */
-export async function openMatchdayLineups(
+export async function reopenMatchdayLineups(
   matchdayId: string
-): Promise<OpenMatchdayLineupsResult> {
-  await assertRostersAligned();
-
+): Promise<ReopenMatchdayLineupsResult> {
   const matchday = await prisma.matchday.findUnique({
     where: {
       id: matchdayId
@@ -34,8 +31,10 @@ export async function openMatchdayLineups(
     throw new Error("Giornata non trovata.");
   }
 
-  if (matchday.status !== MatchdayStatus.DRAFT) {
-    throw new Error("Puoi aprire le formazioni solo da stato DRAFT.");
+  if (matchday.status !== MatchdayStatus.LINEUPS_LOCKED) {
+    throw new Error(
+      "Le formazioni possono essere riaperte solo se la giornata è chiusa e non è ancora iniziata la fase voti."
+    );
   }
 
   await prisma.matchday.update({

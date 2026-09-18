@@ -10,9 +10,11 @@ import {
   generateRequiredVotePlayersAction,
   lockLineupsAction,
   openLineupsAction,
-  publishMatchdayAction
+  publishMatchdayAction,
+  reopenLineupsAction
 } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { ConfirmForm } from "@/components/admin/confirm-form";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { getAdminMatchdayDetailData } from "@/lib/server/admin/read-admin-data";
 
@@ -296,6 +298,19 @@ export default async function AdminMatchdayDetailPage({
                   Genera lista voti richiesti
                 </button>
               </ActionForm>
+
+              <ConfirmForm
+                action={reopenLineupsAction}
+                confirmMessage="Sei sicuro di voler riaprire le formazioni? Tutti gli utenti potranno modificarle finché non verranno richiuse."
+              >
+                <input type="hidden" name="matchdayId" value={matchday.id} />
+                <button
+                  type="submit"
+                  className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 transition hover:border-amber-400 hover:bg-amber-100"
+                >
+                  Riapri formazioni
+                </button>
+              </ConfirmForm>
             </>
           ) : null}
 
@@ -457,9 +472,17 @@ export default async function AdminMatchdayDetailPage({
         ) : null}
 
         {matchday.status === MatchdayStatus.LINEUPS_LOCKED ? (
-          <p className="mt-4 text-sm text-slate-600">
-            Le formazioni sono chiuse. Da qui puoi proseguire con voti e punteggi.
-          </p>
+          <>
+            <p className="mt-4 text-sm text-amber-700">
+              Attenzione: riaprendo le formazioni, tutti gli utenti della lega
+              potranno modificarle finché non verranno richiuse. Usa questa
+              funzione solo per correggere errori prima della fase voti.
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Le formazioni sono chiuse. Da qui puoi proseguire con voti e
+              punteggi.
+            </p>
+          </>
         ) : null}
 
         {matchday.status === MatchdayStatus.LOCKED ? (
